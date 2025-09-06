@@ -30,6 +30,7 @@ CREATE TABLE fox_ss
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id    INTEGER NOT NULL DEFAULT 0,
     order_id   TEXT    NOT NULL DEFAULT '',
+    type       TEXT    NOT NULL DEFAULT '' CHECK (status IN ('open', 'close')),
     schema     TEXT,
     status     TEXT    NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting', 'pending', 'filled', 'cancelled')),
     created_at TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),

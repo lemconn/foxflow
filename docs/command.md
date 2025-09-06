@@ -21,19 +21,22 @@
   - 标的 symbols（每个交易所独立增加，可批量增加，可选参数 杠杆/全逐仓）
   - 策略订单 ss
 
-- 关闭 close
-    - 仓位 positions
-    - 策略订单 ss
+- 关闭 close 
+    - 策略订单 ss（平仓，可支持策略）
+
+- 取消 cancel
+    - 策略订单 ss（取消远程订单/策略订单）
 
 - 删除 delete
     - 用户 users
     - 标的 symbols（每个交易所独立增加，可批量增加，可选参数 杠杆/全逐仓）
-    - 策略订单 ss 
+    
 
 ```code
 foxflow[okx:user1]> create users username=user1 ak=xxxx sk=xxxx trade_type=xxxx
 foxflow[okx:user1]> create users --username=user1 --ak=xxxx --sk=xxxx --trade_type=xxxx
 foxflow[okx:user1]> create ss --symbol=BTC/USDT --side=buy --posSide=long --px=200 --sz=10 --stry=s1:v>100
+foxflow[okx:user1]> close ss --symbol=BTC/USDT --px=200 --sz=10 --stry=s1:v>100
 ```
 
 
