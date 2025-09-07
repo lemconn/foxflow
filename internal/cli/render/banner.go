@@ -17,7 +17,9 @@ func RenderBanner(version string) string {
   ██║     ╚██████╔╝██╔╝ ██╗██║     ███████╗╚██████╔╝╚███╔███╔╝
   ╚═╝      ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚══════╝ ╚═════╝  ╚══╝╚══╝
                                                version: %s
+  %s
 ================================================================
 `
-	return fmt.Sprintf(lines, utils.MessageGreen(version))
+	
+	return fmt.Sprintf(lines, utils.MessageGreen(version), utils.MessageBlue("欢迎使用 FoxFlow 策略下单系统"))
 }

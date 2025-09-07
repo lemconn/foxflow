@@ -2,7 +2,6 @@ package database
 
 import (
 	"fmt"
-	"foxflow/pkg/utils"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -41,13 +40,11 @@ func InitDB() error {
 		if err := initDatabaseFromSQL(); err != nil {
 			return fmt.Errorf("failed to initialize database: %w", err)
 		}
-		fmt.Println(utils.RenderSuccess("数据库初始化完成"))
 	} else {
 		// 如果数据库已存在，只进行轻量级的迁移检查
 		if err := checkAndMigrateTables(); err != nil {
 			return fmt.Errorf("failed to check database schema: %w", err)
 		}
-		fmt.Println(utils.RenderSuccess("数据库迁移完成"))
 	}
 
 	return nil
@@ -111,8 +108,9 @@ func runDataMigrations() error {
 // insertDefaultExchanges 插入默认交易所数据（存在则不做任何处理，不存在则添加）
 func insertDefaultExchanges() {
 	exchanges := []models.FoxExchange{
-		{Name: "okx", APIURL: "https://www.okx.com", ProxyURL: "http://127.0.0.1:7890", Status: "active"},
-		{Name: "binance", APIURL: "https://api.binance.com", ProxyURL: "http://127.0.0.1:7890", Status: "active"},
+		{Name: "okx", APIURL: "https://www.okx.com", ProxyURL: "http://127.0.0.1:7890", Status: "inactive", IsActive: false},
+		{Name: "binance", APIURL: "https://api.binance.com", ProxyURL: "http://127.0.0.1:7890", Status: "inactive", IsActive: false},
+		{Name: "gate", APIURL: "https://api.gateio.ws", ProxyURL: "http://127.0.0.1:7890", Status: "inactive", IsActive: false},
 	}
 
 	for _, exchange := range exchanges {

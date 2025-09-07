@@ -8,11 +8,12 @@ import (
 type FoxUser struct {
 	ID        uint   `gorm:"primaryKey" json:"id"`
 	Username  string `gorm:"not null;default:''" json:"username"`
-	Exchange  string `gorm:"not null;default:'binance';check:exchange IN ('binance', 'okx')" json:"exchange"`
+	Exchange  string `gorm:"not null;default:'binance';check:exchange IN ('binance', 'okx', 'gate')" json:"exchange"`
 	AccessKey string `gorm:"not null;default:''" json:"access_key"`
 	SecretKey string `gorm:"not null;default:''" json:"secret_key"`
-	Status    string `gorm:"not null;default:'active';check:status IN ('active', 'inactive')" json:"status"`
+	Status    string `gorm:"not null;default:'inactive';check:status IN ('active', 'inactive')" json:"status"`
 	TradeType string `gorm:"not null;default:'';check:trade_type IN ('mock', 'real')" json:"trade_type"`
+	IsActive  bool   `gorm:"not null;default:false" json:"is_active"` // 新增：是否激活状态
 	CreatedAt string `gorm:"not null;default:''" json:"created_at"`
 	UpdatedAt string `gorm:"not null;default:''" json:"updated_at"`
 }
@@ -66,7 +67,8 @@ type FoxExchange struct {
 	Name      string `gorm:"not null;default:'';unique" json:"name"`
 	APIURL    string `gorm:"not null;default:''" json:"api_url"`
 	ProxyURL  string `gorm:"not null;default:''" json:"proxy_url"`
-	Status    string `gorm:"not null;default:'active';check:status IN ('active', 'inactive')" json:"status"`
+	Status    string `gorm:"not null;default:'inactive';check:status IN ('active', 'inactive')" json:"status"`
+	IsActive  bool   `gorm:"not null;default:false" json:"is_active"` // 新增：是否激活状态
 	CreatedAt string `gorm:"not null;default:''" json:"created_at"`
 	UpdatedAt string `gorm:"not null;default:''" json:"updated_at"`
 }

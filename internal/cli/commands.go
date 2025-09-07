@@ -41,12 +41,15 @@ func (c *ShowCommand) Execute(ctx *Context, args []string) error {
 	}
 
 	db := database.GetDB()
-	exchangeManager := exchange.GetManager()
 
 	switch args[0] {
 	case "exchanges":
-		exchanges := exchangeManager.GetAvailableExchanges()
-		fmt.Println(cliRender.RenderExchanges(exchanges))
+		var exchanges []models.FoxExchange
+		if err := db.Find(&exchanges).Error; err != nil {
+			return fmt.Errorf("failed to get exchanges: %w", err)
+		}
+
+		fmt.Println(cliRender.RenderExchangesWithStatus(exchanges))
 
 	case "users":
 		var users []models.FoxUser
@@ -137,17 +140,39 @@ func (c *UseCommand) Execute(ctx *Context, args []string) error {
 	}
 
 	db := database.GetDB()
-	exchangeManager := exchange.GetManager()
 
 	switch args[0] {
 	case "exchanges":
 		exchangeName := args[1]
-		ex, err := exchangeManager.GetExchange(exchangeName)
+
+		// 将所有交易所设置为非激活状态
+		if err := db.Model(&models.FoxExchange{}).Where("1 = 1").Update("is_active", false).Error; err != nil {
+			return fmt.Errorf("failed to deactivate exchanges: %w", err)
+		}
+
+		// 将所有用户设置为非激活状态
+		if err := db.Model(&models.FoxUser{}).Where("1 = 1").Update("is_active", false).Error; err != nil {
+			return fmt.Errorf("failed to deactivate users: %w", err)
+		}
+
+		// 断开当前交易所连接
+		if ctx.GetExchange() != "" {
+			exchange.GetManager().DisconnectUser(ctx.GetExchange())
+		}
+
+		// 激活选中的交易所
+		if err := db.Model(&models.FoxExchange{}).Where("name = ?", exchangeName).Update("is_active", true).Error; err != nil {
+			return fmt.Errorf("failed to activate exchange: %w", err)
+		}
+
+		// 设置新的交易所
+		ex, err := exchange.GetManager().GetExchange(exchangeName)
 		if err != nil {
 			return fmt.Errorf("exchange not found: %s", exchangeName)
 		}
 		ctx.SetExchange(exchangeName)
 		ctx.SetExchangeInstance(ex)
+		ctx.SetUser(nil) // 清除当前用户
 		fmt.Println(utils.RenderSuccess(fmt.Sprintf("已激活交易所: %s", exchangeName)))
 
 	case "users":
@@ -157,16 +182,46 @@ func (c *UseCommand) Execute(ctx *Context, args []string) error {
 			return fmt.Errorf("user not found: %s", username)
 		}
 
-		// 连接用户到当前交易所
-		if ctx.GetExchange() != "" {
-			ex, err := exchangeManager.GetExchange(ctx.GetExchange())
+		// 将所有用户设置为非激活状态
+		if err := db.Model(&models.FoxUser{}).Where("1 = 1").Update("is_active", false).Error; err != nil {
+			return fmt.Errorf("failed to deactivate users: %w", err)
+		}
+
+		// 如果用户属于不同的交易所，需要切换交易所
+		if ctx.GetExchange() != "" && ctx.GetExchange() != user.Exchange {
+			// 将所有交易所设置为非激活状态
+			if err := db.Model(&models.FoxExchange{}).Where("1 = 1").Update("is_active", false).Error; err != nil {
+				return fmt.Errorf("failed to deactivate exchanges: %w", err)
+			}
+
+			// 断开当前交易所连接
+			exchange.GetManager().DisconnectUser(ctx.GetExchange())
+
+			// 切换到用户所属的交易所
+			ex, err := exchange.GetManager().GetExchange(user.Exchange)
 			if err != nil {
 				return fmt.Errorf("failed to get exchange: %w", err)
 			}
-			if err := ex.Connect(ctx.GetContext(), &user); err != nil {
+
+			// 激活用户所属的交易所
+			if err := db.Model(&models.FoxExchange{}).Where("name = ?", user.Exchange).Update("is_active", true).Error; err != nil {
+				return fmt.Errorf("failed to activate exchange: %w", err)
+			}
+
+			ctx.SetExchange(user.Exchange)
+			ctx.SetExchangeInstance(ex)
+		}
+
+		// 激活选中的用户
+		if err := db.Model(&models.FoxUser{}).Where("username = ?", username).Update("is_active", true).Error; err != nil {
+			return fmt.Errorf("failed to activate user: %w", err)
+		}
+
+		// 连接用户到交易所
+		if ctx.GetExchange() != "" {
+			if err := exchange.GetManager().ConnectUser(ctx.GetContext(), ctx.GetExchange(), &user); err != nil {
 				return fmt.Errorf("failed to connect user: %w", err)
 			}
-			ctx.SetExchangeInstance(ex)
 		}
 
 		ctx.SetUser(&user)

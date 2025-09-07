@@ -58,7 +58,7 @@ func NewCLI() (*CLI, error) {
 func (c *CLI) Run() error {
 	defer c.rl.Close()
 
-	fmt.Println(utils.RenderInfo("欢迎使用 FoxFlow 策略下单系统"))
+	fmt.Println(utils.RenderSuccess("数据库初始化完成"))
 	fmt.Println(utils.RenderInfo("输入 'help' 查看可用命令"))
 	fmt.Println(utils.RenderInfo("输入 'exit' 或 'quit' 退出程序"))
 	fmt.Println()
