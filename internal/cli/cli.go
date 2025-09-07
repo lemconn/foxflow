@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"foxflow/pkg/utils"
+
 	"github.com/chzyer/readline"
 )
 
@@ -54,9 +56,9 @@ func NewCLI() (*CLI, error) {
 func (c *CLI) Run() error {
 	defer c.rl.Close()
 
-	fmt.Println("欢迎使用 FoxFlow 策略下单系统")
-	fmt.Println("输入 'help' 查看可用命令")
-	fmt.Println("输入 'exit' 退出程序")
+	fmt.Println(utils.RenderInfo("欢迎使用 FoxFlow 策略下单系统"))
+	fmt.Println(utils.RenderInfo("输入 'help' 查看可用命令"))
+	fmt.Println(utils.RenderInfo("输入 'exit' 退出程序"))
 	fmt.Println()
 
 	for {
@@ -87,7 +89,7 @@ func (c *CLI) Run() error {
 			if err.Error() == "exit" {
 				break
 			}
-			fmt.Printf("错误: %v\n", err)
+			fmt.Println(utils.RenderError(fmt.Sprintf("错误: %v", err)))
 		}
 	}
 

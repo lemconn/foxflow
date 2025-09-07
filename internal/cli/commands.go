@@ -8,6 +8,7 @@ import (
 	"foxflow/internal/database"
 	"foxflow/internal/exchange"
 	"foxflow/internal/models"
+	"foxflow/pkg/utils"
 )
 
 // Command 命令接口
@@ -44,81 +45,57 @@ func (c *ShowCommand) Execute(ctx *Context, args []string) error {
 	switch args[0] {
 	case "exchanges":
 		exchanges := exchangeManager.GetAvailableExchanges()
-		fmt.Println("可用交易所:")
-		for _, ex := range exchanges {
-			fmt.Printf("  - %s\n", ex)
-		}
+		fmt.Println(utils.RenderExchanges(exchanges))
 
 	case "users":
 		var users []models.FoxUser
 		if err := db.Find(&users).Error; err != nil {
 			return fmt.Errorf("failed to get users: %w", err)
 		}
-		fmt.Println("用户列表:")
-		for _, user := range users {
-			fmt.Printf("  - %s (%s) [%s]\n", user.Username, user.Exchange, user.Status)
-		}
+		fmt.Println(utils.RenderUsers(users))
 
 	case "assets":
 		if !ctx.IsReady() {
-			return fmt.Errorf("请先选择交易所和用户")
+			return fmt.Errorf(utils.RenderError("请先选择交易所和用户"))
 		}
 		assets, err := ctx.GetExchangeInstance().GetBalance(ctx.GetContext())
 		if err != nil {
 			return fmt.Errorf("failed to get assets: %w", err)
 		}
-		fmt.Println("资产列表:")
-		for _, asset := range assets {
-			fmt.Printf("  - %s: %.4f (可用: %.4f, 冻结: %.4f)\n",
-				asset.Currency, asset.Balance, asset.Available, asset.Frozen)
-		}
+		fmt.Println(utils.RenderAssets(assets))
 
 	case "orders":
 		if !ctx.IsReady() {
-			return fmt.Errorf("请先选择交易所和用户")
+			return fmt.Errorf(utils.RenderError("请先选择交易所和用户"))
 		}
 		orders, err := ctx.GetExchangeInstance().GetOrders(ctx.GetContext(), "", "pending")
 		if err != nil {
 			return fmt.Errorf("failed to get orders: %w", err)
 		}
-		fmt.Println("未成交订单:")
-		for _, order := range orders {
-			fmt.Printf("  - %s %s %s %.4f @ %.2f [%s]\n",
-				order.ID, order.Symbol, order.Side, order.Size, order.Price, order.Status)
-		}
+		fmt.Println(utils.RenderOrders(orders))
 
 	case "positions":
 		if !ctx.IsReady() {
-			return fmt.Errorf("请先选择交易所和用户")
+			return fmt.Errorf(utils.RenderError("请先选择交易所和用户"))
 		}
 		positions, err := ctx.GetExchangeInstance().GetPositions(ctx.GetContext())
 		if err != nil {
 			return fmt.Errorf("failed to get positions: %w", err)
 		}
-		fmt.Println("未平仓仓位:")
-		for _, pos := range positions {
-			fmt.Printf("  - %s %s %.4f @ %.2f (未实现盈亏: %.2f)\n",
-				pos.Symbol, pos.PosSide, pos.Size, pos.AvgPrice, pos.UnrealPnl)
-		}
+		fmt.Println(utils.RenderPositions(positions))
 
 	case "strategies":
-		fmt.Println("可用策略:")
-		fmt.Println("  - volume: 成交量策略")
-		fmt.Println("  - macd: MACD策略")
-		fmt.Println("  - rsi: RSI策略")
+		fmt.Println(utils.RenderStrategies())
 
 	case "symbols":
 		if !ctx.IsReady() {
-			return fmt.Errorf("请先选择交易所和用户")
+			return fmt.Errorf(utils.RenderError("请先选择交易所和用户"))
 		}
 		symbols, err := ctx.GetExchangeInstance().GetSymbols(ctx.GetContext())
 		if err != nil {
 			return fmt.Errorf("failed to get symbols: %w", err)
 		}
-		fmt.Println("交易对列表:")
-		for _, symbol := range symbols {
-			fmt.Printf("  - %s\n", symbol)
-		}
+		fmt.Println(utils.RenderSymbols(symbols))
 
 	case "ss":
 		var ss []models.FoxSS
@@ -129,11 +106,7 @@ func (c *ShowCommand) Execute(ctx *Context, args []string) error {
 		if err := query.Find(&ss).Error; err != nil {
 			return fmt.Errorf("failed to get strategy orders: %w", err)
 		}
-		fmt.Println("策略订单列表:")
-		for _, s := range ss {
-			fmt.Printf("  - ID:%d %s %s %s %.4f @ %.2f [%s] 策略:%s\n",
-				s.ID, s.Symbol, s.Side, s.PosSide, s.Sz, s.Px, s.Status, s.Strategy)
-		}
+		fmt.Println(utils.RenderStrategyOrders(ss))
 
 	default:
 		return fmt.Errorf("unknown show type: %s", args[0])
@@ -174,7 +147,7 @@ func (c *UseCommand) Execute(ctx *Context, args []string) error {
 		}
 		ctx.SetExchange(exchangeName)
 		ctx.SetExchangeInstance(ex)
-		fmt.Printf("已激活交易所: %s\n", exchangeName)
+		fmt.Println(utils.RenderSuccess(fmt.Sprintf("已激活交易所: %s", exchangeName)))
 
 	case "users":
 		username := args[1]
@@ -196,7 +169,7 @@ func (c *UseCommand) Execute(ctx *Context, args []string) error {
 		}
 
 		ctx.SetUser(&user)
-		fmt.Printf("已激活用户: %s\n", username)
+		fmt.Println(utils.RenderSuccess(fmt.Sprintf("已激活用户: %s", username)))
 
 	default:
 		return fmt.Errorf("unknown use type: %s", args[0])
@@ -273,7 +246,7 @@ func (c *CreateCommand) createUser(ctx *Context, args []string) error {
 		return fmt.Errorf("failed to create user: %w", err)
 	}
 
-	fmt.Printf("用户创建成功: %s\n", user.Username)
+	fmt.Println(utils.RenderSuccess(fmt.Sprintf("用户创建成功: %s", user.Username)))
 	return nil
 }
 
@@ -312,7 +285,7 @@ func (c *CreateCommand) createSymbol(ctx *Context, args []string) error {
 		return fmt.Errorf("failed to create symbol: %w", err)
 	}
 
-	fmt.Printf("标的创建成功: %s\n", symbol.Name)
+	fmt.Println(utils.RenderSuccess(fmt.Sprintf("标的创建成功: %s", symbol.Name)))
 	return nil
 }
 
@@ -367,10 +340,10 @@ func (c *CreateCommand) createStrategyOrder(ctx *Context, args []string) error {
 	if strategy == "" {
 		// 这里应该直接提交到交易所
 		order.Status = "pending"
-		fmt.Println("订单将直接提交到交易所")
+		fmt.Println(utils.RenderInfo("订单将直接提交到交易所"))
 	} else {
 		order.Strategy = strategy
-		fmt.Println("策略订单已创建，等待策略条件满足")
+		fmt.Println(utils.RenderInfo("策略订单已创建，等待策略条件满足"))
 	}
 
 	db := database.GetDB()
@@ -378,7 +351,7 @@ func (c *CreateCommand) createStrategyOrder(ctx *Context, args []string) error {
 		return fmt.Errorf("failed to create strategy order: %w", err)
 	}
 
-	fmt.Printf("策略订单创建成功: ID=%d\n", order.ID)
+	fmt.Println(utils.RenderSuccess(fmt.Sprintf("策略订单创建成功: ID=%d", order.ID)))
 	return nil
 }
 
@@ -413,12 +386,12 @@ func (c *UpdateCommand) Execute(ctx *Context, args []string) error {
 			return fmt.Errorf("invalid leverage value")
 		}
 		// 这里应该调用交易所API设置杠杆
-		fmt.Printf("杠杆设置为: %d\n", leverage)
+		fmt.Println(utils.RenderSuccess(fmt.Sprintf("杠杆设置为: %d", leverage)))
 
 	case "margin-type":
 		marginType := args[1]
 		// 这里应该调用交易所API设置保证金模式
-		fmt.Printf("保证金模式设置为: %s\n", marginType)
+		fmt.Println(utils.RenderSuccess(fmt.Sprintf("保证金模式设置为: %s", marginType)))
 
 	default:
 		return fmt.Errorf("unknown update type: %s", args[0])
@@ -479,7 +452,7 @@ func (c *CancelCommand) Execute(ctx *Context, args []string) error {
 		return fmt.Errorf("failed to update order: %w", err)
 	}
 
-	fmt.Printf("订单已取消: ID=%d\n", order.ID)
+	fmt.Println(utils.RenderSuccess(fmt.Sprintf("订单已取消: ID=%d", order.ID)))
 	return nil
 }
 
@@ -511,7 +484,7 @@ func (c *DeleteCommand) Execute(ctx *Context, args []string) error {
 		if err := db.Where("username = ?", username).Delete(&models.FoxUser{}).Error; err != nil {
 			return fmt.Errorf("failed to delete user: %w", err)
 		}
-		fmt.Printf("用户已删除: %s\n", username)
+		fmt.Println(utils.RenderSuccess(fmt.Sprintf("用户已删除: %s", username)))
 
 	case "symbols":
 		if !ctx.IsReady() {
@@ -521,7 +494,7 @@ func (c *DeleteCommand) Execute(ctx *Context, args []string) error {
 		if err := db.Where("name = ? AND user_id = ?", symbolName, ctx.GetUser().ID).Delete(&models.FoxSymbol{}).Error; err != nil {
 			return fmt.Errorf("failed to delete symbol: %w", err)
 		}
-		fmt.Printf("标的已删除: %s\n", symbolName)
+		fmt.Println(utils.RenderSuccess(fmt.Sprintf("标的已删除: %s", symbolName)))
 
 	default:
 		return fmt.Errorf("unknown delete type: %s", args[0])
