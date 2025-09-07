@@ -30,3 +30,6 @@ go.work.sum
 # Editor/IDE
 .idea/
 .vscode/
+bin/
+.foxflow.db
+.foxflow.history
