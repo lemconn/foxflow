@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	cliRender "foxflow/internal/cli/render"
 	"foxflow/internal/database"
 	"foxflow/internal/exchange"
 	"foxflow/internal/models"
@@ -48,14 +49,14 @@ func (c *ShowCommand) Execute(ctx *Context, args []string) error {
 			return fmt.Errorf("failed to get exchanges: %w", err)
 		}
 
-		fmt.Println(utils.RenderExchangesWithStatus(exchanges))
+		fmt.Println(cliRender.RenderExchangesWithStatus(exchanges))
 
 	case "users":
 		var users []models.FoxUser
 		if err := db.Find(&users).Error; err != nil {
 			return fmt.Errorf("failed to get users: %w", err)
 		}
-		fmt.Println(utils.RenderUsers(users))
+		fmt.Println(cliRender.RenderUsers(users))
 
 	case "assets":
 		if !ctx.IsReady() {
@@ -65,7 +66,7 @@ func (c *ShowCommand) Execute(ctx *Context, args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to get assets: %w", err)
 		}
-		fmt.Println(utils.RenderAssets(assets))
+		fmt.Println(cliRender.RenderAssets(assets))
 
 	case "orders":
 		if !ctx.IsReady() {
@@ -75,7 +76,7 @@ func (c *ShowCommand) Execute(ctx *Context, args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to get orders: %w", err)
 		}
-		fmt.Println(utils.RenderOrders(orders))
+		fmt.Println(cliRender.RenderOrders(orders))
 
 	case "positions":
 		if !ctx.IsReady() {
@@ -85,10 +86,10 @@ func (c *ShowCommand) Execute(ctx *Context, args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to get positions: %w", err)
 		}
-		fmt.Println(utils.RenderPositions(positions))
+		fmt.Println(cliRender.RenderPositions(positions))
 
 	case "strategies":
-		fmt.Println(utils.RenderStrategies())
+		fmt.Println(cliRender.RenderStrategies())
 
 	case "symbols":
 		if !ctx.IsReady() {
@@ -98,7 +99,7 @@ func (c *ShowCommand) Execute(ctx *Context, args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to get symbols: %w", err)
 		}
-		fmt.Println(utils.RenderSymbols(symbols))
+		fmt.Println(cliRender.RenderSymbols(symbols))
 
 	case "ss":
 		var ss []models.FoxSS
@@ -109,7 +110,7 @@ func (c *ShowCommand) Execute(ctx *Context, args []string) error {
 		if err := query.Find(&ss).Error; err != nil {
 			return fmt.Errorf("failed to get strategy orders: %w", err)
 		}
-		fmt.Println(utils.RenderStrategyOrders(ss))
+		fmt.Println(cliRender.RenderStrategyOrders(ss))
 
 	default:
 		return fmt.Errorf("unknown show type: %s", args[0])

@@ -29,7 +29,7 @@ func InitDB() error {
 	// 连接数据库
 	var err error
 	DB, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to connect database: %w", err)
@@ -70,57 +70,42 @@ func initDatabaseFromSQL() error {
 
 // checkAndMigrateTables 检查并迁移表结构
 func checkAndMigrateTables() error {
-	// 检查必要的表是否存在，如果不存在则创建
+	// 使用 AutoMigrate 对所有模型进行无损迁移（新增字段/索引等），不影响既有数据
+	if err := DB.AutoMigrate(
+		&models.FoxUser{},
+		&models.FoxSymbol{},
+		&models.FoxSS{},
+		&models.FoxExchange{},
+		&models.FoxStrategy{},
+	); err != nil {
+		return fmt.Errorf("failed to auto migrate: %w", err)
+	}
+
+	// 表为空时插入默认数据
 	var count int64
-
-	// 检查 fox_users 表
-	DB.Raw("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='fox_users'").Scan(&count)
+	DB.Model(&models.FoxExchange{}).Count(&count)
 	if count == 0 {
-		if err := DB.AutoMigrate(&models.FoxUser{}); err != nil {
-			return fmt.Errorf("failed to create fox_users table: %w", err)
-		}
-	}
-
-	// 检查 fox_symbols 表
-	DB.Raw("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='fox_symbols'").Scan(&count)
-	if count == 0 {
-		if err := DB.AutoMigrate(&models.FoxSymbol{}); err != nil {
-			return fmt.Errorf("failed to create fox_symbols table: %w", err)
-		}
-	}
-
-	// 检查 fox_ss 表
-	DB.Raw("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='fox_ss'").Scan(&count)
-	if count == 0 {
-		if err := DB.AutoMigrate(&models.FoxSS{}); err != nil {
-			return fmt.Errorf("failed to create fox_ss table: %w", err)
-		}
-	}
-
-	// 检查 fox_exchanges 表
-	DB.Raw("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='fox_exchanges'").Scan(&count)
-	if count == 0 {
-		if err := DB.AutoMigrate(&models.FoxExchange{}); err != nil {
-			return fmt.Errorf("failed to create fox_exchanges table: %w", err)
-		}
-		// 插入默认数据
 		insertDefaultExchanges()
 	}
-
-	// 检查 fox_strategies 表
-	DB.Raw("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='fox_strategies'").Scan(&count)
+	DB.Model(&models.FoxStrategy{}).Count(&count)
 	if count == 0 {
-		if err := DB.AutoMigrate(&models.FoxStrategy{}); err != nil {
-			return fmt.Errorf("failed to create fox_strategies table: %w", err)
-		}
-		// 插入默认数据
 		insertDefaultStrategies()
+	}
+
+	// 执行需要的手工数据迁移（若有）。该过程应幂等
+	if err := runDataMigrations(); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-// insertDefaultExchanges 插入默认交易所数据
+// runDataMigrations 执行需要的手工数据迁移（如字段拆分、数据回填等），保证可重复执行且不影响已有数据
+func runDataMigrations() error {
+	return nil
+}
+
+// insertDefaultExchanges 插入默认交易所数据（存在则不做任何处理，不存在则添加）
 func insertDefaultExchanges() {
 	exchanges := []models.FoxExchange{
 		{Name: "okx", APIURL: "https://www.okx.com", ProxyURL: "http://127.0.0.1:7890", Status: "inactive", IsActive: false},
@@ -133,7 +118,7 @@ func insertDefaultExchanges() {
 	}
 }
 
-// insertDefaultStrategies 插入默认策略数据
+// insertDefaultStrategies 插入默认策略数据（存在则不做任何处理，不存在则添加）
 func insertDefaultStrategies() {
 	strategies := []models.FoxStrategy{
 		{Name: "volume", Description: "成交量策略", Parameters: `{"threshold": 100}`, Status: "active"},

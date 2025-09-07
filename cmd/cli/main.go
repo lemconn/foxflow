@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"foxflow/internal/cli/render"
+	"foxflow/pkg/utils"
 	"log"
 	"os"
 
@@ -10,6 +13,10 @@ import (
 )
 
 func main() {
+
+	// 输出产品
+	fmt.Println(render.RenderBanner(config.Version))
+
 	// 加载配置
 	if err := config.LoadConfig(); err != nil {
 		log.Fatalf("Failed to load config: %v", err)
@@ -19,6 +26,8 @@ func main() {
 	if err := database.InitDB(); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
+	fmt.Println(utils.RenderSuccess("数据库初始化完成"))
+	fmt.Println(utils.RenderInfo("输入 'help' 查看可用命令"))
 
 	// 创建CLI实例
 	cliInstance, err := cli.NewCLI()

@@ -7,6 +7,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const Version = "v0.1.0"
+
 type Config struct {
 	DBPath   string
 	ProxyURL string
