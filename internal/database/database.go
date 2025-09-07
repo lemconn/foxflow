@@ -123,8 +123,9 @@ func checkAndMigrateTables() error {
 // insertDefaultExchanges 插入默认交易所数据
 func insertDefaultExchanges() {
 	exchanges := []models.FoxExchange{
-		{Name: "okx", APIURL: "https://www.okx.com", ProxyURL: "http://127.0.0.1:7890", Status: "active"},
-		{Name: "binance", APIURL: "https://api.binance.com", ProxyURL: "http://127.0.0.1:7890", Status: "active"},
+		{Name: "okx", APIURL: "https://www.okx.com", ProxyURL: "http://127.0.0.1:7890", Status: "inactive", IsActive: false},
+		{Name: "binance", APIURL: "https://api.binance.com", ProxyURL: "http://127.0.0.1:7890", Status: "inactive", IsActive: false},
+		{Name: "gate", APIURL: "https://api.gateio.ws", ProxyURL: "http://127.0.0.1:7890", Status: "inactive", IsActive: false},
 	}
 
 	for _, exchange := range exchanges {

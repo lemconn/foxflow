@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"foxflow/internal/database"
 	"foxflow/internal/exchange"
 	"foxflow/internal/models"
 )
@@ -16,8 +17,44 @@ type Context struct {
 
 // NewContext 创建新的CLI上下文
 func NewContext(ctx context.Context) *Context {
-	return &Context{
+	cliCtx := &Context{
 		ctx: ctx,
+	}
+
+	// 从数据库恢复激活状态
+	cliCtx.restoreActiveState()
+
+	return cliCtx
+}
+
+// restoreActiveState 从数据库恢复激活状态
+func (c *Context) restoreActiveState() {
+	db := database.GetDB()
+	exchangeManager := exchange.GetManager()
+
+	// 查找激活的交易所
+	var activeExchange models.FoxExchange
+	if err := db.Where("is_active = ?", true).First(&activeExchange).Error; err == nil {
+		c.currentExchange = activeExchange.Name
+
+		// 获取交易所实例
+		if ex, err := exchangeManager.GetExchange(activeExchange.Name); err == nil {
+			c.exchange = ex
+		}
+
+		// 查找激活的用户
+		var activeUser models.FoxUser
+		if err := db.Where("is_active = ? AND exchange = ?", true, activeExchange.Name).First(&activeUser).Error; err == nil {
+			c.currentUser = &activeUser
+
+			// 连接用户到交易所
+			if err := exchangeManager.ConnectUser(c.ctx, activeExchange.Name, &activeUser); err == nil {
+				// 连接成功，更新交易所实例
+				if ex, err := exchangeManager.GetExchange(activeExchange.Name); err == nil {
+					c.exchange = ex
+				}
+			}
+		}
 	}
 }
 
