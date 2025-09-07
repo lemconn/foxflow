@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"foxflow/pkg/utils"
@@ -31,6 +32,7 @@ func NewCLI() (*CLI, error) {
 		"delete": &DeleteCommand{},
 		"help":   &HelpCommand{},
 		"exit":   &ExitCommand{},
+		"quit":   &ExitCommand{},
 	}
 
 	// 创建readline实例
@@ -58,7 +60,7 @@ func (c *CLI) Run() error {
 
 	fmt.Println(utils.RenderInfo("欢迎使用 FoxFlow 策略下单系统"))
 	fmt.Println(utils.RenderInfo("输入 'help' 查看可用命令"))
-	fmt.Println(utils.RenderInfo("输入 'exit' 退出程序"))
+	fmt.Println(utils.RenderInfo("输入 'exit' 或 'quit' 退出程序"))
 	fmt.Println()
 
 	for {
@@ -68,8 +70,13 @@ func (c *CLI) Run() error {
 		line, err := c.rl.Readline()
 		if err != nil {
 			if err == readline.ErrInterrupt {
+				fmt.Println(utils.RenderInfo("提示: 请输入 'exit' 或 'quit' 退出程序"))
 				continue
+			} else if err == io.EOF {
+				fmt.Println(utils.RenderInfo("再见！"))
+				break
 			}
+			fmt.Println(utils.RenderError(fmt.Sprintf("读取输入错误: %v\n", err)))
 			break
 		}
 

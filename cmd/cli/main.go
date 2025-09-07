@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"foxflow/internal/cli/render"
 	"log"
 	"os"
 
@@ -10,6 +12,10 @@ import (
 )
 
 func main() {
+
+	// 输出产品名称
+	fmt.Println(render.RenderBanner(config.Version))
+
 	// 加载配置
 	if err := config.LoadConfig(); err != nil {
 		log.Fatalf("Failed to load config: %v", err)
