@@ -54,10 +54,34 @@ func RenderExchanges(exchanges []string) string {
 	pt.SetHeaders([]interface{}{"#", "交易所名称", "状态"})
 
 	for i, exchange := range exchanges {
+		status := "❌ 非活跃"
+		// 这里可以根据实际激活状态来显示，暂时显示为非活跃
 		pt.AddRow([]interface{}{
 			i + 1,
 			exchange,
-			"✅ 活跃",
+			status,
+		})
+	}
+
+	return pt.Render()
+}
+
+// RenderExchangesWithStatus 渲染带状态的交易所列表
+func RenderExchangesWithStatus(exchanges []models.FoxExchange) string {
+	pt := NewPrettyTable()
+	pt.SetTitle("🏦 可用交易所")
+	pt.SetHeaders([]interface{}{"#", "交易所名称", "状态"})
+
+	for i, exchange := range exchanges {
+		status := "❌ 非活跃"
+		if exchange.IsActive {
+			status = "✅ 激活"
+		}
+
+		pt.AddRow([]interface{}{
+			i + 1,
+			exchange.Name,
+			status,
 		})
 	}
 
@@ -71,9 +95,9 @@ func RenderUsers(users []models.FoxUser) string {
 	pt.SetHeaders([]interface{}{"ID", "用户名", "交易所", "交易类型", "状态"})
 
 	for _, user := range users {
-		status := "✅ 活跃"
-		if user.Status == "inactive" {
-			status = "❌ 非活跃"
+		status := "❌ 非活跃"
+		if user.IsActive {
+			status = "✅ 激活"
 		}
 
 		tradeType := "🎯 模拟"

@@ -36,8 +36,8 @@ func (m *Manager) initExchanges() {
 	db := database.GetDB()
 	var exchanges []models.FoxExchange
 
-	// 从数据库加载交易所配置
-	if err := db.Where("status = ?", "active").Find(&exchanges).Error; err != nil {
+	// 从数据库加载所有交易所配置
+	if err := db.Find(&exchanges).Error; err != nil {
 		// 如果数据库中没有配置，使用默认配置
 		m.initDefaultExchanges()
 		return
@@ -49,8 +49,9 @@ func (m *Manager) initExchanges() {
 		case "okx":
 			m.exchanges[exchange.Name] = NewOKXExchange(exchange.APIURL, exchange.ProxyURL)
 		case "binance":
-			// 可以在这里添加Binance交易所的实现
-			// m.exchanges[exchange.Name] = NewBinanceExchange(exchange.APIURL, exchange.ProxyURL)
+			m.exchanges[exchange.Name] = NewBinanceExchange(exchange.APIURL, exchange.ProxyURL)
+		case "gate":
+			m.exchanges[exchange.Name] = NewGateExchange(exchange.APIURL, exchange.ProxyURL)
 		}
 	}
 }
@@ -58,7 +59,8 @@ func (m *Manager) initExchanges() {
 // initDefaultExchanges 初始化默认交易所
 func (m *Manager) initDefaultExchanges() {
 	m.exchanges["okx"] = NewOKXExchange("https://www.okx.com", "http://127.0.0.1:7890")
-	// m.exchanges["binance"] = NewBinanceExchange("https://api.binance.com", "http://127.0.0.1:7890")
+	m.exchanges["binance"] = NewBinanceExchange("https://api.binance.com", "http://127.0.0.1:7890")
+	m.exchanges["gate"] = NewGateExchange("https://api.gateio.ws", "http://127.0.0.1:7890")
 }
 
 // GetExchange 获取交易所实例
