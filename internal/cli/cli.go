@@ -3,9 +3,14 @@ package cli
 import (
 	"context"
 	"fmt"
+	"foxflow/internal/config"
+	"foxflow/internal/repository"
 	"io"
+	"log"
 	"strings"
 
+	"foxflow/internal/cli/command"
+	cliCmds "foxflow/internal/cli/commands"
 	"foxflow/pkg/utils"
 
 	"github.com/chzyer/readline"
@@ -14,7 +19,7 @@ import (
 // CLI 命令行界面
 type CLI struct {
 	ctx      *Context
-	commands map[string]Command
+	commands map[string]command.Command
 	rl       *readline.Instance
 }
 
@@ -23,23 +28,23 @@ func NewCLI() (*CLI, error) {
 	ctx := NewContext(context.Background())
 
 	// 注册命令
-	commands := map[string]Command{
-		"show":   &ShowCommand{},
-		"use":    &UseCommand{},
-		"create": &CreateCommand{},
-		"update": &UpdateCommand{},
-		"cancel": &CancelCommand{},
-		"delete": &DeleteCommand{},
-		"help":   &HelpCommand{},
-		"exit":   &ExitCommand{},
-		"quit":   &ExitCommand{},
+	cmdMap := map[string]command.Command{
+		"show":   &cliCmds.ShowCommand{},
+		"use":    &cliCmds.UseCommand{},
+		"create": &cliCmds.CreateCommand{},
+		"update": &cliCmds.UpdateCommand{},
+		"cancel": &cliCmds.CancelCommand{},
+		"delete": &cliCmds.DeleteCommand{},
+		"help":   &cliCmds.HelpCommand{},
+		"exit":   &cliCmds.ExitCommand{},
+		"quit":   &cliCmds.ExitCommand{},
 	}
 
 	// 创建readline实例
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:          ctx.GetPrompt(),
 		HistoryFile:     ".foxflow.history",
-		AutoComplete:    getCompleter(commands),
+		AutoComplete:    getCompleter(cmdMap),
 		InterruptPrompt: "^C",
 		EOFPrompt:       "exit",
 	})
@@ -49,7 +54,7 @@ func NewCLI() (*CLI, error) {
 
 	return &CLI{
 		ctx:      ctx,
-		commands: commands,
+		commands: cmdMap,
 		rl:       rl,
 	}, nil
 }
@@ -58,10 +63,12 @@ func NewCLI() (*CLI, error) {
 func (c *CLI) Run() error {
 	defer c.rl.Close()
 
-	fmt.Println(utils.RenderSuccess("数据库初始化完成"))
 	fmt.Println(utils.RenderInfo("输入 'help' 查看可用命令"))
-	fmt.Println(utils.RenderInfo("输入 'exit' 或 'quit' 退出程序"))
+	fmt.Println(utils.RenderInfo("输入 'exit' 或 'quit' 或 'Ctrl-D' 退出程序"))
 	fmt.Println()
+
+	// 设置默认交易所
+	c.setDefaultExchange()
 
 	for {
 		// 更新提示符
@@ -70,7 +77,7 @@ func (c *CLI) Run() error {
 		line, err := c.rl.Readline()
 		if err != nil {
 			if err == readline.ErrInterrupt {
-				fmt.Println(utils.RenderInfo("提示: 请输入 'exit' 或 'quit' 退出程序"))
+				fmt.Println(utils.RenderInfo("提示: 请输入 'exit' 或 'quit' 或 'Ctrl-D' 退出程序"))
 				continue
 			} else if err == io.EOF {
 				fmt.Println(utils.RenderInfo("再见！"))
@@ -154,7 +161,7 @@ func parseArgs(line string) []string {
 }
 
 // getCompleter 获取命令补全器
-func getCompleter(commands map[string]Command) readline.AutoCompleter {
+func getCompleter(commands map[string]command.Command) readline.AutoCompleter {
 	var items []readline.PrefixCompleterInterface
 
 	// 添加命令补全
@@ -206,4 +213,33 @@ func getCompleter(commands map[string]Command) readline.AutoCompleter {
 	items = append(items, readline.PcItem("delete", deleteItems...))
 
 	return readline.NewPrefixCompleter(items...)
+}
+
+func (c *CLI) setDefaultExchange() {
+
+	exchangesList, err := repository.ListExchanges()
+	if err != nil {
+		log.Printf("set default exchanges list error: %v\n", err)
+		return
+	}
+
+	// 没有默认值则直接使用第一个交易所
+	exchangeName := exchangesList[0].Name
+	for _, exchange := range exchangesList {
+
+		// 默认交易所优先级次之
+		if exchange.Name == config.DefaultExchange {
+			exchangeName = exchange.Name
+		}
+
+		// 已经激活的交易所优先级最高
+		if exchange.IsActive {
+			exchangeName = exchange.Name
+			break
+		}
+	}
+
+	// 初始化设置默认交易所
+	useCommand := &cliCmds.UseCommand{}
+	err = useCommand.Execute(c.ctx, []string{"exchanges", exchangeName})
 }

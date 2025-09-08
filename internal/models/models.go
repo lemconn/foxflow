@@ -11,9 +11,8 @@ type FoxUser struct {
 	Exchange  string `gorm:"not null;default:'binance';check:exchange IN ('binance', 'okx', 'gate')" json:"exchange"`
 	AccessKey string `gorm:"not null;default:''" json:"access_key"`
 	SecretKey string `gorm:"not null;default:''" json:"secret_key"`
-	Status    string `gorm:"not null;default:'inactive';check:status IN ('active', 'inactive')" json:"status"`
+	IsActive  bool   `gorm:"not null;default:false" json:"is_active"`
 	TradeType string `gorm:"not null;default:'';check:trade_type IN ('mock', 'real')" json:"trade_type"`
-	IsActive  bool   `gorm:"not null;default:false" json:"is_active"` // 新增：是否激活状态
 	CreatedAt string `gorm:"not null;default:''" json:"created_at"`
 	UpdatedAt string `gorm:"not null;default:''" json:"updated_at"`
 }
@@ -30,7 +29,6 @@ type FoxSymbol struct {
 	Exchange   string `gorm:"not null;default:'binance';check:exchange IN ('binance', 'okx')" json:"exchange"`
 	Leverage   int    `gorm:"not null;default:1" json:"leverage"`
 	MarginType string `gorm:"not null;default:'isolated';check:margin_type IN ('isolated', 'cross')" json:"margin_type"`
-	Status     string `gorm:"not null;default:'active';check:status IN ('active', 'inactive')" json:"status"`
 	CreatedAt  string `gorm:"not null;default:''" json:"created_at"`
 	UpdatedAt  string `gorm:"not null;default:''" json:"updated_at"`
 }
@@ -67,8 +65,7 @@ type FoxExchange struct {
 	Name      string `gorm:"not null;default:'';unique" json:"name"`
 	APIURL    string `gorm:"not null;default:''" json:"api_url"`
 	ProxyURL  string `gorm:"not null;default:''" json:"proxy_url"`
-	Status    string `gorm:"not null;default:'inactive';check:status IN ('active', 'inactive')" json:"status"`
-	IsActive  bool   `gorm:"not null;default:false" json:"is_active"` // 新增：是否激活状态
+	IsActive  bool   `gorm:"not null;default:false" json:"is_active"`
 	CreatedAt string `gorm:"not null;default:''" json:"created_at"`
 	UpdatedAt string `gorm:"not null;default:''" json:"updated_at"`
 }
@@ -83,7 +80,7 @@ type FoxStrategy struct {
 	Name        string `gorm:"not null;default:'';unique" json:"name"`
 	Description string `gorm:"not null;default:''" json:"description"`
 	Parameters  string `gorm:"not null;default:'{}'" json:"parameters"`
-	Status      string `gorm:"not null;default:'active';check:status IN ('active', 'inactive')" json:"status"`
+	IsActive    bool   `gorm:"not null;default:true" json:"is_active"`
 	CreatedAt   string `gorm:"not null;default:''" json:"created_at"`
 	UpdatedAt   string `gorm:"not null;default:''" json:"updated_at"`
 }
