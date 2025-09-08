@@ -124,10 +124,10 @@ func insertDefaultStrategies() {
 // insertTestUsers 插入测试用户数据
 func insertTestUsers() {
 	users := []models.FoxUser{
-		{Username: "test_user_1", Exchange: "binance", AccessKey: "test_binance_access_key_1", SecretKey: "test_binance_secret_key_1", Status: "active", TradeType: "mock", IsActive: true},
-		{Username: "test_user_2", Exchange: "okx", AccessKey: "test_okx_access_key_2", SecretKey: "test_okx_secret_key_2", Status: "active", TradeType: "real", IsActive: true},
-		{Username: "test_user_3", Exchange: "gate", AccessKey: "test_gate_access_key_3", SecretKey: "test_gate_secret_key_3", Status: "inactive", TradeType: "mock", IsActive: false},
-		{Username: "demo_trader", Exchange: "binance", AccessKey: "demo_binance_key", SecretKey: "demo_binance_secret", Status: "active", TradeType: "mock", IsActive: true},
+		{Username: "test_user_1", Exchange: "binance", AccessKey: "test_binance_access_key_1", SecretKey: "test_binance_secret_key_1", IsActive: true, TradeType: "mock"},
+		{Username: "test_user_2", Exchange: "okx", AccessKey: "test_okx_access_key_2", SecretKey: "test_okx_secret_key_2", IsActive: true, TradeType: "real"},
+		{Username: "test_user_3", Exchange: "gate", AccessKey: "test_gate_access_key_3", SecretKey: "test_gate_secret_key_3", IsActive: false, TradeType: "mock"},
+		{Username: "demo_trader", Exchange: "binance", AccessKey: "demo_binance_key", SecretKey: "demo_binance_secret", IsActive: true, TradeType: "mock"},
 	}
 
 	for _, user := range users {
@@ -138,12 +138,12 @@ func insertTestUsers() {
 // insertTestSymbols 插入测试标的数据
 func insertTestSymbols() {
 	symbols := []models.FoxSymbol{
-		{Name: "BTCUSDT", UserID: 1, Exchange: "binance", Leverage: 10, MarginType: "isolated", Status: "active"},
-		{Name: "ETHUSDT", UserID: 1, Exchange: "binance", Leverage: 5, MarginType: "cross", Status: "active"},
-		{Name: "BTC-USDT-SWAP", UserID: 2, Exchange: "okx", Leverage: 20, MarginType: "isolated", Status: "active"},
-		{Name: "ETH-USDT-SWAP", UserID: 2, Exchange: "okx", Leverage: 15, MarginType: "cross", Status: "active"},
-		{Name: "BTC_USDT", UserID: 3, Exchange: "gate", Leverage: 8, MarginType: "isolated", Status: "inactive"},
-		{Name: "ADAUSDT", UserID: 4, Exchange: "binance", Leverage: 3, MarginType: "isolated", Status: "active"},
+		{Name: "BTCUSDT", UserID: 1, Exchange: "binance", Leverage: 10, MarginType: "isolated"},
+		{Name: "ETHUSDT", UserID: 1, Exchange: "binance", Leverage: 5, MarginType: "cross"},
+		{Name: "BTC-USDT-SWAP", UserID: 2, Exchange: "okx", Leverage: 20, MarginType: "isolated"},
+		{Name: "ETH-USDT-SWAP", UserID: 2, Exchange: "okx", Leverage: 15, MarginType: "cross"},
+		{Name: "BTC_USDT", UserID: 3, Exchange: "gate", Leverage: 8, MarginType: "isolated"},
+		{Name: "ADAUSDT", UserID: 4, Exchange: "binance", Leverage: 3, MarginType: "isolated"},
 	}
 
 	for _, symbol := range symbols {
