@@ -79,7 +79,7 @@ CREATE TABLE fox_strategies
 );
 
 -- 插入默认交易所配置
-INSERT INTO fox_exchanges (name, api_url, proxy_url, status, is_active) VALUES 
+INSERT INTO fox_exchanges (name, api_url, proxy_url, status, is_active) VALUES
 ('okx', 'https://www.okx.com', 'http://127.0.0.1:7890', 'inactive', 0),
 ('binance', 'https://api.binance.com', 'http://127.0.0.1:7890', 'inactive', 0),
 ('gate', 'https://api.gateio.ws', 'http://127.0.0.1:7890', 'inactive', 0);

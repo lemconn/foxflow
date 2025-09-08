@@ -98,9 +98,9 @@ func insertDefaultData() error {
 // insertDefaultExchanges 插入默认交易所数据（存在则不做任何处理，不存在则添加）
 func insertDefaultExchanges() {
 	exchanges := []models.FoxExchange{
-		{Name: "okx", APIURL: "https://www.okx.com", ProxyURL: "http://127.0.0.1:7890", Status: "inactive", IsActive: false},
-		{Name: "binance", APIURL: "https://api.binance.com", ProxyURL: "http://127.0.0.1:7890", Status: "inactive", IsActive: false},
-		{Name: "gate", APIURL: "https://api.gateio.ws", ProxyURL: "http://127.0.0.1:7890", Status: "inactive", IsActive: false},
+		{Name: "okx", APIURL: "https://www.okx.com", ProxyURL: "http://127.0.0.1:7890", IsActive: false},
+		{Name: "binance", APIURL: "https://api.binance.com", ProxyURL: "http://127.0.0.1:7890", IsActive: false},
+		{Name: "gate", APIURL: "https://api.gateio.ws", ProxyURL: "http://127.0.0.1:7890", IsActive: false},
 	}
 
 	for _, exchange := range exchanges {
@@ -111,9 +111,9 @@ func insertDefaultExchanges() {
 // insertDefaultStrategies 插入默认策略数据（存在则不做任何处理，不存在则添加）
 func insertDefaultStrategies() {
 	strategies := []models.FoxStrategy{
-		{Name: "volume", Description: "成交量策略", Parameters: `{"threshold": 100}`, Status: "active"},
-		{Name: "macd", Description: "MACD策略", Parameters: `{"threshold": 50}`, Status: "active"},
-		{Name: "rsi", Description: "RSI策略", Parameters: `{"threshold": 10}`, Status: "active"},
+		{Name: "volume", Description: "成交量策略", Parameters: `{"threshold": 100}`, IsActive: true},
+		{Name: "macd", Description: "MACD策略", Parameters: `{"threshold": 50}`, IsActive: true},
+		{Name: "rsi", Description: "RSI策略", Parameters: `{"threshold": 10}`, IsActive: true},
 	}
 
 	for _, strategy := range strategies {
@@ -124,10 +124,10 @@ func insertDefaultStrategies() {
 // insertTestUsers 插入测试用户数据
 func insertTestUsers() {
 	users := []models.FoxUser{
-		{Username: "test_user_1", Exchange: "binance", AccessKey: "test_binance_access_key_1", SecretKey: "test_binance_secret_key_1", Status: "active", TradeType: "mock", IsActive: true},
-		{Username: "test_user_2", Exchange: "okx", AccessKey: "test_okx_access_key_2", SecretKey: "test_okx_secret_key_2", Status: "active", TradeType: "real", IsActive: true},
-		{Username: "test_user_3", Exchange: "gate", AccessKey: "test_gate_access_key_3", SecretKey: "test_gate_secret_key_3", Status: "inactive", TradeType: "mock", IsActive: false},
-		{Username: "demo_trader", Exchange: "binance", AccessKey: "demo_binance_key", SecretKey: "demo_binance_secret", Status: "active", TradeType: "mock", IsActive: true},
+		{Username: "test_user_1", Exchange: "binance", AccessKey: "test_binance_access_key_1", SecretKey: "test_binance_secret_key_1", IsActive: true, TradeType: "mock"},
+		{Username: "test_user_2", Exchange: "okx", AccessKey: "test_okx_access_key_2", SecretKey: "test_okx_secret_key_2", IsActive: true, TradeType: "real"},
+		{Username: "test_user_3", Exchange: "gate", AccessKey: "test_gate_access_key_3", SecretKey: "test_gate_secret_key_3", IsActive: false, TradeType: "mock"},
+		{Username: "demo_trader", Exchange: "binance", AccessKey: "demo_binance_key", SecretKey: "demo_binance_secret", IsActive: true, TradeType: "mock"},
 	}
 
 	for _, user := range users {
@@ -138,12 +138,12 @@ func insertTestUsers() {
 // insertTestSymbols 插入测试标的数据
 func insertTestSymbols() {
 	symbols := []models.FoxSymbol{
-		{Name: "BTCUSDT", UserID: 1, Exchange: "binance", Leverage: 10, MarginType: "isolated", Status: "active"},
-		{Name: "ETHUSDT", UserID: 1, Exchange: "binance", Leverage: 5, MarginType: "cross", Status: "active"},
-		{Name: "BTC-USDT-SWAP", UserID: 2, Exchange: "okx", Leverage: 20, MarginType: "isolated", Status: "active"},
-		{Name: "ETH-USDT-SWAP", UserID: 2, Exchange: "okx", Leverage: 15, MarginType: "cross", Status: "active"},
-		{Name: "BTC_USDT", UserID: 3, Exchange: "gate", Leverage: 8, MarginType: "isolated", Status: "inactive"},
-		{Name: "ADAUSDT", UserID: 4, Exchange: "binance", Leverage: 3, MarginType: "isolated", Status: "active"},
+		{Name: "BTCUSDT", UserID: 1, Exchange: "binance", Leverage: 10, MarginType: "isolated"},
+		{Name: "ETHUSDT", UserID: 1, Exchange: "binance", Leverage: 5, MarginType: "cross"},
+		{Name: "BTC-USDT-SWAP", UserID: 2, Exchange: "okx", Leverage: 20, MarginType: "isolated"},
+		{Name: "ETH-USDT-SWAP", UserID: 2, Exchange: "okx", Leverage: 15, MarginType: "cross"},
+		{Name: "BTC_USDT", UserID: 3, Exchange: "gate", Leverage: 8, MarginType: "isolated"},
+		{Name: "ADAUSDT", UserID: 4, Exchange: "binance", Leverage: 3, MarginType: "isolated"},
 	}
 
 	for _, symbol := range symbols {

@@ -9,6 +9,10 @@ import (
 
 const Version = "v0.1.0"
 
+const (
+	DefaultExchange = "okx"
+)
+
 type Config struct {
 	DBPath   string
 	ProxyURL string
