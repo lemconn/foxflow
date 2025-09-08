@@ -54,7 +54,7 @@ go mod tidy
 
 ```bash
 # 复制配置文件
-cp config.env.example .env
+cp .env.example .env
 
 # 根据需要修改配置
 vim .env
