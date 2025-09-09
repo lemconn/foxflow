@@ -1,8 +1,8 @@
 package repository
 
 import (
-	"foxflow/internal/database"
-	"foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/database"
+	"github.com/lemconn/foxflow/internal/models"
 )
 
 // ListUsers 列出所有用户

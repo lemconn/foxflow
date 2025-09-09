@@ -6,9 +6,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"foxflow/internal/config"
-	"foxflow/internal/database"
-	"foxflow/internal/engine"
+	"github.com/lemconn/foxflow/internal/config"
+	"github.com/lemconn/foxflow/internal/database"
+	"github.com/lemconn/foxflow/internal/engine"
 )
 
 func main() {

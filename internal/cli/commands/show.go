@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 
-	"foxflow/internal/cli/command"
-	cliRender "foxflow/internal/cli/render"
-	"foxflow/internal/models"
-	"foxflow/internal/repository"
+	"github.com/lemconn/foxflow/internal/cli/command"
+	cliRender "github.com/lemconn/foxflow/internal/cli/render"
+	"github.com/lemconn/foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/repository"
 )
 
 // ShowCommand 查看命令

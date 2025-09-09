@@ -2,14 +2,15 @@ package commands
 
 import (
 	"fmt"
-	"foxflow/internal/config"
 	"strconv"
 	"strings"
 
-	"foxflow/internal/cli/command"
-	"foxflow/internal/models"
-	"foxflow/internal/repository"
-	"foxflow/pkg/utils"
+	"github.com/lemconn/foxflow/internal/config"
+
+	"github.com/lemconn/foxflow/internal/cli/command"
+	"github.com/lemconn/foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/repository"
+	"github.com/lemconn/foxflow/internal/utils"
 )
 
 // CreateCommand 创建命令

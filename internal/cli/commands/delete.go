@@ -3,9 +3,9 @@ package commands
 import (
 	"fmt"
 
-	"foxflow/internal/cli/command"
-	"foxflow/internal/repository"
-	"foxflow/pkg/utils"
+	"github.com/lemconn/foxflow/internal/cli/command"
+	"github.com/lemconn/foxflow/internal/repository"
+	"github.com/lemconn/foxflow/internal/utils"
 )
 
 // DeleteCommand 删除命令
