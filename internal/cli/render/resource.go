@@ -2,9 +2,10 @@ package render
 
 import (
 	"fmt"
-	"foxflow/internal/exchange"
-	"foxflow/internal/models"
-	"foxflow/pkg/utils"
+
+	"github.com/lemconn/foxflow/internal/exchange"
+	"github.com/lemconn/foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/utils"
 )
 
 // RenderExchangesWithStatus 渲染带状态的交易所列表

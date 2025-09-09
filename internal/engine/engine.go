@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"foxflow/internal/database"
-	"foxflow/internal/exchange"
-	"foxflow/internal/models"
-	"foxflow/internal/strategy"
-	"foxflow/pkg/parser"
+	"github.com/lemconn/foxflow/internal/database"
+	"github.com/lemconn/foxflow/internal/exchange"
+	"github.com/lemconn/foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/parser"
+	"github.com/lemconn/foxflow/internal/strategy"
 )
 
 // Engine 策略引擎

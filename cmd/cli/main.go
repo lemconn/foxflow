@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
-	"foxflow/internal/cli/render"
-	"foxflow/pkg/utils"
 	"log"
 	"os"
 
-	"foxflow/internal/cli"
-	"foxflow/internal/config"
-	"foxflow/internal/database"
+	"github.com/lemconn/foxflow/internal/cli/render"
+	"github.com/lemconn/foxflow/internal/utils"
+
+	"github.com/lemconn/foxflow/internal/cli"
+	"github.com/lemconn/foxflow/internal/config"
+	"github.com/lemconn/foxflow/internal/database"
 )
 
 func main() {

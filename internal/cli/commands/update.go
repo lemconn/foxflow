@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"foxflow/internal/cli/command"
-	"foxflow/pkg/utils"
+	"github.com/lemconn/foxflow/internal/cli/command"
+	"github.com/lemconn/foxflow/internal/utils"
 )
 
 // UpdateCommand 设置命令

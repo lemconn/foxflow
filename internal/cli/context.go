@@ -3,10 +3,11 @@ package cli
 import (
 	"context"
 	"fmt"
-	"foxflow/internal/database"
-	"foxflow/internal/exchange"
-	"foxflow/internal/models"
-	"foxflow/pkg/utils"
+
+	"github.com/lemconn/foxflow/internal/database"
+	"github.com/lemconn/foxflow/internal/exchange"
+	"github.com/lemconn/foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/utils"
 )
 
 // Context CLI上下文
