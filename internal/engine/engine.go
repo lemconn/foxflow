@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -180,18 +181,24 @@ func (e *Engine) processOrder(exchangeInstance exchange.Exchange, order *models.
 
 	// 执行所有策略
 	results := make(map[string]bool)
-	for _, strategyName := range strategyNames {
+	for _, strategyKey := range strategyNames {
+		// 解析策略键：candles.SOL.last_px -> candles
+		strategyName, err := e.extractStrategyName(strategyKey)
+		if err != nil {
+			return fmt.Errorf("failed to extract strategy name from key %s: %w", strategyKey, err)
+		}
+
 		strategyInstance, exists := e.strategyMgr.GetStrategy(strategyName)
 		if !exists {
 			return fmt.Errorf("strategy not found: %s", strategyName)
 		}
 
-		result, err := strategyInstance.Evaluate(e.ctx, exchangeInstance, order.Symbol, parameters[strategyName])
+		result, err := strategyInstance.Evaluate(e.ctx, exchangeInstance, order.Symbol, parameters[strategyKey])
 		if err != nil {
 			return fmt.Errorf("failed to evaluate strategy %s: %w", strategyName, err)
 		}
 
-		results[strategyName] = result
+		results[strategyKey] = result
 	}
 
 	// 评估策略条件
@@ -207,6 +214,28 @@ func (e *Engine) processOrder(exchangeInstance exchange.Exchange, order *models.
 	}
 
 	return nil
+}
+
+// extractStrategyName 从策略键中提取策略名称
+func (e *Engine) extractStrategyName(strategyKey string) (string, error) {
+	// 策略键格式：candles.SOL.last_px -> candles
+	// 或者：news.theblockbeats.last_title -> news
+	parts := strings.Split(strategyKey, ".")
+	if len(parts) < 2 {
+		return "", fmt.Errorf("invalid strategy key format: %s", strategyKey)
+	}
+
+	strategyName := parts[0]
+
+	// 验证策略名称
+	validStrategies := []string{"candles", "news", "volume", "macd", "rsi"}
+	for _, valid := range validStrategies {
+		if strategyName == valid {
+			return strategyName, nil
+		}
+	}
+
+	return "", fmt.Errorf("unknown strategy: %s", strategyName)
 }
 
 // submitOrder 提交订单到交易所
