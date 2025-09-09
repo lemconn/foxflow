@@ -45,6 +45,8 @@ func NewManager() *Manager {
 	manager.RegisterStrategy(NewVolumeStrategy())
 	manager.RegisterStrategy(NewMACDStrategy())
 	manager.RegisterStrategy(NewRSIStrategy())
+	manager.RegisterStrategy(NewCandlesStrategy())
+	manager.RegisterStrategy(NewNewsStrategy())
 
 	return manager
 }
