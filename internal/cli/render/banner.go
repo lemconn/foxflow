@@ -2,7 +2,8 @@ package render
 
 import (
 	"fmt"
-	"foxflow/pkg/utils"
+
+	"github.com/lemconn/foxflow/internal/utils"
 )
 
 // RenderBanner 渲染启动横幅（右下角显示版本）
@@ -20,6 +21,6 @@ func RenderBanner(version string) string {
   %s
 ================================================================
 `
-	
+
 	return fmt.Sprintf(lines, utils.MessageGreen(version), utils.MessageBlue("欢迎使用 FoxFlow 策略下单系统"))
 }

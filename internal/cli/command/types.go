@@ -2,8 +2,9 @@ package command
 
 import (
 	"context"
-	"foxflow/internal/exchange"
-	"foxflow/internal/models"
+
+	"github.com/lemconn/foxflow/internal/exchange"
+	"github.com/lemconn/foxflow/internal/models"
 )
 
 // Context 定义命令执行所需的最小上下文接口

@@ -3,15 +3,16 @@ package cli
 import (
 	"context"
 	"fmt"
-	"foxflow/internal/config"
-	"foxflow/internal/repository"
 	"io"
 	"log"
 	"strings"
 
-	"foxflow/internal/cli/command"
-	cliCmds "foxflow/internal/cli/commands"
-	"foxflow/pkg/utils"
+	"github.com/lemconn/foxflow/internal/config"
+	"github.com/lemconn/foxflow/internal/repository"
+
+	"github.com/lemconn/foxflow/internal/cli/command"
+	cliCmds "github.com/lemconn/foxflow/internal/cli/commands"
+	"github.com/lemconn/foxflow/internal/utils"
 
 	"github.com/chzyer/readline"
 )

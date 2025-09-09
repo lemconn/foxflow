@@ -1,4 +1,4 @@
-module foxflow
+module github.com/lemconn/foxflow
 
 go 1.21
 

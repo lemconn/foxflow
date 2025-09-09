@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"foxflow/internal/database"
-	"foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/database"
+	"github.com/lemconn/foxflow/internal/models"
 )
 
 // Manager 交易所管理器

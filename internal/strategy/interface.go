@@ -3,7 +3,8 @@ package strategy
 import (
 	"context"
 	"fmt"
-	"foxflow/internal/exchange"
+
+	"github.com/lemconn/foxflow/internal/exchange"
 )
 
 // Strategy 策略接口

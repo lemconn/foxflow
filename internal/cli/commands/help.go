@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 
-	"foxflow/internal/cli/command"
+	"github.com/lemconn/foxflow/internal/cli/command"
 )
 
 // HelpCommand 帮助命令

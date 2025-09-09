@@ -3,8 +3,9 @@ package strategy
 import (
 	"context"
 	"fmt"
-	"foxflow/internal/exchange"
 	"strconv"
+
+	"github.com/lemconn/foxflow/internal/exchange"
 )
 
 // VolumeStrategy 成交量策略
