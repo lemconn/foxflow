@@ -2,12 +2,10 @@ package cli
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/lemconn/foxflow/internal/database"
 	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/models"
-	"github.com/lemconn/foxflow/internal/utils"
 )
 
 // Context CLI上下文
@@ -89,28 +87,6 @@ func (c *Context) SetExchangeInstance(ex exchange.Exchange) {
 // GetExchangeInstance 获取交易所实例
 func (c *Context) GetExchangeInstance() exchange.Exchange {
 	return c.exchange
-}
-
-// GetPrompt 获取当前提示符
-func (c *Context) GetPrompt() string {
-	if c.currentExchange == "" {
-		return fmt.Sprintf("%s %s ",
-			utils.MessageGreen("foxflow"),
-			">",
-		)
-	}
-
-	if c.currentUser == nil {
-		return fmt.Sprintf("%s %s ",
-			utils.MessageGreen("foxflow "+utils.MessageYellow("["+c.currentExchange+"]")),
-			">",
-		)
-	}
-
-	return fmt.Sprintf("%s %s ",
-		utils.MessageGreen("foxflow "+utils.MessageYellow("["+c.currentExchange+":"+c.currentUser.Username+"]")),
-		">",
-	)
 }
 
 // IsReady 检查是否已选择交易所和用户

@@ -64,28 +64,34 @@ func RenderWarning(message string) string {
 	return fmt.Sprintf("⚠️  %s", message)
 }
 
+// MessageRed 红色
 func MessageRed(message string) string {
-	return messageColor(31, message)
+	return messageColor(91, message)
 }
 
+// MessageGreen 绿色
 func MessageGreen(message string) string {
-	return messageColor(32, message)
+	return messageColor(92, message)
 }
 
+// MessageYellow 黄色
 func MessageYellow(message string) string {
-	return messageColor(33, message)
+	return messageColor(93, message)
 }
 
+// MessageBlue 蓝色
 func MessageBlue(message string) string {
-	return messageColor(34, message)
+	return messageColor(94, message)
 }
 
+// MessagePurple 紫色
 func MessagePurple(message string) string {
-	return messageColor(35, message)
+	return messageColor(95, message)
 }
 
+// MessageCyan 青色
 func MessageCyan(message string) string {
-	return messageColor(36, message)
+	return messageColor(96, message)
 }
 
 func messageColor(code int, message string) string {
