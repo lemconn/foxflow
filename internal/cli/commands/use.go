@@ -68,7 +68,7 @@ func (c *UseCommand) Execute(ctx command.Context, args []string) error {
 		ctx.SetExchange(exchangeName)
 		ctx.SetExchangeInstance(ex)
 		ctx.SetUser(nil) // 清除当前用户
-		fmt.Println(utils.RenderSuccess(fmt.Sprintf("已激活交易所: %s", exchangeName)))
+		fmt.Println(utils.RenderSuccess(fmt.Sprintf("已激活交易所: %s", utils.MessageGreen(exchangeName))))
 
 	case "users":
 		username := args[1]
@@ -120,7 +120,7 @@ func (c *UseCommand) Execute(ctx command.Context, args []string) error {
 		}
 
 		ctx.SetUser(user)
-		fmt.Println(utils.RenderSuccess(fmt.Sprintf("已激活用户: %s", username)))
+		fmt.Println(utils.RenderSuccess(fmt.Sprintf("已激活用户: %s", utils.MessageGreen(username))))
 
 	default:
 		return fmt.Errorf("unknown use type: %s", args[0])

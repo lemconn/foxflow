@@ -2,11 +2,9 @@ package cli
 
 import (
 	"context"
-	"fmt"
 	"foxflow/internal/database"
 	"foxflow/internal/exchange"
 	"foxflow/internal/models"
-	"foxflow/pkg/utils"
 )
 
 // Context CLI上下文
@@ -93,23 +91,26 @@ func (c *Context) GetExchangeInstance() exchange.Exchange {
 // GetPrompt 获取当前提示符
 func (c *Context) GetPrompt() string {
 	if c.currentExchange == "" {
-		return fmt.Sprintf("%s %s ",
-			utils.MessageGreen("foxflow"),
-			">",
-		)
+		return "foxflow > "
+		//return fmt.Sprintf("%s %s ",
+		//	utils.MessageGreen("foxflow"),
+		//	">",
+		//)
 	}
 
 	if c.currentUser == nil {
-		return fmt.Sprintf("%s %s ",
-			utils.MessageGreen("foxflow "+utils.MessageYellow("["+c.currentExchange+"]")),
-			">",
-		)
+		return "foxflow [" + c.currentExchange + "] > "
+		//return fmt.Sprintf("%s %s ",
+		//	utils.MessageGreen("foxflow "+utils.MessageYellow("["+c.currentExchange+"]")),
+		//	">",
+		//)
 	}
 
-	return fmt.Sprintf("%s %s ",
-		utils.MessageGreen("foxflow "+utils.MessageYellow("["+c.currentExchange+":"+c.currentUser.Username+"]")),
-		">",
-	)
+	return "foxflow [" + c.currentExchange + ":" + c.currentUser.Username + "] > "
+	//return fmt.Sprintf("%s %s ",
+	//	utils.MessageGreen("foxflow "+utils.MessageYellow("["+c.currentExchange+":"+c.currentUser.Username+"]")),
+	//	">",
+	//)
 }
 
 // IsReady 检查是否已选择交易所和用户
