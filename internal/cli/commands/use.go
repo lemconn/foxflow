@@ -3,10 +3,10 @@ package commands
 import (
 	"fmt"
 
-	"foxflow/internal/cli/command"
-	"foxflow/internal/exchange"
-	"foxflow/internal/repository"
-	"foxflow/pkg/utils"
+	"github.com/lemconn/foxflow/internal/cli/command"
+	"github.com/lemconn/foxflow/internal/exchange"
+	"github.com/lemconn/foxflow/internal/repository"
+	"github.com/lemconn/foxflow/internal/utils"
 )
 
 // UseCommand 激活命令

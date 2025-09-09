@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/models"
 )
 
 // BinanceExchange Binance交易所实现

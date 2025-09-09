@@ -3,8 +3,8 @@ package database
 import (
 	"fmt"
 
-	"foxflow/internal/config"
-	"foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/config"
+	"github.com/lemconn/foxflow/internal/models"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"

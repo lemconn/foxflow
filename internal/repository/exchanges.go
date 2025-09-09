@@ -1,8 +1,8 @@
 package repository
 
 import (
-	"foxflow/internal/database"
-	"foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/database"
+	"github.com/lemconn/foxflow/internal/models"
 )
 
 // ListExchanges 列出所有交易所

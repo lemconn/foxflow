@@ -1,7 +1,7 @@
 package render
 
 import (
-	"foxflow/pkg/utils"
+	"github.com/lemconn/foxflow/internal/utils"
 	"strings"
 
 	"github.com/c-bata/go-prompt"

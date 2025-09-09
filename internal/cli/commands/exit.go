@@ -2,7 +2,8 @@ package commands
 
 import (
 	"fmt"
-	"foxflow/internal/cli/command"
+
+	"github.com/lemconn/foxflow/internal/cli/command"
 )
 
 // ExitCommand 退出命令

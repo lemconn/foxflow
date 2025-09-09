@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/models"
 )
 
 // GateExchange Gate交易所实现

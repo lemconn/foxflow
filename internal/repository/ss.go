@@ -1,8 +1,8 @@
 package repository
 
 import (
-	"foxflow/internal/database"
-	"foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/database"
+	"github.com/lemconn/foxflow/internal/models"
 )
 
 // ListWaitingSSOrders 列出等待中的策略订单，可按用户过滤

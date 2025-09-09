@@ -3,7 +3,8 @@ package strategy
 import (
 	"context"
 	"fmt"
-	"foxflow/internal/exchange"
+
+	"github.com/lemconn/foxflow/internal/exchange"
 )
 
 // Strategy 策略接口
@@ -44,6 +45,8 @@ func NewManager() *Manager {
 	manager.RegisterStrategy(NewVolumeStrategy())
 	manager.RegisterStrategy(NewMACDStrategy())
 	manager.RegisterStrategy(NewRSIStrategy())
+	manager.RegisterStrategy(NewCandlesStrategy())
+	manager.RegisterStrategy(NewNewsStrategy())
 
 	return manager
 }

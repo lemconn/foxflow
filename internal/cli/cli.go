@@ -3,17 +3,18 @@ package cli
 import (
 	"context"
 	"fmt"
-	"foxflow/internal/config"
-	"foxflow/internal/repository"
 	"log"
 	"os"
 	"strings"
 	"time"
 
-	"foxflow/internal/cli/command"
-	cliCmds "foxflow/internal/cli/commands"
-	render "foxflow/internal/cli/render"
-	"foxflow/pkg/utils"
+	"github.com/lemconn/foxflow/internal/config"
+	"github.com/lemconn/foxflow/internal/repository"
+
+	"github.com/lemconn/foxflow/internal/cli/command"
+	cliCmds "github.com/lemconn/foxflow/internal/cli/commands"
+	render "github.com/lemconn/foxflow/internal/cli/render"
+	"github.com/lemconn/foxflow/internal/utils"
 
 	prompt "github.com/c-bata/go-prompt"
 )
@@ -52,7 +53,7 @@ func (c *CLI) Run() error {
 	fmt.Print(render.RenderWelcomeHints())
 
 	// 设置默认交易所
-	//c.setDefaultExchange()
+	c.setDefaultExchange()
 
 	p := prompt.New(
 		c.executor,
@@ -152,11 +153,6 @@ func (c *CLI) executor(in string) {
 
 	// 执行完成输出信息后刷新一行彩色状态（当前交易所和用户信息）
 	c.printStatus()
-}
-
-// livePrefix 动态前缀
-func (c *CLI) livePrefix() (string, bool) {
-	return c.ctx.GetPrompt(), true
 }
 
 // getCompleter 获取命令补全器（go-prompt）

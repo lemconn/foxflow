@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strconv"
 
-	"foxflow/internal/cli/command"
-	"foxflow/internal/repository"
-	"foxflow/pkg/utils"
+	"github.com/lemconn/foxflow/internal/cli/command"
+	"github.com/lemconn/foxflow/internal/repository"
+	"github.com/lemconn/foxflow/internal/utils"
 )
 
 // CancelCommand 取消命令
