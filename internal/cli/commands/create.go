@@ -60,10 +60,21 @@ func (c *CreateCommand) createUser(ctx command.Context, args []string) error {
 		return fmt.Errorf("missing required parameters")
 	}
 
-	user.Exchange = ctx.GetExchange()
+	user.Exchange = ctx.GetExchangeName()
 	if user.Exchange == "" {
 		user.Exchange = config.DefaultExchange // 默认交易所
 	}
+
+	exchangeInfo, err := repository.GetExchange("")
+	if err != nil {
+		return fmt.Errorf("get exchange error: %w", err)
+	}
+
+	if exchangeInfo.Name == "" {
+
+	}
+
+	// 到指定交易交易所验证当前用户
 
 	if err := repository.CreateUser(user); err != nil {
 		return fmt.Errorf("failed to create user: %w", err)
@@ -84,8 +95,8 @@ func (c *CreateCommand) createSymbol(ctx command.Context, args []string) error {
 
 	symbol := &models.FoxSymbol{
 		Name:       args[0],
-		UserID:     ctx.GetUser().ID,
-		Exchange:   ctx.GetExchange(),
+		UserID:     ctx.GetUserInstance().ID,
+		Exchange:   ctx.GetExchangeName(),
 		Leverage:   1,
 		MarginType: "isolated",
 	}
@@ -118,7 +129,7 @@ func (c *CreateCommand) createStrategyOrder(ctx command.Context, args []string) 
 
 	// 解析参数
 	order := &models.FoxSS{
-		UserID:    ctx.GetUser().ID,
+		UserID:    ctx.GetUserInstance().ID,
 		OrderType: "limit",
 		Type:      "open",
 		Status:    "waiting",

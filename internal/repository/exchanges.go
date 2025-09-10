@@ -1,17 +1,23 @@
 package repository
 
 import (
+	"errors"
+
 	"github.com/lemconn/foxflow/internal/database"
 	"github.com/lemconn/foxflow/internal/models"
+	"gorm.io/gorm"
 )
 
 // ListExchanges 列出所有交易所
-func ListExchanges() ([]models.FoxExchange, error) {
+func ListExchanges() ([]*models.FoxExchange, error) {
+	var exchanges []*models.FoxExchange
+
 	db := database.GetDB()
-	var exchanges []models.FoxExchange
-	if err := db.Find(&exchanges).Error; err != nil {
+	err := db.Find(&exchanges).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
+	
 	return exchanges, nil
 }
 
@@ -19,6 +25,18 @@ func ListExchanges() ([]models.FoxExchange, error) {
 func SetAllExchangesInactive() error {
 	db := database.GetDB()
 	return db.Model(&models.FoxExchange{}).Where("1 = 1").Update("is_active", false).Error
+}
+
+func GetExchange(name string) (*models.FoxExchange, error) {
+	var exchange *models.FoxExchange
+
+	db := database.GetDB()
+	err := db.Where("name = ?", name).First(&exchange).Error
+	if (err != nil) && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	return exchange, nil
 }
 
 // ActivateExchange 激活指定交易所

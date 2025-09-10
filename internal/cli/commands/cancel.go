@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/lemconn/foxflow/internal/cli/command"
+	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/repository"
 	"github.com/lemconn/foxflow/internal/utils"
 )
@@ -32,14 +33,18 @@ func (c *CancelCommand) Execute(ctx command.Context, args []string) error {
 		return fmt.Errorf("invalid order ID")
 	}
 
-	order, err := repository.FindSSOrderByIDForUser(ctx.GetUser().ID, orderID)
+	order, err := repository.FindSSOrderByIDForUser(ctx.GetUserInstance().ID, orderID)
 	if err != nil {
 		return fmt.Errorf("order not found")
 	}
 
 	// 如果订单已提交到交易所，需要取消远程订单
 	if order.Status == "pending" && order.OrderID != "" {
-		if err := ctx.GetExchangeInstance().CancelOrder(ctx.GetContext(), order.OrderID); err != nil {
+		exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeInstance().Name)
+		if err != nil {
+			return fmt.Errorf("failed to get exchange client: %w", err)
+		}
+		if err := exchangeClient.CancelOrder(ctx.GetContext(), order.OrderID); err != nil {
 			return fmt.Errorf("failed to cancel remote order: %w", err)
 		}
 	}
