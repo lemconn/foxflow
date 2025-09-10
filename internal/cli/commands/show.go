@@ -6,8 +6,10 @@ import (
 
 	"github.com/lemconn/foxflow/internal/cli/command"
 	cliRender "github.com/lemconn/foxflow/internal/cli/render"
+	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/models"
 	"github.com/lemconn/foxflow/internal/repository"
+	"github.com/lemconn/foxflow/internal/utils"
 )
 
 // ShowCommand 查看命令
@@ -37,6 +39,11 @@ func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
 			return fmt.Errorf("failed to get exchanges: %w", err)
 		}
 
+		if exchanges == nil || len(exchanges) == 0 {
+			fmt.Println(utils.RenderWarning("No exchanges found"))
+			return nil
+		}
+
 		fmt.Println(cliRender.RenderExchangesWithStatus(exchanges))
 
 	case "users":
@@ -50,17 +57,28 @@ func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
 		if !ctx.IsReady() {
 			return errors.New("请先选择交易所和用户")
 		}
-		assets, err := ctx.GetExchangeInstance().GetBalance(ctx.GetContext())
+
+		exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeInstance().Name)
+		if err != nil {
+			return fmt.Errorf("failed to get exchange client: %w", err)
+		}
+		assets, err := exchangeClient.GetBalance(ctx.GetContext())
 		if err != nil {
 			return fmt.Errorf("failed to get assets: %w", err)
 		}
+
 		fmt.Println(cliRender.RenderAssets(assets))
 
 	case "orders":
 		if !ctx.IsReady() {
 			return errors.New("请先选择交易所和用户")
 		}
-		orders, err := ctx.GetExchangeInstance().GetOrders(ctx.GetContext(), "", "pending")
+
+		exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeInstance().Name)
+		if err != nil {
+			return fmt.Errorf("failed to get exchange client: %w", err)
+		}
+		orders, err := exchangeClient.GetOrders(ctx.GetContext(), "", "pending")
 		if err != nil {
 			return fmt.Errorf("failed to get orders: %w", err)
 		}
@@ -70,7 +88,12 @@ func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
 		if !ctx.IsReady() {
 			return errors.New("请先选择交易所和用户")
 		}
-		positions, err := ctx.GetExchangeInstance().GetPositions(ctx.GetContext())
+
+		exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeInstance().Name)
+		if err != nil {
+			return fmt.Errorf("failed to get exchange client: %w", err)
+		}
+		positions, err := exchangeClient.GetPositions(ctx.GetContext())
 		if err != nil {
 			return fmt.Errorf("failed to get positions: %w", err)
 		}
@@ -83,7 +106,12 @@ func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
 		if !ctx.IsReady() {
 			return errors.New("请先选择交易所和用户")
 		}
-		symbols, err := ctx.GetExchangeInstance().GetSymbols(ctx.GetContext())
+
+		exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeInstance().Name)
+		if err != nil {
+			return fmt.Errorf("failed to get exchange client: %w", err)
+		}
+		symbols, err := exchangeClient.GetSymbols(ctx.GetContext())
 		if err != nil {
 			return fmt.Errorf("failed to get symbols: %w", err)
 		}
@@ -93,7 +121,7 @@ func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
 		var ss []models.FoxSS
 		var uid *uint
 		if ctx.IsReady() {
-			u := ctx.GetUser().ID
+			u := ctx.GetUserInstance().ID
 			uid = &u
 		}
 		ss, err := repository.ListWaitingSSOrders(uid)

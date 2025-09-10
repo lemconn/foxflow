@@ -9,7 +9,7 @@ import (
 )
 
 // RenderExchangesWithStatus 渲染带状态的交易所列表
-func RenderExchangesWithStatus(exchanges []models.FoxExchange) string {
+func RenderExchangesWithStatus(exchanges []*models.FoxExchange) string {
 	pt := utils.NewPrettyTable()
 	pt.SetTitle("🏦 可用交易所")
 	pt.SetHeaders([]interface{}{"#", "交易所名称", "状态"})

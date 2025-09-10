@@ -21,11 +21,11 @@ Usage: use <type> <name>
 Description:
   Can activate exchanges or users
 
-Types:
+Types[Required]:
   exchanges    - activate designated exchange
   users        - activate a specified user
 
-Name：
+Name[Required]：
   - If the type is 'exchanges', Currently supported options include 'okx', 'binance', and 'gate'.
   - If the type is 'users', the user needs to specify the user name.
 `
@@ -51,23 +51,28 @@ func (c *UseCommand) Execute(ctx command.Context, args []string) error {
 		}
 
 		// 断开当前交易所连接
-		if ctx.GetExchange() != "" {
-			exchange.GetManager().DisconnectUser(ctx.GetExchange())
+		if ctx.GetExchangeName() != "" {
+			exchange.GetManager().DisconnectUser(ctx.GetExchangeName())
 		}
 
-		// 激活选中的交易所
-		if err := repository.ActivateExchange(exchangeName); err != nil {
+		// 获取交易所信息
+		exchangeInfo, err := repository.GetExchange(exchangeName)
+		if err != nil {
+			return fmt.Errorf("failed to get exchange %s: %w", exchangeName, err)
+		}
+		if exchangeInfo == nil || exchangeInfo.ID == 0 {
+			return fmt.Errorf("exchange `%s` not found", exchangeName)
+		}
+
+		// 激活指定交易所
+		if err = repository.ActivateExchange(exchangeName); err != nil {
 			return fmt.Errorf("failed to activate exchange: %w", err)
 		}
 
 		// 设置新的交易所
-		ex, err := exchange.GetManager().GetExchange(exchangeName)
-		if err != nil {
-			return fmt.Errorf("exchange not found: %s", exchangeName)
-		}
-		ctx.SetExchange(exchangeName)
-		ctx.SetExchangeInstance(ex)
-		ctx.SetUser(nil) // 清除当前用户
+		ctx.SetExchangeName(exchangeName)
+		ctx.SetExchangeInstance(exchangeInfo)
+		ctx.SetUserName("") // 清除当前用户
 		fmt.Println(utils.RenderSuccess(fmt.Sprintf("已激活交易所: %s", utils.MessageGreen(exchangeName))))
 
 	case "users":
@@ -83,17 +88,17 @@ func (c *UseCommand) Execute(ctx command.Context, args []string) error {
 		}
 
 		// 如果用户属于不同的交易所，需要切换交易所
-		if ctx.GetExchange() != "" && ctx.GetExchange() != user.Exchange {
+		if ctx.GetExchangeName() != "" && ctx.GetExchangeName() != user.Exchange {
 			// 将所有交易所设置为非激活状态
 			if err := repository.SetAllExchangesInactive(); err != nil {
 				return fmt.Errorf("failed to deactivate exchanges: %w", err)
 			}
 
 			// 断开当前交易所连接
-			exchange.GetManager().DisconnectUser(ctx.GetExchange())
+			exchange.GetManager().DisconnectUser(ctx.GetExchangeName())
 
 			// 切换到用户所属的交易所
-			ex, err := exchange.GetManager().GetExchange(user.Exchange)
+			ex, err := repository.GetExchange(user.Exchange)
 			if err != nil {
 				return fmt.Errorf("failed to get exchange: %w", err)
 			}
@@ -103,7 +108,7 @@ func (c *UseCommand) Execute(ctx command.Context, args []string) error {
 				return fmt.Errorf("failed to activate exchange: %w", err)
 			}
 
-			ctx.SetExchange(user.Exchange)
+			ctx.SetExchangeName(user.Exchange)
 			ctx.SetExchangeInstance(ex)
 		}
 
@@ -113,13 +118,13 @@ func (c *UseCommand) Execute(ctx command.Context, args []string) error {
 		}
 
 		// 连接用户到交易所
-		if ctx.GetExchange() != "" {
-			if err := exchange.GetManager().ConnectUser(ctx.GetContext(), ctx.GetExchange(), user); err != nil {
+		if ctx.GetExchangeName() != "" {
+			if err := exchange.GetManager().ConnectUser(ctx.GetContext(), ctx.GetExchangeName(), user); err != nil {
 				return fmt.Errorf("failed to connect user: %w", err)
 			}
 		}
 
-		ctx.SetUser(user)
+		ctx.SetUserName(user.Username)
 		fmt.Println(utils.RenderSuccess(fmt.Sprintf("已激活用户: %s", utils.MessageGreen(username))))
 
 	default:

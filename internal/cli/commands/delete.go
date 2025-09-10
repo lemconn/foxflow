@@ -32,7 +32,7 @@ func (c *DeleteCommand) Execute(ctx command.Context, args []string) error {
 			return fmt.Errorf("请先选择交易所和用户")
 		}
 		symbolName := args[1]
-		if err := repository.DeleteSymbolByNameForUser(ctx.GetUser().ID, symbolName); err != nil {
+		if err := repository.DeleteSymbolByNameForUser(ctx.GetUserInstance().ID, symbolName); err != nil {
 			return fmt.Errorf("failed to delete symbol: %w", err)
 		}
 		fmt.Println(utils.RenderSuccess(fmt.Sprintf("标的已删除: %s", symbolName)))
