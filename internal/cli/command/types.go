@@ -3,7 +3,6 @@ package command
 import (
 	"context"
 
-	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/models"
 )
 
@@ -14,14 +13,18 @@ type Context interface {
 
 	// 交易所与用户状态
 	IsReady() bool
-	GetExchange() string
-	SetExchange(exchangeName string)
 
-	GetUser() *models.FoxUser
-	SetUser(user *models.FoxUser)
+	GetExchangeName() string
+	SetExchangeName(exchangeName string)
 
-	GetExchangeInstance() exchange.Exchange
-	SetExchangeInstance(ex exchange.Exchange)
+	GetUserName() string
+	SetUserName(user string)
+
+	GetExchangeInstance() *models.FoxExchange
+	SetExchangeInstance(ex *models.FoxExchange)
+
+	GetUserInstance() *models.FoxUser
+	SetUserInstance(user *models.FoxUser)
 }
 
 // Command 命令接口（供各业务命令实现）

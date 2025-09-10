@@ -13,6 +13,8 @@ const (
 	DefaultExchange = "okx"
 )
 
+const DateFormat = "2006-01-02 15:04:05"
+
 type Config struct {
 	DBPath   string
 	ProxyURL string

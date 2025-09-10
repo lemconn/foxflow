@@ -13,10 +13,10 @@ import (
 
 	"github.com/lemconn/foxflow/internal/cli/command"
 	cliCmds "github.com/lemconn/foxflow/internal/cli/commands"
-	render "github.com/lemconn/foxflow/internal/cli/render"
+	"github.com/lemconn/foxflow/internal/cli/render"
 	"github.com/lemconn/foxflow/internal/utils"
 
-	prompt "github.com/c-bata/go-prompt"
+	"github.com/c-bata/go-prompt"
 )
 
 // CLI 命令行界面
@@ -62,6 +62,16 @@ func (c *CLI) Run() error {
 		prompt.OptionPrefix("> "),
 		prompt.OptionPrefixTextColor(prompt.Green),
 		prompt.OptionCompletionWordSeparator(" "),
+		prompt.OptionAddKeyBind(
+			prompt.KeyBind{
+				Key: prompt.ControlC,
+				Fn: func(b *prompt.Buffer) {
+					// 捕获 Ctrl+C：刷新一行彩色状态信息（当前已激活交易所/用户信息），给出退出操作的提示
+					c.printStatus()
+					fmt.Println(utils.RenderWarning("请输入 'exit' 或 'quit' 或 'Ctrl+D' 退出程序"))
+				},
+			},
+		),
 	)
 
 	// 启动前刷新一行彩色状态信息（当前已激活交易所/用户信息）
@@ -69,6 +79,40 @@ func (c *CLI) Run() error {
 
 	p.Run()
 	return nil
+}
+
+// executor 执行器：处理一行输入
+func (c *CLI) executor(in string) {
+	line := strings.TrimSpace(in)
+	if line == "" {
+		// 输入空数据回车刷新一行彩色状态信息（当前已激活交易所/用户信息）
+		c.printStatus()
+		return
+	}
+
+	args := parseArgs(line)
+	if len(args) == 0 {
+		return
+	}
+
+	if args[0] == "quit" || args[0] == "exit" {
+		fmt.Println(utils.RenderInfo("再见！"))
+		os.Exit(0)
+		return
+	}
+
+	if err := c.executeCommand(args); err != nil {
+		if err.Error() == "exit" {
+			fmt.Println(utils.RenderInfo("再见！"))
+			os.Exit(0)
+			return
+		}
+		fmt.Println(utils.RenderError(fmt.Sprintf("错误: %v", err)))
+	}
+
+	// 执行完成输出信息后刷新一行彩色状态（当前交易所和用户信息）
+	fmt.Println()
+	c.printStatus()
 }
 
 // executeCommand 执行命令
@@ -121,88 +165,6 @@ func parseArgs(line string) []string {
 	return args
 }
 
-// executor 执行器：处理一行输入
-func (c *CLI) executor(in string) {
-
-	line := strings.TrimSpace(in)
-	if line == "" {
-		// 输入空数据回车刷新一行彩色状态信息（当前已激活交易所/用户信息）
-		c.printStatus()
-		return
-	}
-
-	args := parseArgs(line)
-	if len(args) == 0 {
-		return
-	}
-
-	if args[0] == "quit" || args[0] == "exit" {
-		fmt.Println(utils.RenderInfo("再见！"))
-		os.Exit(0)
-		return
-	}
-
-	if err := c.executeCommand(args); err != nil {
-		if err.Error() == "exit" {
-			fmt.Println(utils.RenderInfo("再见！"))
-			os.Exit(0)
-			return
-		}
-		fmt.Println(utils.RenderError(fmt.Sprintf("错误: %v", err)))
-	}
-
-	// 执行完成输出信息后刷新一行彩色状态（当前交易所和用户信息）
-	c.printStatus()
-}
-
-// getCompleter 获取命令补全器（go-prompt）
-func getCompleter(commands map[string]command.Command) prompt.Completer {
-	// 命令集合
-	var cmdNames []string
-	for name := range commands {
-		cmdNames = append(cmdNames, name)
-	}
-
-	// 子命令集合（迁移至 render 包统一维护文案）
-	sub := render.GetSubcommandSuggestions()
-
-	// 顶层命令建议
-	var top []prompt.Suggest
-	for _, n := range cmdNames {
-		top = append(top, prompt.Suggest{Text: n})
-	}
-
-	return func(d prompt.Document) []prompt.Suggest {
-		text := d.TextBeforeCursor()
-		trimmed := strings.TrimSpace(text)
-		if trimmed == "" {
-			return top
-		}
-
-		args := parseArgs(text)
-		// 情况1：只有一个 token，且原始输入以空格结尾，表示用户已输入命令并在敲空格后等待二级建议
-		if len(args) == 1 && strings.HasSuffix(text, " ") {
-			if items, ok := sub[args[0]]; ok {
-				return items
-			}
-			return []prompt.Suggest{}
-		}
-
-		if len(args) <= 1 {
-			// 输入在首个 token：补全命令
-			return prompt.FilterHasPrefix(top, d.GetWordBeforeCursor(), true)
-		}
-
-		// 第二个 token：如果是已知命令提供子命令建议
-		first := args[0]
-		if items, ok := sub[first]; ok {
-			return prompt.FilterHasPrefix(items, d.GetWordBeforeCursor(), true)
-		}
-
-		return []prompt.Suggest{}
-	}
-}
-
 func (c *CLI) setDefaultExchange() {
 
 	exchangesList, err := repository.ListExchanges()
@@ -237,18 +199,23 @@ func (c *CLI) setDefaultExchange() {
 
 // 额外：在提示行上方打印一行彩色状态，作为多色前缀替代
 func (c *CLI) printStatus() {
-	ex := c.ctx.GetExchange()
-	user := c.ctx.GetUser()
+	exchangeName := c.ctx.GetExchangeName()
+	userName := c.ctx.GetUserName()
 
-	if ex == "" {
-		fmt.Println(utils.MessageGreen("foxflow ") + utils.MessagePurple("["+time.Now().Format("2006-01-02 15:04:05")+"]"))
+	if exchangeName == "" {
+		fmt.Println(utils.MessageGreen("foxflow ") +
+			utils.MessagePurple("["+time.Now().Format(config.DateFormat)+"]"))
 		return
 	}
 
-	if user == nil {
-		fmt.Println(utils.MessageGreen("foxflow ") + utils.MessageYellow("["+ex+"] ") + utils.MessagePurple("["+time.Now().Format("2006-01-02 15:04:05")+"]"))
+	if userName == "" {
+		fmt.Println(utils.MessageGreen("foxflow ") +
+			utils.MessageYellow("["+exchangeName+"] ") +
+			utils.MessagePurple("["+time.Now().Format(config.DateFormat)+"]"))
 		return
 	}
 
-	fmt.Println(utils.MessageGreen("foxflow ") + utils.MessageYellow("["+ex+":"+user.Username+"] ") + utils.MessagePurple("["+time.Now().Format("2006-01-02 15:04:05")+"]"))
+	fmt.Println(utils.MessageGreen("foxflow ") +
+		utils.MessageYellow("["+exchangeName+":"+userName+"] ") +
+		utils.MessagePurple("["+time.Now().Format(config.DateFormat)+"]"))
 }
