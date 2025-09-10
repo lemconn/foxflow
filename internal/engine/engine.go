@@ -4,15 +4,15 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/lemconn/foxflow/internal/ast"
+	"github.com/lemconn/foxflow/internal/data"
 	"github.com/lemconn/foxflow/internal/database"
+	"github.com/lemconn/foxflow/internal/dsl"
 	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/models"
-	"github.com/lemconn/foxflow/internal/parser"
-	"github.com/lemconn/foxflow/internal/strategy"
 )
 
 // Engine 策略引擎
@@ -20,9 +20,10 @@ type Engine struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
 	wg            sync.WaitGroup
-	strategyMgr   *strategy.Manager
+	dataMgr       *data.Manager
 	exchangeMgr   *exchange.Manager
-	parser        *parser.StrategyParser
+	dslParser     *dsl.Parser
+	astExecutor   *ast.Executor
 	checkInterval time.Duration
 	running       bool
 	mu            sync.RWMutex
@@ -32,12 +33,23 @@ type Engine struct {
 func NewEngine() *Engine {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// 创建数据管理器并初始化默认模块
+	dataMgr := data.InitDefaultModules()
+
+	// 创建DSL解析器
+	dslParser := dsl.NewParser()
+
+	// 创建AST执行器
+	dataAdapter := ast.NewDataAdapter(dataMgr)
+	astExecutor := ast.NewExecutor(dataAdapter)
+
 	return &Engine{
 		ctx:           ctx,
 		cancel:        cancel,
-		strategyMgr:   strategy.NewManager(),
+		dataMgr:       dataMgr,
 		exchangeMgr:   exchange.GetManager(),
-		parser:        parser.NewStrategyParser(),
+		dslParser:     dslParser,
+		astExecutor:   astExecutor,
 		checkInterval: 5 * time.Second, // 每5秒检查一次
 	}
 }
@@ -169,73 +181,31 @@ func (e *Engine) processOrder(exchangeInstance exchange.Exchange, order *models.
 		return e.submitOrder(exchangeInstance, order)
 	}
 
-	// 解析策略表达式
-	condition, err := e.parser.Parse(order.Strategy)
+	// 解析DSL表达式为AST
+	astNode, err := e.dslParser.Parse(order.Strategy)
 	if err != nil {
-		return fmt.Errorf("failed to parse strategy: %w", err)
+		return fmt.Errorf("failed to parse strategy DSL: %w", err)
 	}
 
-	// 获取策略名称和参数
-	strategyNames := e.parser.GetStrategyNames(condition)
-	parameters := e.parser.GetParameters(condition)
-
-	// 执行所有策略
-	results := make(map[string]bool)
-	for _, strategyKey := range strategyNames {
-		// 解析策略键：candles.SOL.last_px -> candles
-		strategyName, err := e.extractStrategyName(strategyKey)
-		if err != nil {
-			return fmt.Errorf("failed to extract strategy name from key %s: %w", strategyKey, err)
-		}
-
-		strategyInstance, exists := e.strategyMgr.GetStrategy(strategyName)
-		if !exists {
-			return fmt.Errorf("strategy not found: %s", strategyName)
-		}
-
-		result, err := strategyInstance.Evaluate(e.ctx, exchangeInstance, order.Symbol, parameters[strategyKey])
-		if err != nil {
-			return fmt.Errorf("failed to evaluate strategy %s: %w", strategyName, err)
-		}
-
-		results[strategyKey] = result
+	// 验证AST节点
+	if err := e.astExecutor.Validate(astNode); err != nil {
+		return fmt.Errorf("failed to validate AST: %w", err)
 	}
 
-	// 评估策略条件
-	conditionResult, err := e.parser.Evaluate(condition, results)
+	// 执行AST并获取布尔结果
+	conditionResult, err := e.astExecutor.ExecuteToBool(e.ctx, astNode)
 	if err != nil {
-		return fmt.Errorf("failed to evaluate condition: %w", err)
+		return fmt.Errorf("failed to execute AST: %w", err)
 	}
 
 	// 如果条件满足，提交订单
 	if conditionResult {
-		log.Printf("策略条件满足，提交订单: ID=%d", order.ID)
+		log.Printf("策略条件满足，提交订单: ID=%d, Strategy=%s", order.ID, order.Strategy)
 		return e.submitOrder(exchangeInstance, order)
 	}
 
+	log.Printf("策略条件不满足，跳过订单: ID=%d, Strategy=%s", order.ID, order.Strategy)
 	return nil
-}
-
-// extractStrategyName 从策略键中提取策略名称
-func (e *Engine) extractStrategyName(strategyKey string) (string, error) {
-	// 策略键格式：candles.SOL.last_px -> candles
-	// 或者：news.theblockbeats.last_title -> news
-	parts := strings.Split(strategyKey, ".")
-	if len(parts) < 2 {
-		return "", fmt.Errorf("invalid strategy key format: %s", strategyKey)
-	}
-
-	strategyName := parts[0]
-
-	// 验证策略名称
-	validStrategies := []string{"candles", "news", "volume", "macd", "rsi"}
-	for _, valid := range validStrategies {
-		if strategyName == valid {
-			return strategyName, nil
-		}
-	}
-
-	return "", fmt.Errorf("unknown strategy: %s", strategyName)
 }
 
 // submitOrder 提交订单到交易所
