@@ -6,6 +6,18 @@ import (
 	"github.com/lemconn/foxflow/internal/models"
 )
 
+const (
+	TopCommandHelp   = "help"
+	TopCommandShow   = "show"
+	TopCommandUse    = "use"
+	TopCommandCreate = "create"
+	TopCommandUpdate = "update"
+	TopCommandCancel = "cancel"
+	TopCommandDelete = "delete"
+	TopCommandExit   = "exit"
+	TopCommandQuit   = "quit"
+)
+
 // Context 定义命令执行所需的最小上下文接口
 type Context interface {
 	// 基础
