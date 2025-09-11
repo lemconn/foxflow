@@ -17,14 +17,14 @@ func ListExchanges() ([]*models.FoxExchange, error) {
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
-	
+
 	return exchanges, nil
 }
 
 // SetAllExchangesInactive 将所有交易所置为未激活
 func SetAllExchangesInactive() error {
 	db := database.GetDB()
-	return db.Model(&models.FoxExchange{}).Where("1 = 1").Update("is_active", false).Error
+	return db.Model(&models.FoxExchange{}).Update("is_active", false).Error
 }
 
 func GetExchange(name string) (*models.FoxExchange, error) {

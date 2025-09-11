@@ -5,10 +5,23 @@ import (
 
 	"github.com/c-bata/go-prompt"
 	"github.com/lemconn/foxflow/internal/cli/command"
+	"github.com/lemconn/foxflow/internal/repository"
 )
 
-// GetSubcommandSuggestions 返回各命令的子命令建议及说明文案
-func GetSubcommandSuggestions() map[string][]prompt.Suggest {
+var topLevel = []prompt.Suggest{
+	{Text: command.TopCommandHelp, Description: "- 显示帮助信息"},
+	{Text: command.TopCommandShow, Description: "- 查看数据列表"},
+	{Text: command.TopCommandUse, Description: "- 激活交易所或用户"},
+	{Text: command.TopCommandCreate, Description: "- 创建用户、标的或策略订单"},
+	{Text: command.TopCommandUpdate, Description: "- 设置杠杆或保证金模式"},
+	{Text: command.TopCommandCancel, Description: "- 取消策略订单"},
+	{Text: command.TopCommandDelete, Description: "- 删除用户或标的"},
+	{Text: command.TopCommandExit, Description: "- 退出系统"},
+	{Text: command.TopCommandQuit, Description: "- 退出系统"},
+}
+
+// getSubcommandSuggestions 返回各命令的子命令建议及说明文案
+func getSubcommandSuggestions() map[string][]prompt.Suggest {
 	return map[string][]prompt.Suggest{
 		"show": {
 			{Text: "exchanges", Description: "展示交易所"},
@@ -43,6 +56,22 @@ func GetSubcommandSuggestions() map[string][]prompt.Suggest {
 	}
 }
 
+// useExchangesList 激活交易所列表
+func useExchangesList() []prompt.Suggest {
+	// 获取所有交易所列表
+	exchangeList, err := repository.ListExchanges()
+	if err != nil {
+		return []prompt.Suggest{}
+	}
+
+	exchanges := make([]prompt.Suggest, 0, len(exchangeList))
+	for _, exchange := range exchangeList {
+		exchanges = append(exchanges, prompt.Suggest{Text: exchange.Name})
+	}
+
+	return exchanges
+}
+
 // getCompleter 获取命令补全器（go-prompt）
 func getCompleter(commands map[string]command.Command) prompt.Completer {
 	// 命令集合
@@ -51,40 +80,40 @@ func getCompleter(commands map[string]command.Command) prompt.Completer {
 		cmdNames = append(cmdNames, name)
 	}
 
-	// 子命令集合（迁移至 render 包统一维护文案）
-	sub := GetSubcommandSuggestions()
-
-	// 顶层命令建议
-	var top []prompt.Suggest
-	for _, n := range cmdNames {
-		top = append(top, prompt.Suggest{Text: n})
-	}
+	// 子命令提示集合
+	sub := getSubcommandSuggestions()
 
 	return func(d prompt.Document) []prompt.Suggest {
-		text := d.TextBeforeCursor()
-		trimmed := strings.TrimSpace(text)
-		if trimmed == "" {
-			return top
+		// 按空格分割，决定补全上下文
+		w := d.TextBeforeCursor()
+		fields := parseArgs(w)
+
+		// 如果没有输入或正在输入第一个token，补全顶层命令
+		if len(fields) == 0 || (len(fields) == 1 && !strings.HasSuffix(w, " ")) {
+			return prompt.FilterHasPrefix(topLevel, d.GetWordBeforeCursor(), true)
 		}
 
-		args := parseArgs(text)
-		// 情况1：只有一个 token，且原始输入以空格结尾，表示用户已输入命令并在敲空格后等待二级建议
-		if len(args) == 1 && strings.HasSuffix(text, " ") {
-			if items, ok := sub[args[0]]; ok {
+		// 如果第一个token已完成(后面有空格)，根据命令补全子命令
+		first := fields[0]
+		if len(fields) == 1 && strings.HasSuffix(w, " ") {
+			if items, ok := sub[first]; ok {
 				return items
 			}
 			return []prompt.Suggest{}
 		}
 
-		if len(args) <= 1 {
-			// 输入在首个 token：补全命令
-			return prompt.FilterHasPrefix(top, d.GetWordBeforeCursor(), true)
+		// 正在输入第二个token（进行命令提示）
+		if len(fields) >= 2 && !strings.HasSuffix(w, " ") {
+			secondPrefix := d.GetWordBeforeCursor()
+			if items, ok := sub[first]; ok {
+				return prompt.FilterHasPrefix(items, secondPrefix, true)
+			}
 		}
 
-		// 第二个 token：如果是已知命令提供子命令建议
-		first := args[0]
-		if items, ok := sub[first]; ok {
-			return prompt.FilterHasPrefix(items, d.GetWordBeforeCursor(), true)
+		// use exchanges 的第一个参数输入过程中（未以空格结束）动态过滤交易所信息
+		if len(fields) == 2 && strings.HasSuffix(w, " ") && first == "use" && fields[1] == "exchanges" {
+			prefix := d.GetWordBeforeCursor()
+			return prompt.FilterHasPrefix(useExchangesList(), prefix, true)
 		}
 
 		return []prompt.Suggest{}

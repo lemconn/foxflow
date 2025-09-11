@@ -1,8 +1,11 @@
 package repository
 
 import (
+	"errors"
+
 	"github.com/lemconn/foxflow/internal/database"
 	"github.com/lemconn/foxflow/internal/models"
+	"gorm.io/gorm"
 )
 
 // ListUsers 列出所有用户
@@ -17,11 +20,14 @@ func ListUsers() ([]models.FoxUser, error) {
 
 // FindUserByUsername 根据用户名查找用户
 func FindUserByUsername(username string) (*models.FoxUser, error) {
-	db := database.GetDB()
 	var user models.FoxUser
-	if err := db.Where("username = ?", username).First(&user).Error; err != nil {
+
+	db := database.GetDB()
+	err := db.Where("username = ?", username).Find(&user).Error
+	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
+
 	return &user, nil
 }
 
@@ -40,7 +46,7 @@ func DeleteUserByUsername(username string) error {
 // SetAllUsersInactive 将所有用户置为未激活
 func SetAllUsersInactive() error {
 	db := database.GetDB()
-	return db.Model(&models.FoxUser{}).Where("1 = 1").Update("is_active", false).Error
+	return db.Model(&models.FoxUser{}).Update("is_active", false).Error
 }
 
 // ActivateUserByUsername 激活指定用户

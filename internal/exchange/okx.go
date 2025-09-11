@@ -17,6 +17,10 @@ import (
 	"github.com/lemconn/foxflow/internal/models"
 )
 
+const (
+	okxUriUserBalance = ""
+)
+
 // OKXExchange OKX交易所实现
 type OKXExchange struct {
 	name     string

@@ -39,24 +39,24 @@ func (c *CreateCommand) Execute(ctx command.Context, args []string) error {
 
 func (c *CreateCommand) createUser(ctx command.Context, args []string) error {
 	if len(args) < 4 {
-		return fmt.Errorf("usage: create users --username=<name> --ak=<key> --sk=<secret> --trade_type=<type>")
+		return fmt.Errorf("usage: create users --trade_type=<type> --username=<name> --ak=<key> --sk=<secret>")
 	}
 
 	user := &models.FoxUser{}
 
 	for _, arg := range args {
-		if strings.HasPrefix(arg, "--username=") {
+		if strings.HasPrefix(arg, "--trade_type=") {
+			user.TradeType = strings.TrimPrefix(arg, "--trade_type=")
+		} else if strings.HasPrefix(arg, "--username=") {
 			user.Username = strings.TrimPrefix(arg, "--username=")
 		} else if strings.HasPrefix(arg, "--ak=") {
 			user.AccessKey = strings.TrimPrefix(arg, "--ak=")
 		} else if strings.HasPrefix(arg, "--sk=") {
 			user.SecretKey = strings.TrimPrefix(arg, "--sk=")
-		} else if strings.HasPrefix(arg, "--trade_type=") {
-			user.TradeType = strings.TrimPrefix(arg, "--trade_type=")
 		}
 	}
 
-	if user.Username == "" || user.AccessKey == "" || user.SecretKey == "" || user.TradeType == "" {
+	if user.TradeType == "" || user.Username == "" || user.AccessKey == "" || user.SecretKey == "" {
 		return fmt.Errorf("missing required parameters")
 	}
 

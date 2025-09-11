@@ -5,6 +5,7 @@ import (
 
 	"github.com/lemconn/foxflow/internal/cli/command"
 	"github.com/lemconn/foxflow/internal/exchange"
+	"github.com/lemconn/foxflow/internal/models"
 	"github.com/lemconn/foxflow/internal/repository"
 	"github.com/lemconn/foxflow/internal/utils"
 )
@@ -79,18 +80,22 @@ func (c *UseCommand) Execute(ctx command.Context, args []string) error {
 		username := args[1]
 		user, err := repository.FindUserByUsername(username)
 		if err != nil {
-			return fmt.Errorf("user not found: %s", username)
+			return fmt.Errorf("failed to get user: %w", err)
+		}
+
+		if user == nil || user.ID == 0 {
+			return fmt.Errorf("user `%s` not found", username)
 		}
 
 		// 将所有用户设置为非激活状态
-		if err := repository.SetAllUsersInactive(); err != nil {
+		if err = repository.SetAllUsersInactive(); err != nil {
 			return fmt.Errorf("failed to deactivate users: %w", err)
 		}
 
 		// 如果用户属于不同的交易所，需要切换交易所
 		if ctx.GetExchangeName() != "" && ctx.GetExchangeName() != user.Exchange {
 			// 将所有交易所设置为非激活状态
-			if err := repository.SetAllExchangesInactive(); err != nil {
+			if err = repository.SetAllExchangesInactive(); err != nil {
 				return fmt.Errorf("failed to deactivate exchanges: %w", err)
 			}
 
@@ -98,13 +103,18 @@ func (c *UseCommand) Execute(ctx command.Context, args []string) error {
 			exchange.GetManager().DisconnectUser(ctx.GetExchangeName())
 
 			// 切换到用户所属的交易所
-			ex, err := repository.GetExchange(user.Exchange)
+			var ex *models.FoxExchange
+			ex, err = repository.GetExchange(user.Exchange)
 			if err != nil {
 				return fmt.Errorf("failed to get exchange: %w", err)
 			}
 
+			if ex == nil || ex.ID == 0 {
+				return fmt.Errorf("exchange `%s` not found", user.Exchange)
+			}
+
 			// 激活用户所属的交易所
-			if err := repository.ActivateExchange(user.Exchange); err != nil {
+			if err = repository.ActivateExchange(user.Exchange); err != nil {
 				return fmt.Errorf("failed to activate exchange: %w", err)
 			}
 
@@ -113,18 +123,19 @@ func (c *UseCommand) Execute(ctx command.Context, args []string) error {
 		}
 
 		// 激活选中的用户
-		if err := repository.ActivateUserByUsername(username); err != nil {
+		if err = repository.ActivateUserByUsername(username); err != nil {
 			return fmt.Errorf("failed to activate user: %w", err)
 		}
 
 		// 连接用户到交易所
 		if ctx.GetExchangeName() != "" {
-			if err := exchange.GetManager().ConnectUser(ctx.GetContext(), ctx.GetExchangeName(), user); err != nil {
+			if err = exchange.GetManager().ConnectUser(ctx.GetContext(), ctx.GetExchangeName(), user); err != nil {
 				return fmt.Errorf("failed to connect user: %w", err)
 			}
 		}
 
 		ctx.SetUserName(user.Username)
+		ctx.SetUserInstance(user)
 		fmt.Println(utils.RenderSuccess(fmt.Sprintf("已激活用户: %s", utils.MessageGreen(username))))
 
 	default:

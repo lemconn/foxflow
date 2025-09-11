@@ -6,15 +6,16 @@ import (
 
 // FoxUser 用户表
 type FoxUser struct {
-	ID        uint   `gorm:"primaryKey" json:"id"`
-	Username  string `gorm:"not null;default:''" json:"username"`
-	Exchange  string `gorm:"not null;default:'binance';check:exchange IN ('binance', 'okx', 'gate')" json:"exchange"`
-	AccessKey string `gorm:"not null;default:''" json:"access_key"`
-	SecretKey string `gorm:"not null;default:''" json:"secret_key"`
-	IsActive  bool   `gorm:"not null;default:false" json:"is_active"`
-	TradeType string `gorm:"not null;default:'';check:trade_type IN ('mock', 'real')" json:"trade_type"`
-	CreatedAt string `gorm:"not null;default:''" json:"created_at"`
-	UpdatedAt string `gorm:"not null;default:''" json:"updated_at"`
+	ID         uint   `gorm:"primaryKey" json:"id"`
+	Username   string `gorm:"not null;default:''" json:"username"`
+	Exchange   string `gorm:"not null;default:'binance';check:exchange IN ('binance', 'okx', 'gate')" json:"exchange"`
+	AccessKey  string `gorm:"not null;default:''" json:"access_key"`
+	SecretKey  string `gorm:"not null;default:''" json:"secret_key"`
+	Passphrase string `gorm:"not null;default:''" json:"passphrase"`
+	IsActive   bool   `gorm:"not null;default:false" json:"is_active"`
+	TradeType  string `gorm:"not null;default:'';check:trade_type IN ('mock', 'live')" json:"trade_type"`
+	CreatedAt  string `gorm:"not null;default:''" json:"created_at"`
+	UpdatedAt  string `gorm:"not null;default:''" json:"updated_at"`
 }
 
 func (FoxUser) TableName() string {
