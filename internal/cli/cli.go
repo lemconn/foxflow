@@ -57,7 +57,7 @@ func (c *CLI) Run() error {
 
 	p := prompt.New(
 		c.executor,
-		getCompleter(c.commands),
+		getCompleter(c.ctx, c.commands),
 		prompt.OptionTitle("foxflow"),
 		prompt.OptionPrefix("> "),
 		prompt.OptionPrefixTextColor(prompt.Green),
@@ -200,7 +200,7 @@ func (c *CLI) setDefaultExchange() {
 // 额外：在提示行上方打印一行彩色状态，作为多色前缀替代
 func (c *CLI) printStatus() {
 	exchangeName := c.ctx.GetExchangeName()
-	userName := c.ctx.GetUserName()
+	user := c.ctx.GetUserInstance()
 
 	if exchangeName == "" {
 		fmt.Println(utils.MessageGreen("foxflow ") +
@@ -208,7 +208,7 @@ func (c *CLI) printStatus() {
 		return
 	}
 
-	if userName == "" {
+	if user == nil || user.Username == "" {
 		fmt.Println(utils.MessageGreen("foxflow ") +
 			utils.MessageYellow("["+exchangeName+"] ") +
 			utils.MessagePurple("["+time.Now().Format(config.DateFormat)+"]"))
@@ -216,6 +216,6 @@ func (c *CLI) printStatus() {
 	}
 
 	fmt.Println(utils.MessageGreen("foxflow ") +
-		utils.MessageYellow("["+exchangeName+":"+userName+"] ") +
+		utils.MessageYellow("["+exchangeName+":"+user.TradeType+"@"+user.Username+"] ") +
 		utils.MessagePurple("["+time.Now().Format(config.DateFormat)+"]"))
 }
