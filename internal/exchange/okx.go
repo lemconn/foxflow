@@ -18,8 +18,32 @@ import (
 )
 
 const (
-	okxUriUserBalance = ""
+	okxUriUserAssetValuation = "/api/v5/asset/asset-valuation"
+	okxUriUserBalance        = "/api/v5/account/balance"
 )
+
+const (
+	UserTradeTypeMock = "mock"
+	UserTradeTypeLive = "live"
+)
+
+type okxResponse struct {
+	Code         string      `json:"code"`
+	Msg          string      `json:"msg"`
+	ErrorCode    string      `json:"error_code"`
+	ErrorMessage string      `json:"error_message"`
+	Data         interface{} `json:"data"`
+}
+
+type okxAssetValuation struct {
+	TotalBal string `json:"totalBal"` // 账户总资产估值
+	Ts       string `json:"ts"`       // 数据更新时间，Unix时间戳的毫秒数格式，如 1597026383085
+	Details  struct {
+		Earn    string `json:"earn"`    // 金融账户
+		Funding string `json:"funding"` // 资金账户
+		Trading string `json:"trading"` // 交易账户
+	} `json:"details"` // 各个账户的资产估值
+}
 
 // OKXExchange OKX交易所实现
 type OKXExchange struct {
@@ -68,7 +92,13 @@ func (e *OKXExchange) GetProxyURL() string {
 
 func (e *OKXExchange) Connect(ctx context.Context, user *models.FoxUser) error {
 	e.user = user
-	// 这里可以添加连接测试逻辑
+
+	// 这里可以添加连接测试逻辑（获取当前用户的资产估值数据）
+	_, err := e.getAssetValuation(ctx)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -77,154 +107,182 @@ func (e *OKXExchange) Disconnect() error {
 	return nil
 }
 
+// getAssetValuation 获取用户的资产估值（可以作为试探连接使用）
+func (e *OKXExchange) getAssetValuation(ctx context.Context) (float64, error) {
+	if e.user == nil {
+		return 0, fmt.Errorf("user not connected")
+	}
+
+	result, err := e.sendRequest(ctx, "GET", okxUriUserAssetValuation, nil)
+	if err != nil {
+		return 0, fmt.Errorf("okx getAssetValuation err: %w", err)
+	}
+
+	assetValuation := make([]okxAssetValuation, 0)
+	resultBytes, _ := json.Marshal(result)
+	err = json.Unmarshal(resultBytes, &assetValuation)
+	if err != nil {
+		return 0, fmt.Errorf("okx getAssetValuation jsonDecode result err: %w", err)
+	}
+
+	floatNum, err := strconv.ParseFloat(assetValuation[0].TotalBal, 64)
+	if err != nil {
+		return 0, fmt.Errorf("okx getAssetValuation result ParseFloat err: %w", err)
+	}
+
+	return floatNum, nil
+}
+
 func (e *OKXExchange) GetBalance(ctx context.Context) ([]Asset, error) {
 	if e.user == nil {
 		return nil, fmt.Errorf("user not connected")
 	}
 
-	path := "/api/v5/account/balance"
-	result, err := e.sendRequest(ctx, "GET", path, nil)
+	result, err := e.sendRequest(ctx, "GET", okxUriUserBalance, nil)
+
+	fmt.Printf("==========[%+v]============[%+v]========\n", result, err)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to get balance: %w", err)
 	}
 
-	var assets []Asset
-	if data, ok := result["data"].([]interface{}); ok && len(data) > 0 {
-		if details, ok := data[0].(map[string]interface{})["details"].([]interface{}); ok {
-			for _, detail := range details {
-				if detailMap, ok := detail.(map[string]interface{}); ok {
-					currency := detailMap["ccy"].(string)
-					balance, _ := strconv.ParseFloat(detailMap["eq"].(string), 64)
-					available, _ := strconv.ParseFloat(detailMap["availEq"].(string), 64)
-					frozen := balance - available
+	//var assets []Asset
+	//if data, ok := result["data"].([]interface{}); ok && len(data) > 0 {
+	//	if details, ok := data[0].(map[string]interface{})["details"].([]interface{}); ok {
+	//		for _, detail := range details {
+	//			if detailMap, ok := detail.(map[string]interface{}); ok {
+	//				currency := detailMap["ccy"].(string)
+	//				balance, _ := strconv.ParseFloat(detailMap["eq"].(string), 64)
+	//				available, _ := strconv.ParseFloat(detailMap["availEq"].(string), 64)
+	//				frozen := balance - available
+	//
+	//				if balance > 0 {
+	//					assets = append(assets, Asset{
+	//						Currency:  currency,
+	//						Balance:   balance,
+	//						Available: available,
+	//						Frozen:    frozen,
+	//					})
+	//				}
+	//			}
+	//		}
+	//	}
+	//}
 
-					if balance > 0 {
-						assets = append(assets, Asset{
-							Currency:  currency,
-							Balance:   balance,
-							Available: available,
-							Frozen:    frozen,
-						})
-					}
-				}
-			}
-		}
-	}
-
-	return assets, nil
+	return nil, nil
 }
 
 func (e *OKXExchange) GetPositions(ctx context.Context) ([]Position, error) {
-	if e.user == nil {
-		return nil, fmt.Errorf("user not connected")
-	}
+	//if e.user == nil {
+	//	return nil, fmt.Errorf("user not connected")
+	//}
+	//
+	//path := "/api/v5/account/positions"
+	//result, err := e.sendRequest(ctx, "GET", path, nil)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to get positions: %w", err)
+	//}
+	//
+	//var positions []Position
+	//if data, ok := result["data"].([]interface{}); ok {
+	//	for _, item := range data {
+	//		if posMap, ok := item.(map[string]interface{}); ok {
+	//			pos, _ := strconv.ParseFloat(posMap["pos"].(string), 64)
+	//			if pos != 0 {
+	//				avgPx, _ := strconv.ParseFloat(posMap["avgPx"].(string), 64)
+	//				upl, _ := strconv.ParseFloat(posMap["upl"].(string), 64)
+	//
+	//				positions = append(positions, Position{
+	//					Symbol:    posMap["instId"].(string),
+	//					PosSide:   posMap["posSide"].(string),
+	//					Size:      pos,
+	//					AvgPrice:  avgPx,
+	//					UnrealPnl: upl,
+	//				})
+	//			}
+	//		}
+	//	}
+	//}
 
-	path := "/api/v5/account/positions"
-	result, err := e.sendRequest(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get positions: %w", err)
-	}
-
-	var positions []Position
-	if data, ok := result["data"].([]interface{}); ok {
-		for _, item := range data {
-			if posMap, ok := item.(map[string]interface{}); ok {
-				pos, _ := strconv.ParseFloat(posMap["pos"].(string), 64)
-				if pos != 0 {
-					avgPx, _ := strconv.ParseFloat(posMap["avgPx"].(string), 64)
-					upl, _ := strconv.ParseFloat(posMap["upl"].(string), 64)
-
-					positions = append(positions, Position{
-						Symbol:    posMap["instId"].(string),
-						PosSide:   posMap["posSide"].(string),
-						Size:      pos,
-						AvgPrice:  avgPx,
-						UnrealPnl: upl,
-					})
-				}
-			}
-		}
-	}
-
-	return positions, nil
+	return nil, nil
 }
 
 func (e *OKXExchange) GetOrders(ctx context.Context, symbol string, status string) ([]Order, error) {
-	if e.user == nil {
-		return nil, fmt.Errorf("user not connected")
-	}
+	//if e.user == nil {
+	//	return nil, fmt.Errorf("user not connected")
+	//}
+	//
+	//path := "/api/v5/trade/orders-pending"
+	//params := make(map[string]interface{})
+	//if symbol != "" {
+	//	params["instId"] = symbol
+	//}
+	//
+	//result, err := e.sendRequest(ctx, "GET", path, params)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to get orders: %w", err)
+	//}
+	//
+	//var orders []Order
+	//if data, ok := result["data"].([]interface{}); ok {
+	//	for _, item := range data {
+	//		if orderMap, ok := item.(map[string]interface{}); ok {
+	//			price, _ := strconv.ParseFloat(orderMap["px"].(string), 64)
+	//			size, _ := strconv.ParseFloat(orderMap["sz"].(string), 64)
+	//			filled, _ := strconv.ParseFloat(orderMap["fillSz"].(string), 64)
+	//			remain := size - filled
+	//
+	//			orders = append(orders, Order{
+	//				ID:      orderMap["ordId"].(string),
+	//				Symbol:  orderMap["instId"].(string),
+	//				Side:    orderMap["side"].(string),
+	//				PosSide: orderMap["posSide"].(string),
+	//				Price:   price,
+	//				Size:    size,
+	//				Type:    orderMap["ordType"].(string),
+	//				Status:  orderMap["state"].(string),
+	//				Filled:  filled,
+	//				Remain:  remain,
+	//			})
+	//		}
+	//	}
+	//}
 
-	path := "/api/v5/trade/orders-pending"
-	params := make(map[string]interface{})
-	if symbol != "" {
-		params["instId"] = symbol
-	}
-
-	result, err := e.sendRequest(ctx, "GET", path, params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get orders: %w", err)
-	}
-
-	var orders []Order
-	if data, ok := result["data"].([]interface{}); ok {
-		for _, item := range data {
-			if orderMap, ok := item.(map[string]interface{}); ok {
-				price, _ := strconv.ParseFloat(orderMap["px"].(string), 64)
-				size, _ := strconv.ParseFloat(orderMap["sz"].(string), 64)
-				filled, _ := strconv.ParseFloat(orderMap["fillSz"].(string), 64)
-				remain := size - filled
-
-				orders = append(orders, Order{
-					ID:      orderMap["ordId"].(string),
-					Symbol:  orderMap["instId"].(string),
-					Side:    orderMap["side"].(string),
-					PosSide: orderMap["posSide"].(string),
-					Price:   price,
-					Size:    size,
-					Type:    orderMap["ordType"].(string),
-					Status:  orderMap["state"].(string),
-					Filled:  filled,
-					Remain:  remain,
-				})
-			}
-		}
-	}
-
-	return orders, nil
+	return nil, nil
 }
 
 func (e *OKXExchange) CreateOrder(ctx context.Context, order *Order) (*Order, error) {
-	if e.user == nil {
-		return nil, fmt.Errorf("user not connected")
-	}
+	//if e.user == nil {
+	//	return nil, fmt.Errorf("user not connected")
+	//}
+	//
+	//path := "/api/v5/trade/order"
+	//params := map[string]interface{}{
+	//	"instId":  order.Symbol,
+	//	"tdMode":  "cross", // 全仓模式
+	//	"side":    order.Side,
+	//	"posSide": order.PosSide,
+	//	"ordType": order.Type,
+	//	"sz":      fmt.Sprintf("%.8f", order.Size),
+	//}
+	//
+	//if order.Type == "limit" {
+	//	params["px"] = fmt.Sprintf("%.8f", order.Price)
+	//}
+	//
+	//result, err := e.sendRequest(ctx, "POST", path, params)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to create order: %w", err)
+	//}
+	//
+	//if data, ok := result["data"].([]interface{}); ok && len(data) > 0 {
+	//	if orderData, ok := data[0].(map[string]interface{}); ok {
+	//		order.ID = orderData["ordId"].(string)
+	//		order.Status = "pending"
+	//	}
+	//}
 
-	path := "/api/v5/trade/order"
-	params := map[string]interface{}{
-		"instId":  order.Symbol,
-		"tdMode":  "cross", // 全仓模式
-		"side":    order.Side,
-		"posSide": order.PosSide,
-		"ordType": order.Type,
-		"sz":      fmt.Sprintf("%.8f", order.Size),
-	}
-
-	if order.Type == "limit" {
-		params["px"] = fmt.Sprintf("%.8f", order.Price)
-	}
-
-	result, err := e.sendRequest(ctx, "POST", path, params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create order: %w", err)
-	}
-
-	if data, ok := result["data"].([]interface{}); ok && len(data) > 0 {
-		if orderData, ok := data[0].(map[string]interface{}); ok {
-			order.ID = orderData["ordId"].(string)
-			order.Status = "pending"
-		}
-	}
-
-	return order, nil
+	return nil, nil
 }
 
 func (e *OKXExchange) CancelOrder(ctx context.Context, orderID string) error {
@@ -246,93 +304,93 @@ func (e *OKXExchange) CancelOrder(ctx context.Context, orderID string) error {
 }
 
 func (e *OKXExchange) GetTicker(ctx context.Context, symbol string) (*Ticker, error) {
-	path := "/api/v5/market/ticker"
-	params := map[string]interface{}{
-		"instId": symbol,
-	}
-
-	result, err := e.sendRequest(ctx, "GET", path, params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get ticker: %w", err)
-	}
-
-	if data, ok := result["data"].([]interface{}); ok && len(data) > 0 {
-		if tickerMap, ok := data[0].(map[string]interface{}); ok {
-			price, _ := strconv.ParseFloat(tickerMap["last"].(string), 64)
-			volume, _ := strconv.ParseFloat(tickerMap["vol24h"].(string), 64)
-			high, _ := strconv.ParseFloat(tickerMap["high24h"].(string), 64)
-			low, _ := strconv.ParseFloat(tickerMap["low24h"].(string), 64)
-
-			return &Ticker{
-				Symbol: symbol,
-				Price:  price,
-				Volume: volume,
-				High:   high,
-				Low:    low,
-			}, nil
-		}
-	}
+	//path := "/api/v5/market/ticker"
+	//params := map[string]interface{}{
+	//	"instId": symbol,
+	//}
+	//
+	//result, err := e.sendRequest(ctx, "GET", path, params)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to get ticker: %w", err)
+	//}
+	//
+	//if data, ok := result["data"].([]interface{}); ok && len(data) > 0 {
+	//	if tickerMap, ok := data[0].(map[string]interface{}); ok {
+	//		price, _ := strconv.ParseFloat(tickerMap["last"].(string), 64)
+	//		volume, _ := strconv.ParseFloat(tickerMap["vol24h"].(string), 64)
+	//		high, _ := strconv.ParseFloat(tickerMap["high24h"].(string), 64)
+	//		low, _ := strconv.ParseFloat(tickerMap["low24h"].(string), 64)
+	//
+	//		return &Ticker{
+	//			Symbol: symbol,
+	//			Price:  price,
+	//			Volume: volume,
+	//			High:   high,
+	//			Low:    low,
+	//		}, nil
+	//	}
+	//}
 
 	return nil, fmt.Errorf("no ticker data found")
 }
 
 func (e *OKXExchange) GetTickers(ctx context.Context) ([]Ticker, error) {
-	path := "/api/v5/market/tickers"
-	params := map[string]interface{}{
-		"instType": "SWAP", // 永续合约
-	}
+	//path := "/api/v5/market/tickers"
+	//params := map[string]interface{}{
+	//	"instType": "SWAP", // 永续合约
+	//}
+	//
+	//result, err := e.sendRequest(ctx, "GET", path, params)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to get tickers: %w", err)
+	//}
+	//
+	//var tickers []Ticker
+	//if data, ok := result["data"].([]interface{}); ok {
+	//	for _, item := range data {
+	//		if tickerMap, ok := item.(map[string]interface{}); ok {
+	//			price, _ := strconv.ParseFloat(tickerMap["last"].(string), 64)
+	//			volume, _ := strconv.ParseFloat(tickerMap["vol24h"].(string), 64)
+	//			high, _ := strconv.ParseFloat(tickerMap["high24h"].(string), 64)
+	//			low, _ := strconv.ParseFloat(tickerMap["low24h"].(string), 64)
+	//
+	//			tickers = append(tickers, Ticker{
+	//				Symbol: tickerMap["instId"].(string),
+	//				Price:  price,
+	//				Volume: volume,
+	//				High:   high,
+	//				Low:    low,
+	//			})
+	//		}
+	//	}
+	//}
 
-	result, err := e.sendRequest(ctx, "GET", path, params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get tickers: %w", err)
-	}
-
-	var tickers []Ticker
-	if data, ok := result["data"].([]interface{}); ok {
-		for _, item := range data {
-			if tickerMap, ok := item.(map[string]interface{}); ok {
-				price, _ := strconv.ParseFloat(tickerMap["last"].(string), 64)
-				volume, _ := strconv.ParseFloat(tickerMap["vol24h"].(string), 64)
-				high, _ := strconv.ParseFloat(tickerMap["high24h"].(string), 64)
-				low, _ := strconv.ParseFloat(tickerMap["low24h"].(string), 64)
-
-				tickers = append(tickers, Ticker{
-					Symbol: tickerMap["instId"].(string),
-					Price:  price,
-					Volume: volume,
-					High:   high,
-					Low:    low,
-				})
-			}
-		}
-	}
-
-	return tickers, nil
+	return nil, nil
 }
 
 func (e *OKXExchange) GetSymbols(ctx context.Context) ([]string, error) {
-	path := "/api/v5/public/instruments"
-	params := map[string]interface{}{
-		"instType": "SWAP", // 永续合约
-	}
+	//path := "/api/v5/public/instruments"
+	//params := map[string]interface{}{
+	//	"instType": "SWAP", // 永续合约
+	//}
 
-	result, err := e.sendRequest(ctx, "GET", path, params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get symbols: %w", err)
-	}
+	//result, err := e.sendRequest(ctx, "GET", path, params)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to get symbols: %w", err)
+	//}
 
-	var symbols []string
-	if data, ok := result["data"].([]interface{}); ok {
-		for _, item := range data {
-			if instMap, ok := item.(map[string]interface{}); ok {
-				if state := instMap["state"].(string); state == "live" {
-					symbols = append(symbols, instMap["instId"].(string))
-				}
-			}
-		}
-	}
+	//var symbols []string
+	//if data, ok := result["data"].([]interface{}); ok {
+	//	for _, item := range data {
+	//		if instMap, ok := item.(map[string]interface{}); ok {
+	//			if state := instMap["state"].(string); state == "live" {
+	//				symbols = append(symbols, instMap["instId"].(string))
+	//			}
+	//		}
+	//	}
+	//}
 
-	return symbols, nil
+	return nil, nil
 }
 
 func (e *OKXExchange) SetLeverage(ctx context.Context, symbol string, leverage int) error {
@@ -386,13 +444,18 @@ func (e *OKXExchange) buildHeaders(method, path, body string) map[string]string 
 	message := timestamp + strings.ToUpper(method) + path + body
 	signature := e.buildSignature(message)
 
-	return map[string]string{
+	headers := map[string]string{
 		"Content-Type":         "application/json",
 		"OK-ACCESS-KEY":        e.user.AccessKey,
 		"OK-ACCESS-SIGN":       signature,
 		"OK-ACCESS-TIMESTAMP":  timestamp,
-		"OK-ACCESS-PASSPHRASE": e.user.TradeType, // 使用trade_type作为passphrase
+		"OK-ACCESS-PASSPHRASE": e.user.Passphrase,
 	}
+	if e.user.TradeType == UserTradeTypeMock {
+		headers["x-simulated-trading"] = "1"
+	}
+
+	return headers
 }
 
 // 辅助方法：构建OKX签名
@@ -403,7 +466,7 @@ func (e *OKXExchange) buildSignature(message string) string {
 }
 
 // 辅助方法：发送HTTP请求
-func (e *OKXExchange) sendRequest(ctx context.Context, method, path string, params map[string]interface{}) (map[string]interface{}, error) {
+func (e *OKXExchange) sendRequest(ctx context.Context, method, path string, params map[string]interface{}) (interface{}, error) {
 	// 构建完整URL
 	fullURL := e.apiURL + path
 
@@ -443,15 +506,15 @@ func (e *OKXExchange) sendRequest(ctx context.Context, method, path string, para
 	}
 
 	// 解析响应
-	var result map[string]interface{}
-	if err := json.Unmarshal(respBody, &result); err != nil {
+	var result okxResponse
+	if err = json.Unmarshal(respBody, &result); err != nil {
 		return nil, err
 	}
 
 	// 检查API错误
-	if code, ok := result["code"].(string); ok && code != "0" {
-		return nil, fmt.Errorf("API error: %s", result["msg"])
+	if result.Code != "0" || result.ErrorMessage != "" {
+		return nil, fmt.Errorf("API error: %s", result.ErrorMessage)
 	}
 
-	return result, nil
+	return result.Data, nil
 }

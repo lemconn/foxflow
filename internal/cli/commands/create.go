@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/lemconn/foxflow/internal/config"
+	"github.com/lemconn/foxflow/internal/exchange"
 
 	"github.com/lemconn/foxflow/internal/cli/command"
 	"github.com/lemconn/foxflow/internal/models"
@@ -39,20 +40,21 @@ func (c *CreateCommand) Execute(ctx command.Context, args []string) error {
 
 func (c *CreateCommand) createUser(ctx command.Context, args []string) error {
 	if len(args) < 4 {
-		return fmt.Errorf("usage: create users --trade_type=<type> --username=<name> --ak=<key> --sk=<secret>")
+		return fmt.Errorf("usage: create users <trade_type> --username=<name> --ak=<key> --sk=<secret> [--passphrase=<passphrase>]")
 	}
 
 	user := &models.FoxUser{}
 
+	user.TradeType = args[0]
 	for _, arg := range args {
-		if strings.HasPrefix(arg, "--trade_type=") {
-			user.TradeType = strings.TrimPrefix(arg, "--trade_type=")
-		} else if strings.HasPrefix(arg, "--username=") {
+		if strings.HasPrefix(arg, "--username=") {
 			user.Username = strings.TrimPrefix(arg, "--username=")
 		} else if strings.HasPrefix(arg, "--ak=") {
 			user.AccessKey = strings.TrimPrefix(arg, "--ak=")
 		} else if strings.HasPrefix(arg, "--sk=") {
 			user.SecretKey = strings.TrimPrefix(arg, "--sk=")
+		} else if strings.HasPrefix(arg, "--passphrase=") {
+			user.Passphrase = strings.TrimPrefix(arg, "--passphrase=")
 		}
 	}
 
@@ -60,23 +62,46 @@ func (c *CreateCommand) createUser(ctx command.Context, args []string) error {
 		return fmt.Errorf("missing required parameters")
 	}
 
+	// 根据用户名获取用户信息
+	userInfo, err := repository.FindUserByUsername(user.Username)
+	if err != nil {
+		return fmt.Errorf("find username err: %w", err)
+	}
+
+	// 用户存在则不允许创建
+	if userInfo != nil && userInfo.ID > 0 {
+		return fmt.Errorf("user already exists, username: %s", userInfo.Username)
+	}
+
 	user.Exchange = ctx.GetExchangeName()
 	if user.Exchange == "" {
 		user.Exchange = config.DefaultExchange // 默认交易所
 	}
 
-	exchangeInfo, err := repository.GetExchange("")
+	exchangeInfo, err := repository.GetExchange(user.Exchange)
 	if err != nil {
 		return fmt.Errorf("get exchange error: %w", err)
 	}
 
 	if exchangeInfo.Name == "" {
+		return fmt.Errorf("exchange is not found")
+	}
 
+	if exchangeInfo.Name == config.DefaultExchange && user.Passphrase == "" {
+		return fmt.Errorf("okx exchange --passphrase is required")
 	}
 
 	// 到指定交易交易所验证当前用户
+	exchangeClient, err := exchange.GetManager().GetExchange(exchangeInfo.Name)
+	if err != nil {
+		return fmt.Errorf("get exchange client error: %w", err)
+	}
+	err = exchangeClient.Connect(ctx.GetContext(), user)
+	if err != nil {
+		return fmt.Errorf("connect exchange error: %w", err)
+	}
 
-	if err := repository.CreateUser(user); err != nil {
+	if err = repository.CreateUser(user); err != nil {
 		return fmt.Errorf("failed to create user: %w", err)
 	}
 
