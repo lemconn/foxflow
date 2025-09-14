@@ -7,11 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lemconn/foxflow/internal/data"
 	"github.com/lemconn/foxflow/internal/database"
-	"github.com/lemconn/foxflow/internal/dsl"
 	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/strategy/dsl"
 )
 
 // Engine 策略引擎
@@ -19,7 +18,6 @@ type Engine struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
 	wg            sync.WaitGroup
-	dataMgr       *data.Manager
 	exchangeMgr   *exchange.Manager
 	dslEngine     *dsl.Engine
 	checkInterval time.Duration
@@ -31,16 +29,12 @@ type Engine struct {
 func NewEngine() *Engine {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// 创建数据管理器并初始化默认模块
-	dataMgr := data.InitDefaultModules()
-
-	// 创建新的DSL引擎
-	dslEngine := dsl.NewEngine(dataMgr)
+	// 创建新的DSL引擎（不再需要数据管理器）
+	dslEngine := dsl.NewEngine()
 
 	return &Engine{
 		ctx:           ctx,
 		cancel:        cancel,
-		dataMgr:       dataMgr,
 		exchangeMgr:   exchange.GetManager(),
 		dslEngine:     dslEngine,
 		checkInterval: 5 * time.Second, // 每5秒检查一次

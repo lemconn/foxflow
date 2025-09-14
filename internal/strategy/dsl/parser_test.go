@@ -13,6 +13,57 @@ type MockDataProvider struct {
 	newsData    map[string]map[string]interface{}
 }
 
+// MockCandlesDataSource 模拟K线数据源
+type MockCandlesDataSource struct {
+	provider *MockDataProvider
+}
+
+func (m *MockCandlesDataSource) GetName() string {
+	return "candles"
+}
+
+func (m *MockCandlesDataSource) GetData(ctx context.Context, entity, field string) (interface{}, error) {
+	return m.provider.GetCandleField(ctx, entity, field)
+}
+
+func (m *MockCandlesDataSource) GetHistoricalData(ctx context.Context, entity, field string, period int) ([]interface{}, error) {
+	return m.provider.GetHistoricalData(ctx, "candles", entity, field, period)
+}
+
+// MockNewsDataSource 模拟新闻数据源
+type MockNewsDataSource struct {
+	provider *MockDataProvider
+}
+
+func (m *MockNewsDataSource) GetName() string {
+	return "news"
+}
+
+func (m *MockNewsDataSource) GetData(ctx context.Context, entity, field string) (interface{}, error) {
+	return m.provider.GetNewsField(ctx, entity, field)
+}
+
+func (m *MockNewsDataSource) GetHistoricalData(ctx context.Context, entity, field string, period int) ([]interface{}, error) {
+	return nil, fmt.Errorf("historical data not supported for news")
+}
+
+// MockIndicatorsDataSource 模拟指标数据源
+type MockIndicatorsDataSource struct {
+	provider *MockDataProvider
+}
+
+func (m *MockIndicatorsDataSource) GetName() string {
+	return "indicators"
+}
+
+func (m *MockIndicatorsDataSource) GetData(ctx context.Context, entity, field string) (interface{}, error) {
+	return m.provider.GetIndicatorField(ctx, entity, field)
+}
+
+func (m *MockIndicatorsDataSource) GetHistoricalData(ctx context.Context, entity, field string, period int) ([]interface{}, error) {
+	return nil, fmt.Errorf("historical data not supported for indicators")
+}
+
 func NewMockDataProvider() *MockDataProvider {
 	return &MockDataProvider{
 		candlesData: make(map[string]map[string][]float64),
@@ -95,6 +146,44 @@ func (m *MockDataProvider) GetIndicatorField(ctx context.Context, symbol, field 
 		return 1.2, nil
 	default:
 		return 0.0, nil
+	}
+}
+
+// 实现 functions.Evaluator 接口
+func (m *MockDataProvider) GetFieldValue(ctx context.Context, module, entity, field string) (interface{}, error) {
+	switch module {
+	case "candles":
+		return m.GetCandleField(ctx, entity, field)
+	case "news":
+		return m.GetNewsField(ctx, entity, field)
+	case "indicators":
+		return m.GetIndicatorField(ctx, entity, field)
+	default:
+		return nil, fmt.Errorf("unknown module: %s", module)
+	}
+}
+
+func (m *MockDataProvider) CallFunction(ctx context.Context, name string, args []interface{}) (interface{}, error) {
+	// 这里需要实现函数调用逻辑
+	// 为了简化测试，暂时返回错误
+	return nil, fmt.Errorf("function call not implemented in mock")
+}
+
+func (m *MockDataProvider) GetHistoricalData(ctx context.Context, source, entity, field string, period int) ([]interface{}, error) {
+	switch source {
+	case "candles":
+		data, err := m.GetCandles(ctx, entity, field)
+		if err != nil {
+			return nil, err
+		}
+		// 转换为 []interface{}
+		result := make([]interface{}, len(data))
+		for i, v := range data {
+			result[i] = v
+		}
+		return result, nil
+	default:
+		return nil, fmt.Errorf("historical data not supported for source: %s", source)
 	}
 }
 
@@ -240,12 +329,21 @@ func TestDSLEngine(t *testing.T) {
 
 	// 创建DSL引擎
 	registry := DefaultRegistry()
+
+	// 将 MockDataProvider 注册为数据源
+	candlesDataSource := &MockCandlesDataSource{provider: mockProvider}
+	newsDataSource := &MockNewsDataSource{provider: mockProvider}
+	indicatorsDataSource := &MockIndicatorsDataSource{provider: mockProvider}
+
+	registry.unifiedRegistry.RegisterDataSource(candlesDataSource)
+	registry.unifiedRegistry.RegisterDataSource(newsDataSource)
+	registry.unifiedRegistry.RegisterDataSource(indicatorsDataSource)
+
 	evaluator := NewEvaluator(registry, mockProvider)
 	engine := &Engine{
-		parser:      NewParser(),
-		evaluator:   evaluator,
-		registry:    registry,
-		dataAdapter: nil, // 不需要数据适配器，直接使用模拟提供者
+		parser:    NewParser(),
+		evaluator: evaluator,
+		registry:  registry,
 	}
 
 	ctx := context.Background()

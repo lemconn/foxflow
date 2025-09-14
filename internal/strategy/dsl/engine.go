@@ -3,31 +3,26 @@ package dsl
 import (
 	"context"
 	"fmt"
-
-	"github.com/lemconn/foxflow/internal/data"
 )
 
 // Engine DSL引擎
 type Engine struct {
-	parser      *Parser
-	evaluator   *Evaluator
-	registry    *Registry
-	dataAdapter *DataAdapter
+	parser    *Parser
+	evaluator *Evaluator
+	registry  *Registry
 }
 
 // NewEngine 创建DSL引擎
-func NewEngine(dataManager *data.Manager) *Engine {
+func NewEngine() *Engine {
 	// 创建组件
 	parser := NewParser()
 	registry := DefaultRegistry()
-	dataAdapter := NewDataAdapter(dataManager)
-	evaluator := NewEvaluator(registry, dataAdapter)
+	evaluator := NewEvaluator(registry, nil) // 不再需要dataAdapter
 
 	return &Engine{
-		parser:      parser,
-		evaluator:   evaluator,
-		registry:    registry,
-		dataAdapter: dataAdapter,
+		parser:    parser,
+		evaluator: evaluator,
+		registry:  registry,
 	}
 }
 
@@ -93,11 +88,6 @@ func (e *Engine) RegisterFunction(name string, fn Function) {
 // GetRegistry 获取函数注册表
 func (e *Engine) GetRegistry() *Registry {
 	return e.registry
-}
-
-// GetDataAdapter 获取数据适配器
-func (e *Engine) GetDataAdapter() *DataAdapter {
-	return e.dataAdapter
 }
 
 // GetEvaluator 获取求值器
