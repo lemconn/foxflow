@@ -99,3 +99,8 @@ func (e *Engine) GetRegistry() *Registry {
 func (e *Engine) GetDataAdapter() *DataAdapter {
 	return e.dataAdapter
 }
+
+// GetEvaluator 获取求值器
+func (e *Engine) GetEvaluator() *Evaluator {
+	return e.evaluator
+}

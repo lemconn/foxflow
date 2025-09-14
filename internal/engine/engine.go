@@ -174,10 +174,21 @@ func (e *Engine) processOrder(exchangeInstance exchange.Exchange, order *models.
 		return e.submitOrder(exchangeInstance, order)
 	}
 
-	// 使用新的DSL引擎执行策略表达式
-	conditionResult, err := e.dslEngine.ExecuteExpressionToBool(e.ctx, order.Strategy)
+	// 解析DSL表达式
+	node, err := e.dslEngine.Parse(order.Strategy)
 	if err != nil {
-		return fmt.Errorf("failed to execute strategy DSL: %w", err)
+		return fmt.Errorf("failed to parse strategy DSL: %w", err)
+	}
+
+	// 验证AST
+	if err := e.dslEngine.GetEvaluator().Validate(node); err != nil {
+		return fmt.Errorf("failed to validate AST: %w", err)
+	}
+
+	// 执行AST并获取布尔结果
+	conditionResult, err := e.dslEngine.ExecuteToBool(e.ctx, node)
+	if err != nil {
+		return fmt.Errorf("failed to execute strategy AST: %w", err)
 	}
 
 	// 如果条件满足，提交订单
