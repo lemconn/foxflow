@@ -10,7 +10,7 @@ import (
 	"github.com/lemconn/foxflow/internal/database"
 	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/models"
-	"github.com/lemconn/foxflow/internal/strategy/dsl"
+	"github.com/lemconn/foxflow/internal/strategy/syntax"
 )
 
 // Engine 策略引擎
@@ -19,7 +19,7 @@ type Engine struct {
 	cancel        context.CancelFunc
 	wg            sync.WaitGroup
 	exchangeMgr   *exchange.Manager
-	dslEngine     *dsl.Engine
+	syntaxEngine  *syntax.Engine
 	checkInterval time.Duration
 	running       bool
 	mu            sync.RWMutex
@@ -29,14 +29,14 @@ type Engine struct {
 func NewEngine() *Engine {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// 创建新的DSL引擎（不再需要数据管理器）
-	dslEngine := dsl.NewEngine()
+	// 创建新的语法引擎（不再需要数据管理器）
+	syntaxEngine := syntax.NewEngine()
 
 	return &Engine{
 		ctx:           ctx,
 		cancel:        cancel,
 		exchangeMgr:   exchange.GetManager(),
-		dslEngine:     dslEngine,
+		syntaxEngine:  syntaxEngine,
 		checkInterval: 5 * time.Second, // 每5秒检查一次
 	}
 }
@@ -168,19 +168,19 @@ func (e *Engine) processOrder(exchangeInstance exchange.Exchange, order *models.
 		return e.submitOrder(exchangeInstance, order)
 	}
 
-	// 解析DSL表达式
-	node, err := e.dslEngine.Parse(order.Strategy)
+	// 解析语法表达式
+	node, err := e.syntaxEngine.Parse(order.Strategy)
 	if err != nil {
-		return fmt.Errorf("failed to parse strategy DSL: %w", err)
+		return fmt.Errorf("failed to parse strategy syntax: %w", err)
 	}
 
 	// 验证AST
-	if err := e.dslEngine.GetEvaluator().Validate(node); err != nil {
+	if err := e.syntaxEngine.GetEvaluator().Validate(node); err != nil {
 		return fmt.Errorf("failed to validate AST: %w", err)
 	}
 
 	// 执行AST并获取布尔结果
-	conditionResult, err := e.dslEngine.ExecuteToBool(e.ctx, node)
+	conditionResult, err := e.syntaxEngine.ExecuteToBool(e.ctx, node)
 	if err != nil {
 		return fmt.Errorf("failed to execute strategy AST: %w", err)
 	}

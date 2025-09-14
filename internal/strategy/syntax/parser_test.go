@@ -1,4 +1,4 @@
-package dsl
+package syntax
 
 import (
 	"context"
@@ -297,7 +297,7 @@ func TestTokenizer(t *testing.T) {
 	}
 }
 
-func TestDSLEngine(t *testing.T) {
+func TestSyntaxEngine(t *testing.T) {
 	// 创建模拟数据提供者
 	mockProvider := NewMockDataProvider()
 
@@ -327,7 +327,7 @@ func TestDSLEngine(t *testing.T) {
 		"last_update_time": time.Now().Add(-600 * time.Second),
 	}
 
-	// 创建DSL引擎
+	// 创建语法引擎
 	registry := DefaultRegistry()
 
 	// 将 MockDataProvider 注册为数据源

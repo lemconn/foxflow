@@ -1,22 +1,22 @@
-package dsl
+package syntax
 
 import (
 	"fmt"
 	"strconv"
 )
 
-// Parser DSL解析器
+// Parser 语法解析器
 type Parser struct {
 	tokenizer *Tokenizer
 	curToken  Token
 }
 
-// NewParser 创建DSL解析器
+// NewParser 创建语法解析器
 func NewParser() *Parser {
 	return &Parser{}
 }
 
-// Parse 解析DSL表达式为AST
+// Parse 解析语法表达式为AST
 func (p *Parser) Parse(input string) (*Node, error) {
 	p.tokenizer = NewTokenizer(input)
 	p.nextToken()
@@ -278,7 +278,7 @@ func (p *Parser) parseArray() *Node {
 	}
 }
 
-// Validate 验证DSL表达式
+// Validate 验证语法表达式
 func (p *Parser) Validate(input string) error {
 	_, err := p.Parse(input)
 	return err
