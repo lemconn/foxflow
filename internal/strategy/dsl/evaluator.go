@@ -8,15 +8,13 @@ import (
 
 // Evaluator AST求值器
 type Evaluator struct {
-	registry     *Registry
-	dataProvider DataProvider
+	registry *Registry
 }
 
 // NewEvaluator 创建AST求值器
 func NewEvaluator(registry *Registry, dataProvider DataProvider) *Evaluator {
 	return &Evaluator{
-		registry:     registry,
-		dataProvider: dataProvider,
+		registry: registry,
 	}
 }
 
@@ -49,16 +47,8 @@ func (e *Evaluator) EvaluateToBool(ctx context.Context, node *Node) (bool, error
 
 // GetFieldValue 获取字段值
 func (e *Evaluator) GetFieldValue(ctx context.Context, module, entity, field string) (interface{}, error) {
-	switch module {
-	case "candles":
-		return e.dataProvider.GetCandleField(ctx, entity, field)
-	case "news":
-		return e.dataProvider.GetNewsField(ctx, entity, field)
-	case "indicators":
-		return e.dataProvider.GetIndicatorField(ctx, entity, field)
-	default:
-		return nil, fmt.Errorf("unsupported module: %s", module)
-	}
+	// 使用统一注册器获取数据
+	return e.registry.unifiedRegistry.GetData(ctx, module, entity, field)
 }
 
 // CallFunction 调用函数
@@ -69,6 +59,11 @@ func (e *Evaluator) CallFunction(ctx context.Context, name string, args []interf
 	}
 
 	return fn(ctx, args, e)
+}
+
+// GetHistoricalData 获取历史数据
+func (e *Evaluator) GetHistoricalData(ctx context.Context, source, entity, field string, period int) ([]interface{}, error) {
+	return e.registry.unifiedRegistry.GetHistoricalData(ctx, source, entity, field, period)
 }
 
 // EvaluateBinary 评估二元表达式
@@ -336,11 +331,7 @@ func (e *Evaluator) isValidOperator(op string) bool {
 
 // isValidModule 检查模块是否有效
 func (e *Evaluator) isValidModule(module string) bool {
-	validModules := []string{"candles", "news", "indicators"}
-	for _, validModule := range validModules {
-		if module == validModule {
-			return true
-		}
-	}
-	return false
+	// 使用统一注册器检查数据源是否存在
+	_, exists := e.registry.unifiedRegistry.GetDataSource(module)
+	return exists
 }
