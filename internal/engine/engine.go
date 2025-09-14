@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lemconn/foxflow/internal/ast"
 	"github.com/lemconn/foxflow/internal/data"
 	"github.com/lemconn/foxflow/internal/database"
 	"github.com/lemconn/foxflow/internal/dsl"
@@ -22,8 +21,7 @@ type Engine struct {
 	wg            sync.WaitGroup
 	dataMgr       *data.Manager
 	exchangeMgr   *exchange.Manager
-	dslParser     *dsl.Parser
-	astExecutor   *ast.Executor
+	dslEngine     *dsl.Engine
 	checkInterval time.Duration
 	running       bool
 	mu            sync.RWMutex
@@ -36,20 +34,15 @@ func NewEngine() *Engine {
 	// 创建数据管理器并初始化默认模块
 	dataMgr := data.InitDefaultModules()
 
-	// 创建DSL解析器
-	dslParser := dsl.NewParser()
-
-	// 创建AST执行器
-	dataAdapter := ast.NewDataAdapter(dataMgr)
-	astExecutor := ast.NewExecutor(dataAdapter)
+	// 创建新的DSL引擎
+	dslEngine := dsl.NewEngine(dataMgr)
 
 	return &Engine{
 		ctx:           ctx,
 		cancel:        cancel,
 		dataMgr:       dataMgr,
 		exchangeMgr:   exchange.GetManager(),
-		dslParser:     dslParser,
-		astExecutor:   astExecutor,
+		dslEngine:     dslEngine,
 		checkInterval: 5 * time.Second, // 每5秒检查一次
 	}
 }
@@ -181,21 +174,10 @@ func (e *Engine) processOrder(exchangeInstance exchange.Exchange, order *models.
 		return e.submitOrder(exchangeInstance, order)
 	}
 
-	// 解析DSL表达式为AST
-	astNode, err := e.dslParser.Parse(order.Strategy)
+	// 使用新的DSL引擎执行策略表达式
+	conditionResult, err := e.dslEngine.ExecuteExpressionToBool(e.ctx, order.Strategy)
 	if err != nil {
-		return fmt.Errorf("failed to parse strategy DSL: %w", err)
-	}
-
-	// 验证AST节点
-	if err := e.astExecutor.Validate(astNode); err != nil {
-		return fmt.Errorf("failed to validate AST: %w", err)
-	}
-
-	// 执行AST并获取布尔结果
-	conditionResult, err := e.astExecutor.ExecuteToBool(e.ctx, astNode)
-	if err != nil {
-		return fmt.Errorf("failed to execute AST: %w", err)
+		return fmt.Errorf("failed to execute strategy DSL: %w", err)
 	}
 
 	// 如果条件满足，提交订单

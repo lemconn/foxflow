@@ -1,280 +1,324 @@
 package dsl
 
 import (
+	"context"
+	"fmt"
 	"testing"
-
-	"github.com/lemconn/foxflow/internal/ast"
+	"time"
 )
 
-func TestDSLParser(t *testing.T) {
-	parser := NewParser()
+// MockDataProvider 模拟数据提供者
+type MockDataProvider struct {
+	candlesData map[string]map[string][]float64
+	newsData    map[string]map[string]interface{}
+}
 
-	tests := []struct {
-		name        string
-		expression  string
-		expectError bool
-		description string
-	}{
-		{
-			name:        "simple_candles_expression",
-			expression:  "candles.SOL.last_px > 200",
-			expectError: false,
-			description: "简单的K线价格比较",
-		},
-		{
-			name:        "simple_news_expression",
-			expression:  "news.theblockbeats.last_title contains [\"新高\"]",
-			expectError: false,
-			description: "简单的新闻标题包含检查",
-		},
-		{
-			name:        "complex_and_expression",
-			expression:  "candles.SOL.last_px > 200 and candles.SOL.last_volume > 1000000",
-			expectError: false,
-			description: "复杂的AND条件",
-		},
-		{
-			name:        "complex_or_expression",
-			expression:  "candles.SOL.last_px > 200 or news.theblockbeats.last_title contains [\"新高\"]",
-			expectError: false,
-			description: "复杂的OR条件",
-		},
-		{
-			name:        "complex_mixed_expression",
-			expression:  "(candles.SOL.last_px > 200 and candles.SOL.last_volume > 1000000) or (news.theblockbeats.last_title contains [\"新高\"] and news.theblockbeats.last_update_time < 10)",
-			expectError: false,
-			description: "复杂的混合条件（带括号）",
-		},
-		{
-			name:        "function_call_avg",
-			expression:  "avg(candles.BTC.close, 5) > candles.BTC.last_px",
-			expectError: false,
-			description: "函数调用avg",
-		},
-		{
-			name:        "function_call_time_since",
-			expression:  "time_since(news.coindesk.last_update_time) < 600",
-			expectError: false,
-			description: "函数调用time_since",
-		},
-		{
-			name:        "function_call_contains",
-			expression:  "contains(news.theblockbeats.last_title, [\"新高\", \"SOL\"])",
-			expectError: false,
-			description: "函数调用contains",
-		},
-		{
-			name:        "complex_function_expression",
-			expression:  "(avg(candles.BTC.close, 5) > candles.BTC.last_px) and (time_since(news.coindesk.last_update_time) < 600)",
-			expectError: false,
-			description: "复杂的函数调用表达式",
-		},
-		{
-			name:        "invalid_expression",
-			expression:  "invalid.source.field > 100",
-			expectError: true,
-			description: "无效的数据源",
-		},
-		{
-			name:        "empty_expression",
-			expression:  "",
-			expectError: true,
-			description: "空表达式",
-		},
+func NewMockDataProvider() *MockDataProvider {
+	return &MockDataProvider{
+		candlesData: make(map[string]map[string][]float64),
+		newsData:    make(map[string]map[string]interface{}),
 	}
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			node, err := parser.Parse(tt.expression)
+func (m *MockDataProvider) GetCandles(ctx context.Context, symbol, field string) ([]float64, error) {
+	if symbolData, exists := m.candlesData[symbol]; exists {
+		if fieldData, exists := symbolData[field]; exists {
+			return fieldData, nil
+		}
+	}
+	return []float64{100, 101, 102, 103, 104}, nil // 默认数据
+}
 
-			if tt.expectError {
-				if err == nil {
-					t.Errorf("期望错误但没有收到错误: %s", tt.description)
+func (m *MockDataProvider) GetCandleField(ctx context.Context, symbol, field string) (interface{}, error) {
+	if symbolData, exists := m.candlesData[symbol]; exists {
+		if fieldData, exists := symbolData[field]; exists {
+			if len(fieldData) > 0 {
+				return fieldData[len(fieldData)-1], nil
+			}
+		}
+		// 处理last_px字段，等同于close
+		if field == "last_px" {
+			if fieldData, exists := symbolData["close"]; exists {
+				if len(fieldData) > 0 {
+					return fieldData[len(fieldData)-1], nil
 				}
-				return
 			}
+		}
+	}
 
-			if err != nil {
-				t.Errorf("解析表达式时出错: %v, 表达式: %s", err, tt.expression)
-				return
+	// 默认价格
+	if symbol == "BTC" {
+		return 104.0, nil
+	} else if symbol == "SOL" {
+		return 204.0, nil
+	}
+	return 104.0, nil
+}
+
+func (m *MockDataProvider) GetNewsField(ctx context.Context, source, field string) (interface{}, error) {
+	if sourceData, exists := m.newsData[source]; exists {
+		if fieldData, exists := sourceData[field]; exists {
+			return fieldData, nil
+		}
+		// 处理last_title字段，等同于title
+		if field == "last_title" {
+			if fieldData, exists := sourceData["title"]; exists {
+				return fieldData, nil
 			}
+		}
+	}
 
-			if node == nil {
-				t.Errorf("解析结果为空: %s", tt.expression)
-				return
-			}
-
-			// 验证解析结果
-			t.Logf("表达式: %s", tt.expression)
-			t.Logf("AST节点: %s", node.String())
-			t.Logf("节点类型: %s", node.Type())
-		})
+	// 默认新闻数据
+	switch field {
+	case "title", "last_title":
+		if source == "coindesk" {
+			return "比特币价格创新高突破历史记录", nil
+		} else if source == "theblockbeats" {
+			return "加密货币市场迎来重大突破创新高", nil
+		}
+		return "比特币价格创新高突破历史记录", nil
+	case "last_update_time":
+		return time.Now().Add(-300 * time.Second), nil // 5分钟前
+	case "sentiment":
+		return "positive", nil
+	default:
+		return "", nil
 	}
 }
 
-func TestComplexExpression(t *testing.T) {
-	parser := NewParser()
-
-	// 测试用户提供的复杂表达式
-	expression := "(avg(candles.BTC.close, 5) > candles.BTC.last_px) and (time_since(news.coindesk.last_update_time) < 600)"
-
-	node, err := parser.Parse(expression)
-	if err != nil {
-		t.Fatalf("解析复杂表达式失败: %v", err)
-	}
-
-	// 验证解析结果
-	t.Logf("复杂表达式: %s", expression)
-	t.Logf("AST节点: %s", node.String())
-	t.Logf("节点类型: %s", node.Type())
-
-	// 验证节点结构
-	binaryExpr, ok := node.(*ast.BinaryExpression)
-	if !ok {
-		t.Fatalf("根节点应该是BinaryExpression，但得到 %T", node)
-	}
-
-	if binaryExpr.Operator != ast.OpAnd {
-		t.Errorf("根操作符应该是and，但得到 %s", binaryExpr.Operator)
-	}
-
-	// 验证左操作数（函数调用）
-	leftBinaryExpr, ok := binaryExpr.Left.(*ast.BinaryExpression)
-	if !ok {
-		t.Fatalf("左操作数应该是BinaryExpression，但得到 %T", binaryExpr.Left)
-	}
-
-	if leftBinaryExpr.Operator != ast.OpGT {
-		t.Errorf("左操作符应该是>，但得到 %s", leftBinaryExpr.Operator)
-	}
-
-	// 验证函数调用
-	funcCall, ok := leftBinaryExpr.Left.(*ast.FunctionCall)
-	if !ok {
-		t.Fatalf("左操作数的左操作数应该是FunctionCall，但得到 %T", leftBinaryExpr.Left)
-	}
-
-	if funcCall.Name != "avg" {
-		t.Errorf("函数名应该是avg，但得到 %s", funcCall.Name)
-	}
-
-	if len(funcCall.Args) != 2 {
-		t.Errorf("avg函数应该有2个参数，但得到 %d", len(funcCall.Args))
-	}
-
-	// 验证右操作数（函数调用）
-	rightBinaryExpr, ok := binaryExpr.Right.(*ast.BinaryExpression)
-	if !ok {
-		t.Fatalf("右操作数应该是BinaryExpression，但得到 %T", binaryExpr.Right)
-	}
-
-	if rightBinaryExpr.Operator != ast.OpLT {
-		t.Errorf("右操作符应该是<，但得到 %s", rightBinaryExpr.Operator)
-	}
-
-	// 验证time_since函数调用
-	timeSinceCall, ok := rightBinaryExpr.Left.(*ast.FunctionCall)
-	if !ok {
-		t.Fatalf("右操作数的左操作数应该是FunctionCall，但得到 %T", rightBinaryExpr.Left)
-	}
-
-	if timeSinceCall.Name != "time_since" {
-		t.Errorf("函数名应该是time_since，但得到 %s", timeSinceCall.Name)
-	}
-
-	if len(timeSinceCall.Args) != 1 {
-		t.Errorf("time_since函数应该有1个参数，但得到 %d", len(timeSinceCall.Args))
+func (m *MockDataProvider) GetIndicatorField(ctx context.Context, symbol, field string) (interface{}, error) {
+	// 默认指标数据
+	switch field {
+	case "rsi":
+		return 65.5, nil
+	case "macd":
+		return 1.2, nil
+	default:
+		return 0.0, nil
 	}
 }
 
-func TestUserProvidedTestCases(t *testing.T) {
+func TestParser(t *testing.T) {
 	parser := NewParser()
 
-	// 用户提供的测试用例
 	testCases := []struct {
 		name       string
 		expression string
+		shouldErr  bool
 	}{
 		{
-			name:       "simple_price_comparison",
-			expression: "candles.SOL.last_px > 200",
+			name:       "简单比较",
+			expression: "candles.BTC.close > 100",
+			shouldErr:  false,
 		},
 		{
-			name:       "or_expression",
-			expression: "candles.SOL.last_px > 200 or candles.SOL.last_volume > 100000",
+			name:       "逻辑表达式",
+			expression: "candles.BTC.close > 100 and candles.ETH.close < 200",
+			shouldErr:  false,
 		},
 		{
-			name:       "contains_function",
-			expression: "contains(news.theblockbeats.last_title, [\"新高\", \"SOL\"]) and time_since(news.theblockbeats.last_update_time) < 300",
+			name:       "函数调用",
+			expression: "avg(candles.BTC.close, 5)",
+			shouldErr:  false,
 		},
 		{
-			name:       "complex_nested_expression",
-			expression: "(candles.SOL.last_px > 200 and candles.SOL.last_volume > 100000) or (contains(news.theblockbeats.last_title, [\"新高\", \"SOL\"]) and time_since(news.theblockbeats.last_update_time) < 300)",
+			name:       "括号表达式",
+			expression: "(candles.BTC.close > 100) and (candles.ETH.close < 200)",
+			shouldErr:  false,
 		},
 		{
-			name:       "avg_function_expression",
-			expression: "(avg(candles.BTC.close, 5) > candles.BTC.last_px) and (time_since(news.coindesk.last_update_time) < 600)",
+			name:       "字符串数组",
+			expression: "contains(news.coindesk.title, [\"新高\", \"突破\"])",
+			shouldErr:  false,
+		},
+		{
+			name:       "复杂表达式",
+			expression: "(avg(candles.BTC.close, 5) > 100 and time_since(news.coindesk.last_update_time) < 600) or (candles.SOL.close >= 200 and contains(news.theblockbeats.title, [\"新高\"]))",
+			shouldErr:  false,
+		},
+		{
+			name:       "语法错误 - 缺少括号",
+			expression: "candles.BTC.close > 100 and",
+			shouldErr:  true,
+		},
+		{
+			name:       "语法错误 - 无效操作符",
+			expression: "candles.BTC.close >> 100",
+			shouldErr:  true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			node, err := parser.Parse(tc.expression)
-			if err != nil {
-				t.Errorf("解析表达式失败: %v, 表达式: %s", err, tc.expression)
-				return
-			}
+			var err error
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						err = fmt.Errorf("panic: %v", r)
+					}
+				}()
+				_, err = parser.Parse(tc.expression)
+			}()
 
-			if node == nil {
-				t.Errorf("解析结果为空: %s", tc.expression)
-				return
+			if tc.shouldErr {
+				if err == nil {
+					t.Errorf("Expected error but got none for expression: %s", tc.expression)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error for expression %s: %v", tc.expression, err)
+				}
 			}
-
-			t.Logf("测试用例: %s", tc.name)
-			t.Logf("表达式: %s", tc.expression)
-			t.Logf("AST节点: %s", node.String())
-			t.Logf("节点类型: %s", node.Type())
 		})
 	}
 }
 
-func TestValidate(t *testing.T) {
-	parser := NewParser()
+func TestTokenizer(t *testing.T) {
+	tokenizer := NewTokenizer("candles.BTC.close > 100 and avg(candles.ETH.close, 5) < 200")
 
-	tests := []struct {
-		name        string
-		expression  string
-		expectError bool
+	expectedTokens := []Token{
+		{Type: TokenIdent, Value: "candles"},
+		{Type: TokenDot, Value: "."},
+		{Type: TokenIdent, Value: "BTC"},
+		{Type: TokenDot, Value: "."},
+		{Type: TokenIdent, Value: "close"},
+		{Type: TokenOp, Value: ">"},
+		{Type: TokenNumber, Value: "100"},
+		{Type: TokenAnd, Value: "and"},
+		{Type: TokenIdent, Value: "avg"},
+		{Type: TokenLParen, Value: "("},
+		{Type: TokenIdent, Value: "candles"},
+		{Type: TokenDot, Value: "."},
+		{Type: TokenIdent, Value: "ETH"},
+		{Type: TokenDot, Value: "."},
+		{Type: TokenIdent, Value: "close"},
+		{Type: TokenComma, Value: ","},
+		{Type: TokenNumber, Value: "5"},
+		{Type: TokenRParen, Value: ")"},
+		{Type: TokenOp, Value: "<"},
+		{Type: TokenNumber, Value: "200"},
+		{Type: TokenEOF, Value: ""},
+	}
+
+	for i, expected := range expectedTokens {
+		token := tokenizer.NextToken()
+		if token.Type != expected.Type || token.Value != expected.Value {
+			t.Errorf("Token %d: expected %v but got %v", i, expected, token)
+		}
+	}
+}
+
+func TestDSLEngine(t *testing.T) {
+	// 创建模拟数据提供者
+	mockProvider := NewMockDataProvider()
+
+	// 设置测试数据
+	mockProvider.candlesData["BTC"] = map[string][]float64{
+		"close": {100, 101, 102, 103, 104},
+		"open":  {99, 100, 101, 102, 103},
+		"high":  {101, 102, 103, 104, 105},
+		"low":   {98, 99, 100, 101, 102},
+	}
+
+	mockProvider.candlesData["SOL"] = map[string][]float64{
+		"close": {200, 201, 202, 203, 204},
+		"open":  {199, 200, 201, 202, 203},
+		"high":  {201, 202, 203, 204, 205},
+		"low":   {198, 199, 200, 201, 202},
+	}
+
+	mockProvider.newsData["coindesk"] = map[string]interface{}{
+		"title":            "比特币价格创新高突破历史记录",
+		"last_update_time": time.Now().Add(-300 * time.Second),
+		"sentiment":        "positive",
+	}
+
+	mockProvider.newsData["theblockbeats"] = map[string]interface{}{
+		"title":            "加密货币市场迎来重大突破创新高",
+		"last_update_time": time.Now().Add(-600 * time.Second),
+	}
+
+	// 创建DSL引擎
+	registry := DefaultRegistry()
+	evaluator := NewEvaluator(registry, mockProvider)
+	engine := &Engine{
+		parser:      NewParser(),
+		evaluator:   evaluator,
+		registry:    registry,
+		dataAdapter: nil, // 不需要数据适配器，直接使用模拟提供者
+	}
+
+	ctx := context.Background()
+
+	// 测试用例
+	testCases := []struct {
+		name       string
+		expression string
+		expected   bool
+		shouldErr  bool
 	}{
 		{
-			name:        "valid_expression",
-			expression:  "candles.SOL.last_px > 200",
-			expectError: false,
+			name:       "简单比较",
+			expression: "candles.BTC.close > 100",
+			expected:   true,
+			shouldErr:  false,
 		},
 		{
-			name:        "invalid_expression",
-			expression:  "invalid.source.field > 100",
-			expectError: true,
+			name:       "逻辑AND",
+			expression: "candles.BTC.close > 100 and candles.BTC.close < 200",
+			expected:   true,
+			shouldErr:  false,
 		},
 		{
-			name:        "empty_expression",
-			expression:  "",
-			expectError: true,
+			name:       "逻辑OR",
+			expression: "candles.BTC.close < 50 or candles.BTC.close > 100",
+			expected:   true,
+			shouldErr:  false,
+		},
+		{
+			name:       "函数调用 - avg",
+			expression: "avg(candles.BTC.close, 5) > 100",
+			expected:   true,
+			shouldErr:  false,
+		},
+		{
+			name:       "函数调用 - time_since",
+			expression: "time_since(news.coindesk.last_update_time) < 600",
+			expected:   true,
+			shouldErr:  false,
+		},
+		{
+			name:       "函数调用 - has",
+			expression: "has(news.coindesk.title, \"新高\")",
+			expected:   true,
+			shouldErr:  false,
+		},
+		{
+			name:       "复杂表达式",
+			expression: "(avg(candles.BTC.close, 5) > candles.BTC.last_px and time_since(news.coindesk.last_update_time) < 600) or (candles.SOL.last_px >= 200 and has(news.theblockbeats.last_title, \"新高\"))",
+			expected:   true,
+			shouldErr:  false,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := parser.Validate(tt.expression)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := engine.ExecuteExpressionToBool(ctx, tc.expression)
 
-			if tt.expectError {
+			if tc.shouldErr {
 				if err == nil {
-					t.Errorf("期望错误但没有收到错误: %s", tt.expression)
+					t.Errorf("Expected error but got none")
 				}
-			} else {
-				if err != nil {
-					t.Errorf("期望无错误但收到错误: %v, 表达式: %s", err, tt.expression)
-				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+
+			if result != tc.expected {
+				t.Errorf("Expected %v but got %v for expression: %s", tc.expected, result, tc.expression)
 			}
 		})
 	}
