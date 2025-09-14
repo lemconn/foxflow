@@ -1,0 +1,346 @@
+package dsl
+
+import (
+	"context"
+	"fmt"
+	"strings"
+)
+
+// Evaluator AST求值器
+type Evaluator struct {
+	registry     *Registry
+	dataProvider DataProvider
+}
+
+// NewEvaluator 创建AST求值器
+func NewEvaluator(registry *Registry, dataProvider DataProvider) *Evaluator {
+	return &Evaluator{
+		registry:     registry,
+		dataProvider: dataProvider,
+	}
+}
+
+// Evaluate 执行AST节点
+func (e *Evaluator) Evaluate(ctx context.Context, node *Node) (interface{}, error) {
+	return node.Evaluate(ctx, e)
+}
+
+// EvaluateToBool 执行AST节点并返回布尔值
+func (e *Evaluator) EvaluateToBool(ctx context.Context, node *Node) (bool, error) {
+	result, err := e.Evaluate(ctx, node)
+	if err != nil {
+		return false, err
+	}
+
+	// 尝试转换为布尔值
+	switch v := result.(type) {
+	case bool:
+		return v, nil
+	case string:
+		return v == "true", nil
+	case float64:
+		return v != 0, nil
+	case int:
+		return v != 0, nil
+	default:
+		return false, fmt.Errorf("cannot convert result %T to boolean", result)
+	}
+}
+
+// GetFieldValue 获取字段值
+func (e *Evaluator) GetFieldValue(ctx context.Context, module, entity, field string) (interface{}, error) {
+	switch module {
+	case "candles":
+		return e.dataProvider.GetCandleField(ctx, entity, field)
+	case "news":
+		return e.dataProvider.GetNewsField(ctx, entity, field)
+	case "indicators":
+		return e.dataProvider.GetIndicatorField(ctx, entity, field)
+	default:
+		return nil, fmt.Errorf("unsupported module: %s", module)
+	}
+}
+
+// CallFunction 调用函数
+func (e *Evaluator) CallFunction(ctx context.Context, name string, args []interface{}) (interface{}, error) {
+	fn, exists := e.registry.GetFunction(name)
+	if !exists {
+		return nil, fmt.Errorf("unknown function: %s", name)
+	}
+
+	return fn(ctx, args, e)
+}
+
+// EvaluateBinary 评估二元表达式
+func (e *Evaluator) EvaluateBinary(op string, left, right interface{}) (interface{}, error) {
+	switch op {
+	case "and":
+		return e.evaluateLogicalAnd(left, right)
+	case "or":
+		return e.evaluateLogicalOr(left, right)
+	case ">":
+		return e.evaluateComparison(left, right, func(l, r float64) bool { return l > r })
+	case "<":
+		return e.evaluateComparison(left, right, func(l, r float64) bool { return l < r })
+	case ">=":
+		return e.evaluateComparison(left, right, func(l, r float64) bool { return l >= r })
+	case "<=":
+		return e.evaluateComparison(left, right, func(l, r float64) bool { return l <= r })
+	case "==":
+		return e.evaluateEquality(left, right)
+	case "!=":
+		return e.evaluateInequality(left, right)
+	case "in":
+		return e.evaluateMembership(left, right, true)
+	case "not_in":
+		return e.evaluateMembership(left, right, false)
+	case "has":
+		return e.evaluateContains(left, right)
+	default:
+		return nil, fmt.Errorf("unsupported operator: %s", op)
+	}
+}
+
+// evaluateLogicalAnd 评估逻辑AND
+func (e *Evaluator) evaluateLogicalAnd(left, right interface{}) (bool, error) {
+	leftBool, err := toBool(left)
+	if err != nil {
+		return false, fmt.Errorf("left operand is not boolean: %w", err)
+	}
+
+	rightBool, err := toBool(right)
+	if err != nil {
+		return false, fmt.Errorf("right operand is not boolean: %w", err)
+	}
+
+	return leftBool && rightBool, nil
+}
+
+// evaluateLogicalOr 评估逻辑OR
+func (e *Evaluator) evaluateLogicalOr(left, right interface{}) (bool, error) {
+	leftBool, err := toBool(left)
+	if err != nil {
+		return false, fmt.Errorf("left operand is not boolean: %w", err)
+	}
+
+	rightBool, err := toBool(right)
+	if err != nil {
+		return false, fmt.Errorf("right operand is not boolean: %w", err)
+	}
+
+	return leftBool || rightBool, nil
+}
+
+// evaluateComparison 评估比较操作
+func (e *Evaluator) evaluateComparison(left, right interface{}, compare func(float64, float64) bool) (bool, error) {
+	// 尝试数字比较
+	if leftNum, rightNum, ok := toNumbers(left, right); ok {
+		return compare(leftNum, rightNum), nil
+	}
+
+	// 尝试时间比较
+	if leftTime, rightTime, ok := toTimes(left, right); ok {
+		switch {
+		case compare(1, 0): // >
+			return leftTime.After(rightTime), nil
+		case compare(0, 1): // <
+			return leftTime.Before(rightTime), nil
+		case compare(1, 1): // >=
+			return leftTime.After(rightTime) || leftTime.Equal(rightTime), nil
+		case compare(0, 0): // <=
+			return leftTime.Before(rightTime) || leftTime.Equal(rightTime), nil
+		}
+	}
+
+	// 尝试字符串比较
+	leftStr := toString(left)
+	rightStr := toString(right)
+	switch {
+	case compare(1, 0): // >
+		return leftStr > rightStr, nil
+	case compare(0, 1): // <
+		return leftStr < rightStr, nil
+	case compare(1, 1): // >=
+		return leftStr >= rightStr, nil
+	case compare(0, 0): // <=
+		return leftStr <= rightStr, nil
+	}
+
+	return false, fmt.Errorf("cannot compare %T and %T", left, right)
+}
+
+// evaluateEquality 评估相等性
+func (e *Evaluator) evaluateEquality(left, right interface{}) (bool, error) {
+	return equals(left, right), nil
+}
+
+// evaluateInequality 评估不等性
+func (e *Evaluator) evaluateInequality(left, right interface{}) (bool, error) {
+	return !equals(left, right), nil
+}
+
+// evaluateMembership 评估成员关系
+func (e *Evaluator) evaluateMembership(left, right interface{}, isIn bool) (bool, error) {
+	// 将right转换为数组
+	rightArray, err := toStringArray(right)
+	if err != nil {
+		return false, fmt.Errorf("right operand is not an array: %w", err)
+	}
+
+	// 检查left是否在right数组中
+	leftStr := toString(left)
+	contains := false
+	for _, item := range rightArray {
+		if leftStr == item {
+			contains = true
+			break
+		}
+	}
+
+	if isIn {
+		return contains, nil
+	}
+	return !contains, nil
+}
+
+// evaluateContains 评估包含关系
+func (e *Evaluator) evaluateContains(left, right interface{}) (bool, error) {
+	leftStr := toString(left)
+	rightStr := toString(right)
+
+	// 检查left是否包含right
+	return contains(leftStr, rightStr), nil
+}
+
+// Validate 验证AST节点
+func (e *Evaluator) Validate(node *Node) error {
+	return e.validateNode(node)
+}
+
+// validateNode 验证单个节点
+func (e *Evaluator) validateNode(node *Node) error {
+	switch node.Type {
+	case NodeBinary:
+		return e.validateBinaryExpression(node)
+	case NodeFuncCall:
+		return e.validateFunctionCall(node)
+	case NodeIdent:
+		return e.validateIdentifier(node)
+	case NodeLiteral:
+		return e.validateLiteral(node)
+	case NodeFieldAccess:
+		return e.validateFieldAccess(node)
+	default:
+		return fmt.Errorf("unknown node type: %d", node.Type)
+	}
+}
+
+// validateBinaryExpression 验证二元表达式
+func (e *Evaluator) validateBinaryExpression(node *Node) error {
+	// 验证操作符
+	if !e.isValidOperator(node.Op) {
+		return fmt.Errorf("invalid operator: %s", node.Op)
+	}
+
+	// 验证左操作数
+	if err := e.validateNode(node.Left); err != nil {
+		return fmt.Errorf("invalid left operand: %w", err)
+	}
+
+	// 验证右操作数
+	if err := e.validateNode(node.Right); err != nil {
+		return fmt.Errorf("invalid right operand: %w", err)
+	}
+
+	return nil
+}
+
+// validateFunctionCall 验证函数调用
+func (e *Evaluator) validateFunctionCall(node *Node) error {
+	// 验证函数是否存在
+	_, exists := e.registry.GetFunction(node.FuncName)
+	if !exists {
+		return fmt.Errorf("unknown function: %s", node.FuncName)
+	}
+
+	// 验证每个参数
+	for i, arg := range node.Args {
+		if err := e.validateNode(arg); err != nil {
+			return fmt.Errorf("invalid argument %d: %w", i, err)
+		}
+	}
+
+	return nil
+}
+
+// validateIdentifier 验证标识符
+func (e *Evaluator) validateIdentifier(node *Node) error {
+	// 检查标识符格式
+	parts := strings.Split(node.Ident, ".")
+	if len(parts) != 3 {
+		return fmt.Errorf("invalid identifier format: %s", node.Ident)
+	}
+
+	// 验证模块类型
+	module := parts[0]
+	if !e.isValidModule(module) {
+		return fmt.Errorf("invalid module: %s", module)
+	}
+
+	return nil
+}
+
+// validateLiteral 验证字面量
+func (e *Evaluator) validateLiteral(node *Node) error {
+	if node.Value == nil {
+		return fmt.Errorf("literal value cannot be nil")
+	}
+	return nil
+}
+
+// validateFieldAccess 验证字段访问
+func (e *Evaluator) validateFieldAccess(node *Node) error {
+	// 验证模块类型
+	if !e.isValidModule(node.Module) {
+		return fmt.Errorf("invalid module: %s", node.Module)
+	}
+
+	// 验证实体名不为空
+	if node.Entity == "" {
+		return fmt.Errorf("entity name cannot be empty")
+	}
+
+	// 验证字段名不为空
+	if node.Field == "" {
+		return fmt.Errorf("field name cannot be empty")
+	}
+
+	return nil
+}
+
+// isValidOperator 检查操作符是否有效
+func (e *Evaluator) isValidOperator(op string) bool {
+	validOps := []string{
+		"and", "or",
+		">", "<", ">=", "<=", "==", "!=",
+		"in", "not_in", "has",
+	}
+
+	for _, validOp := range validOps {
+		if op == validOp {
+			return true
+		}
+	}
+	return false
+}
+
+// isValidModule 检查模块是否有效
+func (e *Evaluator) isValidModule(module string) bool {
+	validModules := []string{"candles", "news", "indicators"}
+	for _, validModule := range validModules {
+		if module == validModule {
+			return true
+		}
+	}
+	return false
+}
