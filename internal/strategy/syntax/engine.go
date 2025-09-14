@@ -1,18 +1,18 @@
-package dsl
+package syntax
 
 import (
 	"context"
 	"fmt"
 )
 
-// Engine DSL引擎
+// Engine 语法引擎
 type Engine struct {
 	parser    *Parser
 	evaluator *Evaluator
 	registry  *Registry
 }
 
-// NewEngine 创建DSL引擎
+// NewEngine 创建语法引擎
 func NewEngine() *Engine {
 	// 创建组件
 	parser := NewParser()
@@ -26,12 +26,12 @@ func NewEngine() *Engine {
 	}
 }
 
-// Parse 解析DSL表达式
+// Parse 解析语法表达式
 func (e *Engine) Parse(expression string) (*Node, error) {
 	return e.parser.Parse(expression)
 }
 
-// Validate 验证DSL表达式
+// Validate 验证语法表达式
 func (e *Engine) Validate(expression string) error {
 	return e.parser.Validate(expression)
 }
@@ -46,7 +46,7 @@ func (e *Engine) ExecuteToBool(ctx context.Context, node *Node) (bool, error) {
 	return e.evaluator.EvaluateToBool(ctx, node)
 }
 
-// ExecuteExpression 解析并执行DSL表达式
+// ExecuteExpression 解析并执行语法表达式
 func (e *Engine) ExecuteExpression(ctx context.Context, expression string) (interface{}, error) {
 	// 解析表达式
 	node, err := e.Parse(expression)
@@ -63,7 +63,7 @@ func (e *Engine) ExecuteExpression(ctx context.Context, expression string) (inte
 	return e.Execute(ctx, node)
 }
 
-// ExecuteExpressionToBool 解析并执行DSL表达式，返回布尔值
+// ExecuteExpressionToBool 解析并执行语法表达式，返回布尔值
 func (e *Engine) ExecuteExpressionToBool(ctx context.Context, expression string) (bool, error) {
 	// 解析表达式
 	node, err := e.Parse(expression)
