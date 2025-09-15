@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
+	sources "github.com/lemconn/foxflow/internal/strategy/datasources"
 	"github.com/lemconn/foxflow/internal/strategy/functions"
-	sources "github.com/lemconn/foxflow/internal/strategy/sources"
 )
 
 // UnifiedRegistry 统一注册器，支持函数和数据源注册

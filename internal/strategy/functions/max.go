@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	sources "github.com/lemconn/foxflow/internal/strategy/sources"
+	sources "github.com/lemconn/foxflow/internal/strategy/datasources"
 )
 
 // MaxFunction max函数实现
