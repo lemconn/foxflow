@@ -7,6 +7,18 @@ import (
 	"time"
 )
 
+// NewsData 新闻数据
+type NewsData struct {
+	Source         string    `json:"source"`           // 新闻源，如 theblockbeats
+	Title          string    `json:"title"`            // 新闻标题
+	Content        string    `json:"content"`          // 新闻内容
+	UpdateTime     time.Time `json:"update_time"`      // 更新时间
+	LastTitle      string    `json:"last_title"`       // 最新标题
+	LastUpdateTime time.Time `json:"last_update_time"` // 最新更新时间
+	Keywords       []string  `json:"keywords"`         // 关键词
+	Sentiment      string    `json:"sentiment"`        // 情感分析：positive, negative, neutral
+}
+
 // NewsModule 新闻数据模块
 type NewsModule struct {
 	name string
@@ -52,12 +64,6 @@ func (m *NewsModule) GetData(ctx context.Context, entity, field string) (interfa
 	default:
 		return nil, fmt.Errorf("unknown field: %s", field)
 	}
-}
-
-// GetHistoricalData 获取历史数据
-func (m *NewsModule) GetHistoricalData(ctx context.Context, entity, field string, period int) ([]interface{}, error) {
-	// 新闻数据通常不需要历史数据
-	return nil, fmt.Errorf("news module does not support historical data")
 }
 
 // initMockData 初始化Mock数据

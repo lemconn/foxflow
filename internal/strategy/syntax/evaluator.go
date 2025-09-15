@@ -61,9 +61,9 @@ func (e *Evaluator) CallFunction(ctx context.Context, name string, args []interf
 	return fn(ctx, args, e)
 }
 
-// GetHistoricalData 获取历史数据
-func (e *Evaluator) GetHistoricalData(ctx context.Context, source, entity, field string, period int) ([]interface{}, error) {
-	return e.registry.unifiedRegistry.GetHistoricalData(ctx, source, entity, field, period)
+// GetDataSource 获取数据源
+func (e *Evaluator) GetDataSource(name string) (interface{}, bool) {
+	return e.registry.unifiedRegistry.GetDataSource(name)
 }
 
 // EvaluateBinary 评估二元表达式

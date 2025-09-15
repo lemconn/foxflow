@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	sources "github.com/lemconn/foxflow/internal/strategy/sources"
 )
 
 // AvgFunction avg函数实现
@@ -22,7 +24,7 @@ func NewAvgFunction() *AvgFunction {
 				Name:        "path",
 				Type:        "string",
 				Required:    true,
-				Description: "数据路径，格式：candles.SYMBOL.field",
+				Description: "数据路径，格式：kline.SYMBOL.field",
 			},
 			{
 				Name:        "period",
@@ -50,9 +52,9 @@ func (f *AvgFunction) Execute(ctx context.Context, args []interface{}, evaluator
 		return nil, fmt.Errorf("first argument to avg must be a string path")
 	}
 
-	// 解析路径：candles.SYMBOL.field
+	// 解析路径：kline.SYMBOL.field
 	parts := strings.Split(path, ".")
-	if len(parts) != 3 || parts[0] != "candles" {
+	if len(parts) != 3 || parts[0] != "kline" {
 		return nil, fmt.Errorf("invalid path for avg function: %s", path)
 	}
 
@@ -66,9 +68,9 @@ func (f *AvgFunction) Execute(ctx context.Context, args []interface{}, evaluator
 	}
 
 	// 获取历史数据
-	data, err := f.getCandlesData(ctx, evaluator, symbol, field)
+	data, err := f.getKlineData(ctx, evaluator, symbol, field)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get candles data: %w", err)
+		return nil, fmt.Errorf("failed to get kline data: %w", err)
 	}
 
 	// 计算平均值
@@ -88,23 +90,59 @@ func (f *AvgFunction) Execute(ctx context.Context, args []interface{}, evaluator
 	return sum / float64(n), nil
 }
 
-// getCandlesData 获取K线数据
-func (f *AvgFunction) getCandlesData(ctx context.Context, evaluator Evaluator, symbol, field string) ([]float64, error) {
-	// 获取历史数据
-	historicalData, err := evaluator.GetHistoricalData(ctx, "candles", symbol, field, 100)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get candles historical data for %s.%s: %w", symbol, field, err)
+// getKlineData 获取K线数据
+func (f *AvgFunction) getKlineData(ctx context.Context, evaluator Evaluator, symbol, field string) ([]float64, error) {
+	// 获取K线数据源
+	ds, exists := evaluator.GetDataSource("kline")
+	if !exists {
+		return nil, fmt.Errorf("kline data source not found")
 	}
 
-	// 转换为float64数组
-	result := make([]float64, len(historicalData))
-	for i, v := range historicalData {
-		if f, ok := v.(float64); ok {
-			result[i] = f
-		} else {
-			return nil, fmt.Errorf("invalid data type in historical data: %T", v)
+	// 尝试类型断言为KlineModule
+	if klineModule, ok := ds.(*sources.KlineModule); ok {
+		// 获取历史数据
+		historicalData, err := klineModule.GetHistoricalData(ctx, symbol, field, 100)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get kline historical data for %s.%s: %w", symbol, field, err)
 		}
+
+		// 转换为float64数组
+		result := make([]float64, len(historicalData))
+		for i, v := range historicalData {
+			if f, ok := v.(float64); ok {
+				result[i] = f
+			} else {
+				return nil, fmt.Errorf("invalid data type in historical data: %T", v)
+			}
+		}
+
+		return result, nil
 	}
 
-	return result, nil
+	// 如果不是KlineModule，尝试通过GetHistoricalData接口获取
+	// 这里需要定义一个接口来统一处理
+	type HistoricalDataProvider interface {
+		GetHistoricalData(ctx context.Context, entity, field string, period int) ([]interface{}, error)
+	}
+
+	if historicalProvider, ok := ds.(HistoricalDataProvider); ok {
+		historicalData, err := historicalProvider.GetHistoricalData(ctx, symbol, field, 100)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get kline historical data for %s.%s: %w", symbol, field, err)
+		}
+
+		// 转换为float64数组
+		result := make([]float64, len(historicalData))
+		for i, v := range historicalData {
+			if f, ok := v.(float64); ok {
+				result[i] = f
+			} else {
+				return nil, fmt.Errorf("invalid data type in historical data: %T", v)
+			}
+		}
+
+		return result, nil
+	}
+
+	return nil, fmt.Errorf("invalid kline module type")
 }

@@ -88,16 +88,6 @@ func (r *UnifiedRegistry) GetData(ctx context.Context, source, entity, field str
 	return ds.GetData(ctx, entity, field)
 }
 
-// GetHistoricalData 获取历史数据（统一接口）
-func (r *UnifiedRegistry) GetHistoricalData(ctx context.Context, source, entity, field string, period int) ([]interface{}, error) {
-	ds, exists := r.GetDataSource(source)
-	if !exists {
-		return nil, fmt.Errorf("data source not found: %s", source)
-	}
-
-	return ds.GetHistoricalData(ctx, entity, field, period)
-}
-
 // DefaultRegistry 创建默认注册器，注册所有默认函数和数据源
 func DefaultRegistry() *UnifiedRegistry {
 	registry := NewUnifiedRegistry()
@@ -111,7 +101,8 @@ func DefaultRegistry() *UnifiedRegistry {
 	registry.RegisterFunction(functions.NewSumFunction())
 
 	// 注册默认数据源
-	registry.RegisterDataSource(sources.NewCandlesModule())
+	registry.RegisterDataSource(sources.NewKlineModule())
+	registry.RegisterDataSource(sources.NewMarketModule())
 	registry.RegisterDataSource(sources.NewNewsModule())
 	registry.RegisterDataSource(sources.NewIndicatorsModule())
 
