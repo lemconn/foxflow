@@ -274,7 +274,7 @@ func TestParser(t *testing.T) {
 		},
 		{
 			name:       "复杂表达式",
-			expression: "(avg(kline.BTC.close, 5) > 100 and time_since(news.coindesk.last_update_time) < 600) or (kline.SOL.close >= 200 and contains(news.theblockbeats.title, [\"新高\"]))",
+			expression: "(avg(kline.BTC.close, 5) > 100 and ago(news.coindesk.last_update_time) < 600) or (kline.SOL.close >= 200 and contains(news.theblockbeats.title, [\"新高\"]))",
 			shouldErr:  false,
 		},
 		{
@@ -448,8 +448,8 @@ func TestSyntaxEngine(t *testing.T) {
 			shouldErr:  false,
 		},
 		{
-			name:       "函数调用 - time_since",
-			expression: "time_since(news.coindesk.last_update_time) < 600",
+			name:       "函数调用 - ago",
+			expression: "ago(news.coindesk.last_update_time) < 600",
 			expected:   true,
 			shouldErr:  false,
 		},
@@ -461,7 +461,7 @@ func TestSyntaxEngine(t *testing.T) {
 		},
 		{
 			name:       "复杂表达式",
-			expression: "(avg(kline.BTC.close, 5) > market.BTC.last_px and time_since(news.coindesk.last_update_time) < 600) or (market.SOL.last_px >= 200 and has(news.theblockbeats.last_title, \"新高\"))",
+			expression: "(avg(kline.BTC.close, 5) > market.BTC.last_px and ago(news.coindesk.last_update_time) < 600) or (market.SOL.last_px >= 200 and has(news.theblockbeats.last_title, \"新高\"))",
 			expected:   true,
 			shouldErr:  false,
 		},

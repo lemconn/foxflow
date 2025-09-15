@@ -6,15 +6,15 @@ import (
 	"time"
 )
 
-// TimeSinceFunction time_since函数实现
-type TimeSinceFunction struct {
+// AgoFunction ago函数实现
+type AgoFunction struct {
 	*BaseFunction
 }
 
-// NewTimeSinceFunction 创建time_since函数
-func NewTimeSinceFunction() *TimeSinceFunction {
+// NewAgoFunction 创建ago函数
+func NewAgoFunction() *AgoFunction {
 	signature := Signature{
-		Name:        "time_since",
+		Name:        "ago",
 		Description: "计算从指定时间到现在的秒数",
 		ReturnType:  "float64",
 		Args: []ArgInfo{
@@ -27,13 +27,13 @@ func NewTimeSinceFunction() *TimeSinceFunction {
 		},
 	}
 
-	return &TimeSinceFunction{
-		BaseFunction: NewBaseFunction("time_since", "计算从指定时间到现在的秒数", signature),
+	return &AgoFunction{
+		BaseFunction: NewBaseFunction("ago", "计算从指定时间到现在的秒数", signature),
 	}
 }
 
-// Execute 执行time_since函数
-func (f *TimeSinceFunction) Execute(ctx context.Context, args []interface{}, evaluator Evaluator) (interface{}, error) {
+// Execute 执行ago函数
+func (f *AgoFunction) Execute(ctx context.Context, args []interface{}, evaluator Evaluator) (interface{}, error) {
 	if err := f.ValidateArgs(args); err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (f *TimeSinceFunction) Execute(ctx context.Context, args []interface{}, eva
 	// 参数应该是时间
 	timestamp, err := toTime(args[0])
 	if err != nil {
-		return nil, fmt.Errorf("argument to time_since must be a time: %w", err)
+		return nil, fmt.Errorf("argument to ago must be a time: %w", err)
 	}
 
 	// 计算从指定时间到现在的秒数

@@ -94,7 +94,7 @@ func DefaultRegistry() *UnifiedRegistry {
 
 	// 注册默认函数
 	registry.RegisterFunction(functions.NewAvgFunction())
-	registry.RegisterFunction(functions.NewTimeSinceFunction())
+	registry.RegisterFunction(functions.NewAgoFunction())
 	registry.RegisterFunction(functions.NewHasFunction())
 	registry.RegisterFunction(functions.NewMaxFunction())
 	registry.RegisterFunction(functions.NewMinFunction())
