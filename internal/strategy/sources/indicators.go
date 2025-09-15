@@ -7,6 +7,15 @@ import (
 	"time"
 )
 
+// IndicatorsData 指标数据
+type IndicatorsData struct {
+	Symbol    string                 `json:"symbol"`
+	Indicator string                 `json:"indicator"` // 指标名称：MACD, RSI, Volume等
+	Value     float64                `json:"value"`     // 指标值
+	Timestamp time.Time              `json:"timestamp"`
+	Metadata  map[string]interface{} `json:"metadata"` // 额外元数据
+}
+
 // IndicatorsModule 指标数据模块
 type IndicatorsModule struct {
 	name       string
@@ -43,30 +52,6 @@ func (m *IndicatorsModule) GetData(ctx context.Context, entity, field string) (i
 	}
 
 	return indicatorsData.Value, nil
-}
-
-// GetHistoricalData 获取历史数据
-func (m *IndicatorsModule) GetHistoricalData(ctx context.Context, entity, field string, period int) ([]interface{}, error) {
-	// 获取当前数据作为基准
-	currentData, err := m.GetData(ctx, entity, field)
-	if err != nil {
-		return nil, err
-	}
-
-	baseValue, ok := currentData.(float64)
-	if !ok {
-		return nil, fmt.Errorf("field %s is not a numeric value", field)
-	}
-
-	// 生成模拟的历史数据
-	historicalData := make([]interface{}, period)
-	for i := 0; i < period; i++ {
-		// 模拟指标波动
-		variation := float64(i-period/2) * 0.5
-		historicalData[i] = baseValue + variation
-	}
-
-	return historicalData, nil
 }
 
 // initMockData 初始化Mock数据

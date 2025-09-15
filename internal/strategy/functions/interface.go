@@ -57,8 +57,8 @@ type Evaluator interface {
 	// CallFunction 调用函数
 	CallFunction(ctx context.Context, name string, args []interface{}) (interface{}, error)
 
-	// GetHistoricalData 获取历史数据
-	GetHistoricalData(ctx context.Context, source, entity, field string, period int) ([]interface{}, error)
+	// GetDataSource 获取数据源
+	GetDataSource(name string) (interface{}, bool)
 }
 
 // Registry 函数注册表接口

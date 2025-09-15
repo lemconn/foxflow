@@ -12,8 +12,9 @@ type Function func(ctx context.Context, args []interface{}, evaluator functions.
 
 // DataProvider 数据提供者接口（保持向后兼容）
 type DataProvider interface {
-	GetCandles(ctx context.Context, symbol, field string) ([]float64, error)
-	GetCandleField(ctx context.Context, symbol, field string) (interface{}, error)
+	GetKline(ctx context.Context, symbol, field string) ([]float64, error)
+	GetKlineField(ctx context.Context, symbol, field string) (interface{}, error)
+	GetMarketField(ctx context.Context, symbol, field string) (interface{}, error)
 	GetNewsField(ctx context.Context, source, field string) (interface{}, error)
 	GetIndicatorField(ctx context.Context, symbol, field string) (interface{}, error)
 }

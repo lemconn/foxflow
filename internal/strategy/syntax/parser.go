@@ -128,7 +128,7 @@ func (p *Parser) parsePrimary() *Node {
 		name := p.curToken.Value
 		p.nextToken()
 
-		// 检查是否是带点的标识符（如 candles.BTC.close）
+		// 检查是否是带点的标识符（如 kline.BTC.close）
 		if p.curToken.Type == TokenDot {
 			return p.parseFieldAccess(name)
 		}

@@ -9,25 +9,39 @@ import (
 
 // MockDataProvider 模拟数据提供者
 type MockDataProvider struct {
-	candlesData map[string]map[string][]float64
-	newsData    map[string]map[string]interface{}
+	klineData  map[string]map[string][]float64
+	marketData map[string]map[string]float64
+	newsData   map[string]map[string]interface{}
 }
 
-// MockCandlesDataSource 模拟K线数据源
-type MockCandlesDataSource struct {
+// MockKlineDataSource 模拟K线数据源
+type MockKlineDataSource struct {
 	provider *MockDataProvider
 }
 
-func (m *MockCandlesDataSource) GetName() string {
-	return "candles"
+func (m *MockKlineDataSource) GetName() string {
+	return "kline"
 }
 
-func (m *MockCandlesDataSource) GetData(ctx context.Context, entity, field string) (interface{}, error) {
-	return m.provider.GetCandleField(ctx, entity, field)
+func (m *MockKlineDataSource) GetData(ctx context.Context, entity, field string) (interface{}, error) {
+	return m.provider.GetKlineField(ctx, entity, field)
 }
 
-func (m *MockCandlesDataSource) GetHistoricalData(ctx context.Context, entity, field string, period int) ([]interface{}, error) {
-	return m.provider.GetHistoricalData(ctx, "candles", entity, field, period)
+func (m *MockKlineDataSource) GetHistoricalData(ctx context.Context, entity, field string, period int) ([]interface{}, error) {
+	return m.provider.GetHistoricalData(ctx, "kline", entity, field, period)
+}
+
+// MockMarketDataSource 模拟行情数据源
+type MockMarketDataSource struct {
+	provider *MockDataProvider
+}
+
+func (m *MockMarketDataSource) GetName() string {
+	return "market"
+}
+
+func (m *MockMarketDataSource) GetData(ctx context.Context, entity, field string) (interface{}, error) {
+	return m.provider.GetMarketField(ctx, entity, field)
 }
 
 // MockNewsDataSource 模拟新闻数据源
@@ -43,10 +57,6 @@ func (m *MockNewsDataSource) GetData(ctx context.Context, entity, field string) 
 	return m.provider.GetNewsField(ctx, entity, field)
 }
 
-func (m *MockNewsDataSource) GetHistoricalData(ctx context.Context, entity, field string, period int) ([]interface{}, error) {
-	return nil, fmt.Errorf("historical data not supported for news")
-}
-
 // MockIndicatorsDataSource 模拟指标数据源
 type MockIndicatorsDataSource struct {
 	provider *MockDataProvider
@@ -60,19 +70,16 @@ func (m *MockIndicatorsDataSource) GetData(ctx context.Context, entity, field st
 	return m.provider.GetIndicatorField(ctx, entity, field)
 }
 
-func (m *MockIndicatorsDataSource) GetHistoricalData(ctx context.Context, entity, field string, period int) ([]interface{}, error) {
-	return nil, fmt.Errorf("historical data not supported for indicators")
-}
-
 func NewMockDataProvider() *MockDataProvider {
 	return &MockDataProvider{
-		candlesData: make(map[string]map[string][]float64),
-		newsData:    make(map[string]map[string]interface{}),
+		klineData:  make(map[string]map[string][]float64),
+		marketData: make(map[string]map[string]float64),
+		newsData:   make(map[string]map[string]interface{}),
 	}
 }
 
-func (m *MockDataProvider) GetCandles(ctx context.Context, symbol, field string) ([]float64, error) {
-	if symbolData, exists := m.candlesData[symbol]; exists {
+func (m *MockDataProvider) GetKline(ctx context.Context, symbol, field string) ([]float64, error) {
+	if symbolData, exists := m.klineData[symbol]; exists {
 		if fieldData, exists := symbolData[field]; exists {
 			return fieldData, nil
 		}
@@ -80,19 +87,11 @@ func (m *MockDataProvider) GetCandles(ctx context.Context, symbol, field string)
 	return []float64{100, 101, 102, 103, 104}, nil // 默认数据
 }
 
-func (m *MockDataProvider) GetCandleField(ctx context.Context, symbol, field string) (interface{}, error) {
-	if symbolData, exists := m.candlesData[symbol]; exists {
+func (m *MockDataProvider) GetKlineField(ctx context.Context, symbol, field string) (interface{}, error) {
+	if symbolData, exists := m.klineData[symbol]; exists {
 		if fieldData, exists := symbolData[field]; exists {
 			if len(fieldData) > 0 {
 				return fieldData[len(fieldData)-1], nil
-			}
-		}
-		// 处理last_px字段，等同于close
-		if field == "last_px" {
-			if fieldData, exists := symbolData["close"]; exists {
-				if len(fieldData) > 0 {
-					return fieldData[len(fieldData)-1], nil
-				}
 			}
 		}
 	}
@@ -104,6 +103,42 @@ func (m *MockDataProvider) GetCandleField(ctx context.Context, symbol, field str
 		return 204.0, nil
 	}
 	return 104.0, nil
+}
+
+func (m *MockDataProvider) GetMarketField(ctx context.Context, symbol, field string) (interface{}, error) {
+	if symbolData, exists := m.marketData[symbol]; exists {
+		if fieldData, exists := symbolData[field]; exists {
+			return fieldData, nil
+		}
+	}
+
+	// 默认行情数据
+	switch field {
+	case "last_px":
+		if symbol == "BTC" {
+			return 104.0, nil
+		} else if symbol == "SOL" {
+			return 204.0, nil
+		}
+		return 104.0, nil
+	case "last_volume":
+		return 1000.0, nil
+	case "bid":
+		if symbol == "BTC" {
+			return 103.5, nil
+		} else if symbol == "SOL" {
+			return 203.5, nil
+		}
+		return 103.5, nil
+	case "ask":
+		if symbol == "BTC" {
+			return 104.5, nil
+		} else if symbol == "SOL" {
+			return 204.5, nil
+		}
+		return 104.5, nil
+	}
+	return nil, fmt.Errorf("unknown field: %s", field)
 }
 
 func (m *MockDataProvider) GetNewsField(ctx context.Context, source, field string) (interface{}, error) {
@@ -152,8 +187,10 @@ func (m *MockDataProvider) GetIndicatorField(ctx context.Context, symbol, field 
 // 实现 functions.Evaluator 接口
 func (m *MockDataProvider) GetFieldValue(ctx context.Context, module, entity, field string) (interface{}, error) {
 	switch module {
-	case "candles":
-		return m.GetCandleField(ctx, entity, field)
+	case "kline":
+		return m.GetKlineField(ctx, entity, field)
+	case "market":
+		return m.GetMarketField(ctx, entity, field)
 	case "news":
 		return m.GetNewsField(ctx, entity, field)
 	case "indicators":
@@ -169,10 +206,25 @@ func (m *MockDataProvider) CallFunction(ctx context.Context, name string, args [
 	return nil, fmt.Errorf("function call not implemented in mock")
 }
 
+func (m *MockDataProvider) GetDataSource(name string) (interface{}, bool) {
+	switch name {
+	case "kline":
+		return &MockKlineDataSource{provider: m}, true
+	case "market":
+		return &MockMarketDataSource{provider: m}, true
+	case "news":
+		return &MockNewsDataSource{provider: m}, true
+	case "indicators":
+		return &MockIndicatorsDataSource{provider: m}, true
+	default:
+		return nil, false
+	}
+}
+
 func (m *MockDataProvider) GetHistoricalData(ctx context.Context, source, entity, field string, period int) ([]interface{}, error) {
 	switch source {
-	case "candles":
-		data, err := m.GetCandles(ctx, entity, field)
+	case "kline":
+		data, err := m.GetKline(ctx, entity, field)
 		if err != nil {
 			return nil, err
 		}
@@ -197,22 +249,22 @@ func TestParser(t *testing.T) {
 	}{
 		{
 			name:       "简单比较",
-			expression: "candles.BTC.close > 100",
+			expression: "kline.BTC.close > 100",
 			shouldErr:  false,
 		},
 		{
 			name:       "逻辑表达式",
-			expression: "candles.BTC.close > 100 and candles.ETH.close < 200",
+			expression: "kline.BTC.close > 100 and kline.ETH.close < 200",
 			shouldErr:  false,
 		},
 		{
 			name:       "函数调用",
-			expression: "avg(candles.BTC.close, 5)",
+			expression: "avg(kline.BTC.close, 5)",
 			shouldErr:  false,
 		},
 		{
 			name:       "括号表达式",
-			expression: "(candles.BTC.close > 100) and (candles.ETH.close < 200)",
+			expression: "(kline.BTC.close > 100) and (kline.ETH.close < 200)",
 			shouldErr:  false,
 		},
 		{
@@ -222,17 +274,17 @@ func TestParser(t *testing.T) {
 		},
 		{
 			name:       "复杂表达式",
-			expression: "(avg(candles.BTC.close, 5) > 100 and time_since(news.coindesk.last_update_time) < 600) or (candles.SOL.close >= 200 and contains(news.theblockbeats.title, [\"新高\"]))",
+			expression: "(avg(kline.BTC.close, 5) > 100 and time_since(news.coindesk.last_update_time) < 600) or (kline.SOL.close >= 200 and contains(news.theblockbeats.title, [\"新高\"]))",
 			shouldErr:  false,
 		},
 		{
 			name:       "语法错误 - 缺少括号",
-			expression: "candles.BTC.close > 100 and",
+			expression: "kline.BTC.close > 100 and",
 			shouldErr:  true,
 		},
 		{
 			name:       "语法错误 - 无效操作符",
-			expression: "candles.BTC.close >> 100",
+			expression: "kline.BTC.close >> 100",
 			shouldErr:  true,
 		},
 	}
@@ -263,10 +315,10 @@ func TestParser(t *testing.T) {
 }
 
 func TestTokenizer(t *testing.T) {
-	tokenizer := NewTokenizer("candles.BTC.close > 100 and avg(candles.ETH.close, 5) < 200")
+	tokenizer := NewTokenizer("kline.BTC.close > 100 and avg(kline.ETH.close, 5) < 200")
 
 	expectedTokens := []Token{
-		{Type: TokenIdent, Value: "candles"},
+		{Type: TokenIdent, Value: "kline"},
 		{Type: TokenDot, Value: "."},
 		{Type: TokenIdent, Value: "BTC"},
 		{Type: TokenDot, Value: "."},
@@ -276,7 +328,7 @@ func TestTokenizer(t *testing.T) {
 		{Type: TokenAnd, Value: "and"},
 		{Type: TokenIdent, Value: "avg"},
 		{Type: TokenLParen, Value: "("},
-		{Type: TokenIdent, Value: "candles"},
+		{Type: TokenIdent, Value: "kline"},
 		{Type: TokenDot, Value: "."},
 		{Type: TokenIdent, Value: "ETH"},
 		{Type: TokenDot, Value: "."},
@@ -302,18 +354,32 @@ func TestSyntaxEngine(t *testing.T) {
 	mockProvider := NewMockDataProvider()
 
 	// 设置测试数据
-	mockProvider.candlesData["BTC"] = map[string][]float64{
+	mockProvider.klineData["BTC"] = map[string][]float64{
 		"close": {100, 101, 102, 103, 104},
 		"open":  {99, 100, 101, 102, 103},
 		"high":  {101, 102, 103, 104, 105},
 		"low":   {98, 99, 100, 101, 102},
 	}
 
-	mockProvider.candlesData["SOL"] = map[string][]float64{
+	mockProvider.klineData["SOL"] = map[string][]float64{
 		"close": {200, 201, 202, 203, 204},
 		"open":  {199, 200, 201, 202, 203},
 		"high":  {201, 202, 203, 204, 205},
 		"low":   {198, 199, 200, 201, 202},
+	}
+
+	mockProvider.marketData["BTC"] = map[string]float64{
+		"last_px":     104.0,
+		"last_volume": 1000.0,
+		"bid":         103.5,
+		"ask":         104.5,
+	}
+
+	mockProvider.marketData["SOL"] = map[string]float64{
+		"last_px":     204.0,
+		"last_volume": 2000.0,
+		"bid":         203.5,
+		"ask":         204.5,
 	}
 
 	mockProvider.newsData["coindesk"] = map[string]interface{}{
@@ -331,11 +397,13 @@ func TestSyntaxEngine(t *testing.T) {
 	registry := DefaultRegistry()
 
 	// 将 MockDataProvider 注册为数据源
-	candlesDataSource := &MockCandlesDataSource{provider: mockProvider}
+	klineDataSource := &MockKlineDataSource{provider: mockProvider}
+	marketDataSource := &MockMarketDataSource{provider: mockProvider}
 	newsDataSource := &MockNewsDataSource{provider: mockProvider}
 	indicatorsDataSource := &MockIndicatorsDataSource{provider: mockProvider}
 
-	registry.unifiedRegistry.RegisterDataSource(candlesDataSource)
+	registry.unifiedRegistry.RegisterDataSource(klineDataSource)
+	registry.unifiedRegistry.RegisterDataSource(marketDataSource)
 	registry.unifiedRegistry.RegisterDataSource(newsDataSource)
 	registry.unifiedRegistry.RegisterDataSource(indicatorsDataSource)
 
@@ -357,25 +425,25 @@ func TestSyntaxEngine(t *testing.T) {
 	}{
 		{
 			name:       "简单比较",
-			expression: "candles.BTC.close > 100",
+			expression: "kline.BTC.close > 100",
 			expected:   true,
 			shouldErr:  false,
 		},
 		{
 			name:       "逻辑AND",
-			expression: "candles.BTC.close > 100 and candles.BTC.close < 200",
+			expression: "kline.BTC.close > 100 and kline.BTC.close < 200",
 			expected:   true,
 			shouldErr:  false,
 		},
 		{
 			name:       "逻辑OR",
-			expression: "candles.BTC.close < 50 or candles.BTC.close > 100",
+			expression: "kline.BTC.close < 50 or kline.BTC.close > 100",
 			expected:   true,
 			shouldErr:  false,
 		},
 		{
 			name:       "函数调用 - avg",
-			expression: "avg(candles.BTC.close, 5) > 100",
+			expression: "avg(kline.BTC.close, 5) > 100",
 			expected:   true,
 			shouldErr:  false,
 		},
@@ -393,7 +461,7 @@ func TestSyntaxEngine(t *testing.T) {
 		},
 		{
 			name:       "复杂表达式",
-			expression: "(avg(candles.BTC.close, 5) > candles.BTC.last_px and time_since(news.coindesk.last_update_time) < 600) or (candles.SOL.last_px >= 200 and has(news.theblockbeats.last_title, \"新高\"))",
+			expression: "(avg(kline.BTC.close, 5) > market.BTC.last_px and time_since(news.coindesk.last_update_time) < 600) or (market.SOL.last_px >= 200 and has(news.theblockbeats.last_title, \"新高\"))",
 			expected:   true,
 			shouldErr:  false,
 		},

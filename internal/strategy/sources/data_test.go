@@ -12,7 +12,7 @@ func TestDataManager(t *testing.T) {
 
 	// 测试列出所有模块
 	modules := manager.ListModules()
-	expectedModules := []string{"candles", "news", "indicators"}
+	expectedModules := []string{"kline", "market", "news", "indicators"}
 
 	if len(modules) != len(expectedModules) {
 		t.Errorf("期望 %d 个模块，但得到 %d 个", len(expectedModules), len(modules))
@@ -32,12 +32,12 @@ func TestDataManager(t *testing.T) {
 	}
 }
 
-func TestCandlesModule(t *testing.T) {
+func TestKlineModule(t *testing.T) {
 	manager := InitDefaultModules()
 	ctx := context.Background()
 
 	// 测试获取K线数据
-	data, err := manager.GetData(ctx, "candles", "SOL", "last_px")
+	data, err := manager.GetData(ctx, "kline", "SOL", "close")
 	if err != nil {
 		t.Errorf("获取K线数据失败: %v", err)
 	}
@@ -46,14 +46,60 @@ func TestCandlesModule(t *testing.T) {
 		t.Errorf("K线数据为空")
 	}
 
-	// 测试获取历史数据
-	historicalData, err := manager.GetHistoricalData(ctx, "candles", "SOL", "last_px", 5)
+	// 测试获取K线模块并调用历史数据方法
+	klineModule, err := manager.GetModule("kline")
 	if err != nil {
-		t.Errorf("获取历史K线数据失败: %v", err)
+		t.Errorf("获取K线模块失败: %v", err)
 	}
 
-	if len(historicalData) != 5 {
-		t.Errorf("期望 5 个历史数据点，但得到 %d 个", len(historicalData))
+	// 类型断言为KlineModule
+	if kline, ok := klineModule.(*KlineModule); ok {
+		historicalData, err := kline.GetHistoricalData(ctx, "SOL", "close", 5)
+		if err != nil {
+			t.Errorf("获取历史数据失败: %v", err)
+		}
+
+		if len(historicalData) != 5 {
+			t.Errorf("期望 5 个历史数据点，但得到 %d 个", len(historicalData))
+		}
+	} else {
+		t.Errorf("K线模块类型断言失败")
+	}
+}
+
+func TestMarketModule(t *testing.T) {
+	manager := InitDefaultModules()
+	ctx := context.Background()
+
+	// 测试获取行情数据
+	data, err := manager.GetData(ctx, "market", "SOL", "last_px")
+	if err != nil {
+		t.Errorf("获取行情数据失败: %v", err)
+	}
+
+	if data == nil {
+		t.Errorf("行情数据为空")
+	}
+
+	// 测试获取行情模块
+	marketModule, err := manager.GetModule("market")
+	if err != nil {
+		t.Errorf("获取行情模块失败: %v", err)
+	}
+
+	// 类型断言为MarketModule
+	if market, ok := marketModule.(*MarketModule); ok {
+		// 测试获取行情数据
+		marketData, exists := market.GetMarketData("SOL")
+		if !exists {
+			t.Errorf("未找到SOL的行情数据")
+		}
+
+		if marketData.Symbol != "SOL" {
+			t.Errorf("期望Symbol为SOL，但得到 %s", marketData.Symbol)
+		}
+	} else {
+		t.Errorf("行情模块类型断言失败")
 	}
 }
 
@@ -71,11 +117,6 @@ func TestNewsModule(t *testing.T) {
 		t.Errorf("新闻数据为空")
 	}
 
-	// 测试获取历史数据（应该返回错误）
-	_, err = manager.GetHistoricalData(ctx, "news", "theblockbeats", "last_title", 5)
-	if err == nil {
-		t.Errorf("新闻模块不应该支持历史数据")
-	}
 }
 
 func TestIndicatorsModule(t *testing.T) {
@@ -92,15 +133,6 @@ func TestIndicatorsModule(t *testing.T) {
 		t.Errorf("指标数据为空")
 	}
 
-	// 测试获取历史数据
-	historicalData, err := manager.GetHistoricalData(ctx, "indicators", "SOL", "MACD", 3)
-	if err != nil {
-		t.Errorf("获取历史指标数据失败: %v", err)
-	}
-
-	if len(historicalData) != 3 {
-		t.Errorf("期望 3 个历史数据点，但得到 %d 个", len(historicalData))
-	}
 }
 
 func TestModuleNotFound(t *testing.T) {
