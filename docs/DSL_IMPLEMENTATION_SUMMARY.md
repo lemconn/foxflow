@@ -38,7 +38,7 @@
 - **功能**: 注册和管理自定义函数
 - **内置函数**:
   - `avg(data_path, period)`: 计算平均值
-  - `time_since(timestamp)`: 计算时间差
+  - `ago(timestamp)`: 计算时间差
   - `has(text, keyword)`: 检查文本包含
   - `max(data_path, period)`: 计算最大值
   - `min(data_path, period)`: 计算最小值
@@ -72,13 +72,13 @@
 ### 函数调用
 ```go
 "avg(candles.BTC.close, 5) > 100"
-"time_since(news.coindesk.last_update_time) < 600"
+"ago(news.coindesk.last_update_time) < 600"
 "has(news.coindesk.title, \"新高\")"
 ```
 
 ### 复杂表达式
 ```go
-"(avg(candles.BTC.close, 5) > candles.BTC.last_px and time_since(news.coindesk.last_update_time) < 600) or (candles.SOL.last_px >= 200 and has(news.theblockbeats.last_title, \"新高\"))"
+"(avg(candles.BTC.close, 5) > candles.BTC.last_px and ago(news.coindesk.last_update_time) < 600) or (candles.SOL.last_px >= 200 and has(news.theblockbeats.last_title, \"新高\"))"
 ```
 
 ## 集成到现有引擎
@@ -98,7 +98,7 @@
 - ✅ 语法分析器测试
 - ✅ 简单比较表达式
 - ✅ 逻辑AND/OR表达式
-- ✅ 函数调用（avg, time_since）
+- ✅ 函数调用（avg, ago）
 - ✅ 括号优先级
 - ✅ 错误处理
 

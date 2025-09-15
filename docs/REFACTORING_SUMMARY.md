@@ -66,10 +66,10 @@ const (
 avg(candles.BTC.close, 5) > candles.BTC.last_px
 ```
 
-#### time_since() 函数
+#### ago() 函数
 ```go
 // 计算时间差（秒）
-time_since(news.coindesk.last_update_time) < 600
+ago(news.coindesk.last_update_time) < 600
 ```
 
 #### contains() 函数
@@ -96,22 +96,22 @@ contains(news.theblockbeats.last_title, ["新高", "SOL"])
 
 3. **函数调用组合**
    ```
-   contains(news.theblockbeats.last_title, ["新高", "SOL"]) and time_since(news.theblockbeats.last_update_time) < 300
+   contains(news.theblockbeats.last_title, ["新高", "SOL"]) and ago(news.theblockbeats.last_update_time) < 300
    ```
 
 4. **复杂嵌套表达式**
    ```
-   (candles.SOL.last_px > 200 and candles.SOL.last_volume > 100000) or (contains(news.theblockbeats.last_title, ["新高", "SOL"]) and time_since(news.theblockbeats.last_update_time) < 300)
+   (candles.SOL.last_px > 200 and candles.SOL.last_volume > 100000) or (contains(news.theblockbeats.last_title, ["新高", "SOL"]) and ago(news.theblockbeats.last_update_time) < 300)
    ```
 
 5. **高级函数表达式**
    ```
-   (avg(candles.BTC.close, 5) > candles.BTC.last_px) and (time_since(news.coindesk.last_update_time) < 600)
+   (avg(candles.BTC.close, 5) > candles.BTC.last_px) and (ago(news.coindesk.last_update_time) < 600)
    ```
 
 ### AST树结构示例
 
-以表达式 `(avg(candles.BTC.close, 5) > candles.BTC.last_px) and (time_since(news.coindesk.last_update_time) < 600)` 为例：
+以表达式 `(avg(candles.BTC.close, 5) > candles.BTC.last_px) and (ago(news.coindesk.last_update_time) < 600)` 为例：
 
 ```
                      AND
@@ -151,7 +151,7 @@ contains(news.theblockbeats.last_title, ["新高", "SOL"])
     "operator": "<",
     "left": {
       "type": "FunctionCall",
-      "name": "time_since",
+      "name": "ago",
       "args": [
         { "type": "DataRef", "module": "news", "entity": "coindesk", "field": "last_update_time" }
       ]
