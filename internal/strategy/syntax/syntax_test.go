@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/lemconn/foxflow/internal/strategy"
 )
 
 // MockDataProvider 模拟数据提供者
@@ -394,7 +396,7 @@ func TestSyntaxEngine(t *testing.T) {
 	}
 
 	// 创建语法引擎
-	registry := DefaultRegistry()
+	registry := strategy.DefaultRegistry()
 
 	// 将 MockDataProvider 注册为数据源
 	klineDataSource := &MockKlineDataSource{provider: mockProvider}
@@ -402,12 +404,12 @@ func TestSyntaxEngine(t *testing.T) {
 	newsDataSource := &MockNewsDataSource{provider: mockProvider}
 	indicatorsDataSource := &MockIndicatorsDataSource{provider: mockProvider}
 
-	registry.unifiedRegistry.RegisterDataSource(klineDataSource)
-	registry.unifiedRegistry.RegisterDataSource(marketDataSource)
-	registry.unifiedRegistry.RegisterDataSource(newsDataSource)
-	registry.unifiedRegistry.RegisterDataSource(indicatorsDataSource)
+	registry.RegisterDataSource(klineDataSource)
+	registry.RegisterDataSource(marketDataSource)
+	registry.RegisterDataSource(newsDataSource)
+	registry.RegisterDataSource(indicatorsDataSource)
 
-	evaluator := NewEvaluator(registry, mockProvider)
+	evaluator := NewEvaluator(registry)
 	engine := &Engine{
 		parser:    NewParser(),
 		evaluator: evaluator,

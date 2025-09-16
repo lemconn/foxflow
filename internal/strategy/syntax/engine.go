@@ -3,21 +3,24 @@ package syntax
 import (
 	"context"
 	"fmt"
+
+	"github.com/lemconn/foxflow/internal/strategy"
+	"github.com/lemconn/foxflow/internal/strategy/functions"
 )
 
 // Engine 语法引擎
 type Engine struct {
 	parser    *Parser
 	evaluator *Evaluator
-	registry  *Registry
+	registry  *strategy.Registry
 }
 
 // NewEngine 创建语法引擎
 func NewEngine() *Engine {
 	// 创建组件
 	parser := NewParser()
-	registry := DefaultRegistry()
-	evaluator := NewEvaluator(registry, nil) // 不再需要dataAdapter
+	registry := strategy.DefaultRegistry()
+	evaluator := NewEvaluator(registry)
 
 	return &Engine{
 		parser:    parser,
@@ -81,12 +84,12 @@ func (e *Engine) ExecuteExpressionToBool(ctx context.Context, expression string)
 }
 
 // RegisterFunction 注册自定义函数
-func (e *Engine) RegisterFunction(name string, fn Function) {
-	e.registry.Register(name, fn)
+func (e *Engine) RegisterFunction(fn functions.Function) {
+	e.registry.RegisterFunction(fn)
 }
 
 // GetRegistry 获取函数注册表
-func (e *Engine) GetRegistry() *Registry {
+func (e *Engine) GetRegistry() *strategy.Registry {
 	return e.registry
 }
 
