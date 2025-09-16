@@ -9,37 +9,37 @@ import (
 	"github.com/lemconn/foxflow/internal/strategy/functions"
 )
 
-// UnifiedRegistry 统一注册器，支持函数和数据源注册
-type UnifiedRegistry struct {
+// Registry 注册器，支持函数和数据源注册
+type Registry struct {
 	functions   map[string]functions.Function
 	dataSources map[string]sources.Module
 	mu          sync.RWMutex
 }
 
-// NewUnifiedRegistry 创建统一注册器
-func NewUnifiedRegistry() *UnifiedRegistry {
-	return &UnifiedRegistry{
+// NewRegistry 创建注册器
+func NewRegistry() *Registry {
+	return &Registry{
 		functions:   make(map[string]functions.Function),
 		dataSources: make(map[string]sources.Module),
 	}
 }
 
 // RegisterFunction 注册函数
-func (r *UnifiedRegistry) RegisterFunction(fn functions.Function) {
+func (r *Registry) RegisterFunction(fn functions.Function) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.functions[fn.GetName()] = fn
 }
 
 // RegisterDataSource 注册数据源
-func (r *UnifiedRegistry) RegisterDataSource(ds sources.Module) {
+func (r *Registry) RegisterDataSource(ds sources.Module) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.dataSources[ds.GetName()] = ds
 }
 
 // GetFunction 获取函数
-func (r *UnifiedRegistry) GetFunction(name string) (functions.Function, bool) {
+func (r *Registry) GetFunction(name string) (functions.Function, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	fn, exists := r.functions[name]
@@ -47,7 +47,7 @@ func (r *UnifiedRegistry) GetFunction(name string) (functions.Function, bool) {
 }
 
 // GetDataSource 获取数据源
-func (r *UnifiedRegistry) GetDataSource(name string) (sources.Module, bool) {
+func (r *Registry) GetDataSource(name string) (sources.Module, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	ds, exists := r.dataSources[name]
@@ -55,7 +55,7 @@ func (r *UnifiedRegistry) GetDataSource(name string) (sources.Module, bool) {
 }
 
 // ListFunctions 列出所有函数
-func (r *UnifiedRegistry) ListFunctions() []string {
+func (r *Registry) ListFunctions() []string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -67,7 +67,7 @@ func (r *UnifiedRegistry) ListFunctions() []string {
 }
 
 // ListDataSources 列出所有数据源
-func (r *UnifiedRegistry) ListDataSources() []string {
+func (r *Registry) ListDataSources() []string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -79,7 +79,7 @@ func (r *UnifiedRegistry) ListDataSources() []string {
 }
 
 // GetData 获取数据（统一接口）
-func (r *UnifiedRegistry) GetData(ctx context.Context, source, entity, field string) (interface{}, error) {
+func (r *Registry) GetData(ctx context.Context, source, entity, field string) (interface{}, error) {
 	ds, exists := r.GetDataSource(source)
 	if !exists {
 		return nil, fmt.Errorf("data source not found: %s", source)
@@ -89,8 +89,8 @@ func (r *UnifiedRegistry) GetData(ctx context.Context, source, entity, field str
 }
 
 // DefaultRegistry 创建默认注册器，注册所有默认函数和数据源
-func DefaultRegistry() *UnifiedRegistry {
-	registry := NewUnifiedRegistry()
+func DefaultRegistry() *Registry {
+	registry := NewRegistry()
 
 	// 注册默认函数
 	registry.RegisterFunction(functions.NewAvgFunction())
