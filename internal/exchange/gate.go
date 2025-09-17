@@ -72,6 +72,11 @@ func (e *GateExchange) Disconnect() error {
 	return nil
 }
 
+func (e *GateExchange) SetUSer(ctx context.Context, user *models.FoxUser) error {
+	e.user = user
+	return nil
+}
+
 func (e *GateExchange) GetBalance(ctx context.Context) ([]Asset, error) {
 	if e.user == nil {
 		return nil, fmt.Errorf("user not connected")
@@ -291,28 +296,12 @@ func (e *GateExchange) GetTickers(ctx context.Context) ([]Ticker, error) {
 	return tickers, nil
 }
 
-func (e *GateExchange) GetSymbols(ctx context.Context) ([]string, error) {
-	path := "/api/v4/futures/usdt/contracts"
-	result, err := e.sendRequest(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get symbols: %w", err)
-	}
+func (e *GateExchange) GetSymbols(ctx context.Context, userSymbol string) (*Symbol, error) {
 
-	var symbols []string
-	if data, ok := result.([]interface{}); ok {
-		for _, item := range data {
-			if contractMap, ok := item.(map[string]interface{}); ok {
-				if tradeStatus := contractMap["trade_status"].(string); tradeStatus == "tradable" {
-					symbols = append(symbols, contractMap["name"].(string))
-				}
-			}
-		}
-	}
-
-	return symbols, nil
+	return nil, nil
 }
 
-func (e *GateExchange) SetLeverage(ctx context.Context, symbol string, leverage int) error {
+func (e *GateExchange) SetLeverage(ctx context.Context, symbol string, leverage int, marginType string) error {
 	if e.user == nil {
 		return fmt.Errorf("user not connected")
 	}
@@ -333,6 +322,32 @@ func (e *GateExchange) SetLeverage(ctx context.Context, symbol string, leverage 
 func (e *GateExchange) SetMarginType(ctx context.Context, symbol string, marginType string) error {
 	// Gate.io期货默认使用全仓模式，这里返回成功
 	return nil
+}
+
+// ConvertToExchangeSymbol 将用户输入的币种名称转换为Gate交易所格式
+// 例如：BTC -> BTC_USDT
+func (e *GateExchange) ConvertToExchangeSymbol(userSymbol string) string {
+	// Gate.io期货使用币种_USDT的格式
+	return userSymbol + "_USDT"
+}
+
+// ConvertFromExchangeSymbol 将Gate交易所格式的币种名称转换为用户格式
+// 例如：BTC_USDT -> BTC
+func (e *GateExchange) ConvertFromExchangeSymbol(exchangeSymbol string) string {
+	// 去除_USDT后缀
+	if len(exchangeSymbol) > 5 && exchangeSymbol[len(exchangeSymbol)-5:] == "_USDT" {
+		return exchangeSymbol[:len(exchangeSymbol)-5]
+	}
+	// 去除_USD后缀
+	if len(exchangeSymbol) > 4 && exchangeSymbol[len(exchangeSymbol)-4:] == "_USD" {
+		return exchangeSymbol[:len(exchangeSymbol)-4]
+	}
+	// 去除_USDC后缀
+	if len(exchangeSymbol) > 5 && exchangeSymbol[len(exchangeSymbol)-5:] == "_USDC" {
+		return exchangeSymbol[:len(exchangeSymbol)-5]
+	}
+	// 如果没有匹配的后缀，返回原符号
+	return exchangeSymbol
 }
 
 // 辅助方法：构建签名

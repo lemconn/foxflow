@@ -37,6 +37,15 @@ type Asset struct {
 	Available float64 `json:"available"`
 }
 
+type Symbol struct {
+	Type     string `json:"type"`
+	Name     string `json:"name"`
+	Base     string `json:"base"`
+	Quote    string `json:"quote"`
+	MaxLever string `json:"max_lever"`
+	MinSize  string `json:"min_size"` // 最小下单（合约：张，现货：交易货币）
+}
+
 // Ticker 行情信息
 type Ticker struct {
 	Symbol string  `json:"symbol"`
@@ -57,6 +66,9 @@ type Exchange interface {
 	Connect(ctx context.Context, user *models.FoxUser) error
 	Disconnect() error
 
+	// 设置用户信息
+	SetUSer(ctx context.Context, user *models.FoxUser) error
+
 	// 账户信息
 	GetBalance(ctx context.Context) ([]Asset, error)
 	GetPositions(ctx context.Context) ([]Position, error)
@@ -71,7 +83,11 @@ type Exchange interface {
 	GetTickers(ctx context.Context) ([]Ticker, error)
 
 	// 标的配置
-	GetSymbols(ctx context.Context) ([]string, error)
-	SetLeverage(ctx context.Context, symbol string, leverage int) error
+	GetSymbols(ctx context.Context, userSymbol string) (*Symbol, error)
+	SetLeverage(ctx context.Context, symbol string, leverage int, marginType string) error
 	SetMarginType(ctx context.Context, symbol string, marginType string) error
+
+	// 币种名称转换
+	ConvertToExchangeSymbol(userSymbol string) string
+	ConvertFromExchangeSymbol(exchangeSymbol string) string
 }

@@ -118,8 +118,18 @@ func (c *CreateCommand) createSymbol(ctx command.Context, args []string) error {
 		return fmt.Errorf("usage: create symbols <symbol> [--leverage=<num>] [--margin-type=<type>]")
 	}
 
+	exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeName())
+	if err != nil {
+		return fmt.Errorf("get exchange client error: %w", err)
+	}
+
+	symbols, err := exchangeClient.GetSymbols(ctx.GetContext(), args[0])
+	if err != nil {
+		return fmt.Errorf("get symbol error: %w", err)
+	}
+
 	symbol := &models.FoxSymbol{
-		Name:       args[0],
+		Name:       symbols.Name,
 		UserID:     ctx.GetUserInstance().ID,
 		Exchange:   ctx.GetExchangeName(),
 		Leverage:   1,
@@ -127,23 +137,30 @@ func (c *CreateCommand) createSymbol(ctx command.Context, args []string) error {
 	}
 
 	// 解析可选参数
-	for _, arg := range args[1:] {
-		if strings.HasPrefix(arg, "--leverage=") {
-			leverage, err := strconv.Atoi(strings.TrimPrefix(arg, "--leverage="))
-			if err != nil {
-				return fmt.Errorf("invalid leverage value")
+	if len(args[1:]) > 0 {
+		for _, arg := range args[1:] {
+			if strings.HasPrefix(arg, "--leverage=") {
+				leverage, err := strconv.Atoi(strings.TrimPrefix(arg, "--leverage="))
+				if err != nil {
+					return fmt.Errorf("invalid leverage value")
+				}
+				symbol.Leverage = leverage
+			} else if strings.HasPrefix(arg, "--margin-type=") {
+				symbol.MarginType = strings.TrimPrefix(arg, "--margin-type=")
 			}
-			symbol.Leverage = leverage
-		} else if strings.HasPrefix(arg, "--margin-type=") {
-			symbol.MarginType = strings.TrimPrefix(arg, "--margin-type=")
+		}
+
+		setLeverageErr := exchangeClient.SetLeverage(ctx.GetContext(), args[0], symbol.Leverage, symbol.MarginType)
+		if setLeverageErr != nil {
+			return fmt.Errorf("set leverage error: %w", setLeverageErr)
 		}
 	}
 
-	if err := repository.CreateSymbol(symbol); err != nil {
+	if err = repository.CreateSymbol(symbol); err != nil {
 		return fmt.Errorf("failed to create symbol: %w", err)
 	}
 
-	fmt.Println(utils.RenderSuccess(fmt.Sprintf("标的创建成功: %s", symbol.Name)))
+	fmt.Println(utils.RenderSuccess(fmt.Sprintf("标的创建成功: %s", args[0])))
 	return nil
 }
 

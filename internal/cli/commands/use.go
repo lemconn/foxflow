@@ -73,7 +73,8 @@ func (c *UseCommand) Execute(ctx command.Context, args []string) error {
 		// 设置新的交易所
 		ctx.SetExchangeName(exchangeName)
 		ctx.SetExchangeInstance(exchangeInfo)
-		ctx.SetUserName("") // 清除当前用户
+		ctx.SetUserName("")                    // 清除当前用户
+		ctx.SetUserInstance(&models.FoxUser{}) // 清楚当前用户信息
 		fmt.Println(utils.RenderSuccess(fmt.Sprintf("已激活交易所: %s", utils.MessageGreen(exchangeName))))
 
 	case "users":

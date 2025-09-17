@@ -72,6 +72,11 @@ func (e *BinanceExchange) Disconnect() error {
 	return nil
 }
 
+func (e *BinanceExchange) SetUSer(ctx context.Context, user *models.FoxUser) error {
+	e.user = user
+	return nil
+}
+
 func (e *BinanceExchange) GetBalance(ctx context.Context) ([]Asset, error) {
 	if e.user == nil {
 		return nil, fmt.Errorf("user not connected")
@@ -299,30 +304,12 @@ func (e *BinanceExchange) GetTickers(ctx context.Context) ([]Ticker, error) {
 	return tickers, nil
 }
 
-func (e *BinanceExchange) GetSymbols(ctx context.Context) ([]string, error) {
-	path := "/fapi/v1/exchangeInfo"
-	result, err := e.sendRequest(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get symbols: %w", err)
-	}
+func (e *BinanceExchange) GetSymbols(ctx context.Context, userSymbol string) (*Symbol, error) {
 
-	var symbols []string
-	if data, ok := result.(map[string]interface{}); ok {
-		if symbolsData, ok := data["symbols"].([]interface{}); ok {
-			for _, item := range symbolsData {
-				if symbolMap, ok := item.(map[string]interface{}); ok {
-					if status := symbolMap["status"].(string); status == "TRADING" {
-						symbols = append(symbols, symbolMap["symbol"].(string))
-					}
-				}
-			}
-		}
-	}
-
-	return symbols, nil
+	return nil, nil
 }
 
-func (e *BinanceExchange) SetLeverage(ctx context.Context, symbol string, leverage int) error {
+func (e *BinanceExchange) SetLeverage(ctx context.Context, symbol string, leverage int, marginType string) error {
 	if e.user == nil {
 		return fmt.Errorf("user not connected")
 	}
@@ -358,6 +345,32 @@ func (e *BinanceExchange) SetMarginType(ctx context.Context, symbol string, marg
 	}
 
 	return nil
+}
+
+// ConvertToExchangeSymbol 将用户输入的币种名称转换为Binance交易所格式
+// 例如：BTC -> BTCUSDT
+func (e *BinanceExchange) ConvertToExchangeSymbol(userSymbol string) string {
+	// Binance期货通常使用币种+USDT的格式
+	return userSymbol + "USDT"
+}
+
+// ConvertFromExchangeSymbol 将Binance交易所格式的币种名称转换为用户格式
+// 例如：BTCUSDT -> BTC
+func (e *BinanceExchange) ConvertFromExchangeSymbol(exchangeSymbol string) string {
+	// 去除USDT后缀
+	if len(exchangeSymbol) > 4 && exchangeSymbol[len(exchangeSymbol)-4:] == "USDT" {
+		return exchangeSymbol[:len(exchangeSymbol)-4]
+	}
+	// 去除BUSD后缀
+	if len(exchangeSymbol) > 4 && exchangeSymbol[len(exchangeSymbol)-4:] == "BUSD" {
+		return exchangeSymbol[:len(exchangeSymbol)-4]
+	}
+	// 去除USDC后缀
+	if len(exchangeSymbol) > 4 && exchangeSymbol[len(exchangeSymbol)-4:] == "USDC" {
+		return exchangeSymbol[:len(exchangeSymbol)-4]
+	}
+	// 如果没有匹配的后缀，返回原符号
+	return exchangeSymbol
 }
 
 // 辅助方法：构建签名
