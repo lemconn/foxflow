@@ -111,11 +111,11 @@ func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to get exchange client: %w", err)
 		}
-		symbols, err := exchangeClient.GetSymbols(ctx.GetContext())
+		_, err = exchangeClient.GetSymbols(ctx.GetContext(), args[0])
 		if err != nil {
 			return fmt.Errorf("failed to get symbols: %w", err)
 		}
-		fmt.Println(cliRender.RenderSymbols(symbols))
+		fmt.Println(cliRender.RenderSymbols([]string{}))
 
 	case "ss":
 		var ss []models.FoxSS

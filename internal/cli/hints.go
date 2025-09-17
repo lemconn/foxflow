@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/c-bata/go-prompt"
@@ -59,38 +60,10 @@ func getSubcommandSuggestions() map[string][]prompt.Suggest {
 	}
 }
 
-var createUserArgHints = map[string]map[string]map[string][]prompt.Suggest{
-	"create": {
-		"users": {
-			"mock": {
-				{Text: "--username==<username>", Description: "[必填]用户名称"},
-				{Text: "--ak==<apiKey>", Description: "[必填]账户apiKey"},
-				{Text: "--sk==<secretKey>", Description: "[必填]账户secretKey"},
-			},
-			"live": {
-				{Text: "--username==<username>", Description: "[必填]用户名称"},
-				{Text: "--ak==<apiKey>", Description: "[必填]账户apiKey"},
-				{Text: "--sk==<secretKey>", Description: "[必填]账户secretKey"},
-			},
-		},
-	},
-}
-
 // 各命令的参数提示（按位置给出占位符）
 var argHints = map[string]map[string]map[string][]prompt.Suggest{
 	"create": {
-		"users": {
-			"mock": {
-				{Text: "--username=<username>", Description: "[必填]用户名称"},
-				{Text: "--ak=<apiKey>", Description: "[必填]账户apiKey"},
-				{Text: "--sk=<secretKey>", Description: "[必填]账户secretKey"},
-			},
-			"live": {
-				{Text: "--username=<username>", Description: "[必填]用户名称"},
-				{Text: "--ak=<apiKey>", Description: "[必填]账户apiKey"},
-				{Text: "--sk=<secretKey>", Description: "[必填]账户secretKey"},
-			},
-		},
+		"users": {},
 	},
 }
 
@@ -113,6 +86,13 @@ func getCreateUsersArgHints(exchangeName string) []prompt.Suggest {
 	return baseArgs
 }
 
+func createUsersTradeTypeList() []prompt.Suggest {
+	return []prompt.Suggest{
+		{Text: "mock", Description: "- 模拟盘"},
+		{Text: "live", Description: "- 实盘"},
+	}
+}
+
 // useExchangesList 激活交易所列表
 func useExchangesList() []prompt.Suggest {
 	// 获取所有交易所列表
@@ -129,11 +109,21 @@ func useExchangesList() []prompt.Suggest {
 	return exchanges
 }
 
-func createUsersTradeTypeList() []prompt.Suggest {
-	return []prompt.Suggest{
-		{Text: "mock", Description: "- 模拟盘"},
-		{Text: "live", Description: "- 实盘"},
+func useUsersList() []prompt.Suggest {
+	// 获取所有用户列表
+	userList, err := repository.ListUsers()
+	if err != nil {
+		return []prompt.Suggest{}
 	}
+	users := make([]prompt.Suggest, 0, len(userList))
+	for _, user := range userList {
+		users = append(users, prompt.Suggest{
+			Text:        user.Username,
+			Description: fmt.Sprintf("%s：%s", user.TradeType, user.Exchange),
+		})
+	}
+
+	return users
 }
 
 // getCompleter 获取命令补全器（go-prompt）
@@ -179,6 +169,12 @@ func getCompleter(ctx *Context, commands map[string]command.Command) prompt.Comp
 		if len(fields) >= 2 && strings.HasSuffix(w, " ") && first == "use" && second == "exchanges" {
 			prefix := d.GetWordBeforeCursor()
 			return prompt.FilterHasPrefix(useExchangesList(), prefix, true)
+		}
+
+		// use users 的第一个参数输入过程中（未以空格结束）动态过滤用户信息
+		if len(fields) >= 2 && strings.HasSuffix(w, " ") && first == "use" && second == "users" {
+			prefix := d.GetWordBeforeCursor()
+			return prompt.FilterHasPrefix(useUsersList(), prefix, true)
 		}
 
 		// create users 后的模式选择：第二个token已完成，在第三个token位置
