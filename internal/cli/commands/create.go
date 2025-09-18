@@ -123,6 +123,17 @@ func (c *CreateCommand) createSymbol(ctx command.Context, args []string) error {
 		return fmt.Errorf("get exchange client error: %w", err)
 	}
 
+	// 检测本地用户下是否已经有交易对
+	exchangeSymbol := exchangeClient.ConvertToExchangeSymbol(args[0])
+	localSymbol, err := repository.GetSymbolByNameUser(exchangeSymbol, ctx.GetUserInstance().ID)
+	if err != nil {
+		return fmt.Errorf("get local symbol err: %w", err)
+	}
+
+	if localSymbol != nil && localSymbol.ID != 0 {
+		return fmt.Errorf("symbol already exists")
+	}
+
 	symbols, err := exchangeClient.GetSymbols(ctx.GetContext(), args[0])
 	if err != nil {
 		return fmt.Errorf("get symbol error: %w", err)
@@ -211,20 +222,54 @@ func (c *CreateCommand) createStrategyOrder(ctx command.Context, args []string) 
 		return fmt.Errorf("missing required parameters: symbol, side, size")
 	}
 
-	// 如果没有策略，直接提交订单
+	// 提交到当前激活交易所
+	exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeName())
+	if err != nil {
+		return fmt.Errorf("get exchange client error: %w", err)
+	}
+
+	// 获取当前用户要构面的交易对信息是否存在
+	exchangeSymbol := exchangeClient.ConvertToExchangeSymbol(order.Symbol)
+	localSymbol, err := repository.GetSymbolByNameUser(exchangeSymbol, ctx.GetUserInstance().ID)
+	if err != nil {
+		return fmt.Errorf("get local symbol err: %w", err)
+	}
+
+	if localSymbol == nil || localSymbol.ID == 0 {
+		return fmt.Errorf("symbol not exists")
+	}
+
+	// 如果没有策略，直接提交订单；否则仅写库
 	if strategy == "" {
-		// 这里应该直接提交到交易所
+
+		// 构造交易所订单
+		exOrder := &exchange.Order{
+			Symbol:     order.Symbol,
+			Side:       order.Side,
+			PosSide:    order.PosSide,
+			Price:      order.Px,
+			Size:       order.Sz,
+			Type:       order.OrderType,
+			MarginType: localSymbol.MarginType,
+		}
+
+		createdOrder, err := exchangeClient.CreateOrder(ctx.GetContext(), exOrder)
+		if err != nil {
+			return fmt.Errorf("create exchange order error: %w", err)
+		}
+
+		// 将交易所返回的订单ID回写
+		order.OrderID = createdOrder.ID
 		order.Status = "pending"
-		fmt.Println(utils.RenderInfo("订单将直接提交到交易所"))
+		fmt.Println(utils.RenderSuccess(fmt.Sprintf("交易所下单成功，orderId=%s", order.OrderID)))
 	} else {
 		order.Strategy = strategy
-		fmt.Println(utils.RenderInfo("策略订单已创建，等待策略条件满足"))
 	}
 
 	if err := repository.CreateSSOrder(order); err != nil {
 		return fmt.Errorf("failed to create strategy order: %w", err)
 	}
 
-	fmt.Println(utils.RenderSuccess(fmt.Sprintf("策略订单创建成功: ID=%d", order.ID)))
+	fmt.Println(utils.RenderInfo("策略订单已创建，等待策略条件满足"))
 	return nil
 }

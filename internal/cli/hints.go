@@ -64,6 +64,11 @@ func getSubcommandSuggestions() map[string][]prompt.Suggest {
 var argHints = map[string]map[string]map[string][]prompt.Suggest{
 	"create": {
 		"users": {},
+		"symbols": {
+			"": {
+				{Text: "<symbol>", Description: "交易对名称，例如：BTC"},
+			},
+		},
 	},
 }
 
@@ -165,14 +170,47 @@ func getCompleter(ctx *Context, commands map[string]command.Command) prompt.Comp
 			}
 		}
 
+		// create symbols 的前缀匹配增强（在未以空格结束时，为 margin-type 提供前缀过滤）
+		if first == "create" && second == "symbols" && !strings.HasSuffix(w, " ") {
+			prefix := d.GetWordBeforeCursor()
+			if len(fields) >= 3 {
+				extra := fields[2:]
+				// A) 正在输入第一个参数 <symbol>
+				if len(extra) == 1 {
+					return prompt.FilterHasPrefix([]prompt.Suggest{
+						{Text: "<symbol>", Description: "交易对名称，例如：BTC"},
+					}, prefix, true)
+				}
+
+				// B) 输入了 --leverage 且最后一个token是 --margin-type= 前缀时，做前缀过滤
+				hasLeverage := false
+				for i, t := range extra {
+					if i == 0 { // 跳过第一个必填 symbol
+						continue
+					}
+					if strings.HasPrefix(t, "--leverage=") {
+						hasLeverage = true
+					}
+				}
+				last := extra[len(extra)-1]
+				if hasLeverage && strings.HasPrefix(last, "--margin-type=") {
+					opts := []prompt.Suggest{
+						{Text: "--margin-type=isolated", Description: "保证金模式：逐仓"},
+						{Text: "--margin-type=cross", Description: "保证金模式：全仓"},
+					}
+					return prompt.FilterHasPrefix(opts, prefix, true)
+				}
+			}
+		}
+
 		// use exchanges 的第一个参数输入过程中（未以空格结束）动态过滤交易所信息
-		if len(fields) >= 2 && strings.HasSuffix(w, " ") && first == "use" && second == "exchanges" {
+		if len(fields) == 2 && strings.HasSuffix(w, " ") && first == "use" && second == "exchanges" {
 			prefix := d.GetWordBeforeCursor()
 			return prompt.FilterHasPrefix(useExchangesList(), prefix, true)
 		}
 
 		// use users 的第一个参数输入过程中（未以空格结束）动态过滤用户信息
-		if len(fields) >= 2 && strings.HasSuffix(w, " ") && first == "use" && second == "users" {
+		if len(fields) == 2 && strings.HasSuffix(w, " ") && first == "use" && second == "users" {
 			prefix := d.GetWordBeforeCursor()
 			return prompt.FilterHasPrefix(useUsersList(), prefix, true)
 		}
@@ -208,6 +246,77 @@ func getCompleter(ctx *Context, commands map[string]command.Command) prompt.Comp
 			}
 
 			if argIndex >= 0 {
+				// create symbols 的动态提示：
+				// 1) 第一个参数只提示 <symbol>
+				// 2) 输入了 <symbol> 后，提示可选的 --leverage 和 --margin-type
+				// 3) 输入了 --leverage 之后，仅提示 --margin-type 的两个选项（二选一）
+				if first == "create" && second == "symbols" {
+					// 已输入的参数（去掉前两个token: create symbols）
+					extra := []string{}
+					if len(fields) > 2 {
+						extra = fields[2:]
+					}
+
+					// 情况A：正在输入第一个参数（symbol）
+					if len(extra) == 0 {
+						return []prompt.Suggest{
+							{Text: "<symbol>", Description: "交易对名称，例如：BTC"},
+						}
+					}
+
+					// 检查是否已包含可选参数
+					hasLeverage := false
+					hasMarginType := false
+					marginPrefixEntered := ""
+					for i, t := range extra {
+						// 第一个为必填 symbol，不参与判断
+						if i == 0 {
+							continue
+						}
+						if strings.HasPrefix(t, "--leverage=") {
+							hasLeverage = true
+						}
+						// 仅当已完整选择其中一个模式时，才视为 hasMarginType
+						if t == "--margin-type=isolated" || t == "--margin-type=cross" {
+							hasMarginType = true
+						} else if strings.HasPrefix(t, "--margin-type=") {
+							marginPrefixEntered = t
+						}
+					}
+
+					// 情况B：已输入了 <symbol>，还未输入任何可选项
+					if len(extra) == 1 {
+						return []prompt.Suggest{
+							{Text: "--leverage=<num>", Description: "[选填] 杠杆倍数，范围 1-100"},
+							{Text: "--margin-type=isolated", Description: "[选填] 保证金模式：逐仓"},
+							{Text: "--margin-type=cross", Description: "[选填] 保证金模式：全仓"},
+						}
+					}
+
+					// 情况C：已输入了 --leverage，仅提示保证金模式两个选项（支持前缀匹配/删除时智能提示）
+					if hasLeverage && !hasMarginType {
+						opts := []prompt.Suggest{
+							{Text: "--margin-type=isolated", Description: "保证金模式：逐仓"},
+							{Text: "--margin-type=cross", Description: "保证金模式：全仓"},
+						}
+						prefix := d.GetWordBeforeCursor()
+						// 如果用户已输入了 --margin-type= 前缀，则以该前缀进行过滤
+						if marginPrefixEntered != "" {
+							prefix = marginPrefixEntered
+						}
+						return prompt.FilterHasPrefix(opts, prefix, true)
+					}
+
+					// 情况D：已输入了保证金模式，但还没输入杠杆时，提示杠杆参数
+					if !hasLeverage && hasMarginType {
+						return []prompt.Suggest{
+							{Text: "--leverage=<num>", Description: "杠杆倍数，范围 1-100"},
+						}
+					}
+
+					// 情况E：均已输入或无法判断，返回空
+					return []prompt.Suggest{}
+				}
 				// 获取参数提示
 				if first == "create" && second == "users" {
 					// 对于 user add 命令，使用动态生成的参数提示
