@@ -8,16 +8,17 @@ import (
 
 // Order 订单信息
 type Order struct {
-	ID      string  `json:"id"`
-	Symbol  string  `json:"symbol"`
-	Side    string  `json:"side"`
-	PosSide string  `json:"pos_side"`
-	Price   float64 `json:"price"`
-	Size    float64 `json:"size"`
-	Type    string  `json:"type"`
-	Status  string  `json:"status"`
-	Filled  float64 `json:"filled"`
-	Remain  float64 `json:"remain"`
+	ID         string  `json:"id"`
+	Symbol     string  `json:"symbol"`
+	Side       string  `json:"side"`
+	PosSide    string  `json:"pos_side"`
+	MarginType string  `json:"margin_type"`
+	Price      float64 `json:"price"`
+	Size       float64 `json:"size"`
+	Type       string  `json:"type"`
+	Status     string  `json:"status"`
+	Filled     float64 `json:"filled"`
+	Remain     float64 `json:"remain"`
 }
 
 // Position 仓位信息

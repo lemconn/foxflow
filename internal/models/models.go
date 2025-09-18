@@ -44,7 +44,7 @@ type FoxSS struct {
 	UserID    uint    `gorm:"not null;default:0" json:"user_id"`
 	Symbol    string  `gorm:"not null;default:''" json:"symbol"`
 	Side      string  `gorm:"not null;default:'';check:side IN ('buy', 'sell')" json:"side"`
-	PosSide   string  `gorm:"not null;default:'';check:pos_side IN ('long', 'short', 'net')" json:"pos_side"`
+	PosSide   string  `gorm:"not null;default:'';check:pos_side IN ('long', 'short')" json:"pos_side"`
 	Px        float64 `gorm:"not null;default:0" json:"px"`
 	Sz        float64 `gorm:"not null;default:0" json:"sz"`
 	OrderType string  `gorm:"not null;default:'limit';check:order_type IN ('limit', 'market')" json:"order_type"`

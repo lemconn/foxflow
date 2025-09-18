@@ -107,6 +107,7 @@ func (c *CLI) executor(in string) {
 			os.Exit(0)
 			return
 		}
+		fmt.Println()
 		fmt.Println(utils.RenderError(fmt.Sprintf("错误: %v", err)))
 	}
 

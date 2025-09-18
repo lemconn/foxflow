@@ -26,6 +26,7 @@ const (
 	okxUriUserPositions        = "/api/v5/account/positions"
 	okxUriUserCurrentPositions = "/api/v5/copytrading/current-subpositions"
 	okxUriUserOrderPending     = "/api/v5/trade/orders-pending"
+	okxUriUserTradeOrder       = "/api/v5/trade/order"
 )
 
 const (
@@ -270,9 +271,96 @@ func (e *OKXExchange) GetOrders(ctx context.Context, symbol string, status strin
 	return nil, nil
 }
 
-func (e *OKXExchange) CreateOrder(ctx context.Context, order *Order) (*Order, error) {
+// oxkOrderRequest 主订单结构体
+type oxkOrderRequest struct {
+	InstID         string             `json:"instId"`                   // 产品ID，如 BTC-USDT
+	TdMode         string             `json:"tdMode"`                   // 交易模式: isolated(逐仓), cross(全仓), cash(非保证金), spot_isolated(现货逐仓)
+	Ccy            string             `json:"ccy,omitempty"`            // 保证金币种，适用于逐仓杠杆及合约模式下的全仓杠杆订单
+	ClOrdID        string             `json:"clOrdId,omitempty"`        // 客户自定义订单ID (1-32位)
+	Tag            string             `json:"tag,omitempty"`            // 订单标签 (1-16位)
+	Side           string             `json:"side"`                     // 订单方向: buy(买), sell(卖)
+	PosSide        string             `json:"posSide,omitempty"`        // 持仓方向: long(多), short(空) (开平仓模式必填)
+	OrdType        string             `json:"ordType"`                  // 订单类型: market, limit, post_only, fok, ioc, optimal_limit_ioc, mmp, mmp_and_post_only
+	Sz             string             `json:"sz"`                       // 委托数量
+	Px             string             `json:"px,omitempty"`             // 委托价格 (限价单等类型需要)
+	PxUsd          string             `json:"pxUsd,omitempty"`          // 以USD价格进行期权下单
+	PxVol          string             `json:"pxVol,omitempty"`          // 以隐含波动率进行期权下单
+	ReduceOnly     bool               `json:"reduceOnly,omitempty"`     // 是否只减仓: true 或 false
+	TgtCcy         string             `json:"tgtCcy,omitempty"`         // 市价单委托数量单位: base_ccy(交易货币), quote_ccy(计价货币)
+	BanAmend       bool               `json:"banAmend,omitempty"`       // 是否禁止币币市价改单: true 或 false
+	PxAmendType    string             `json:"pxAmendType,omitempty"`    // 订单价格修正类型: "0"(不允许修改), "1"(允许修改)
+	TradeQuoteCcy  string             `json:"tradeQuoteCcy,omitempty"`  // 用于交易的计价币种
+	StpMode        string             `json:"stpMode,omitempty"`        // 自成交保护模式: cancel_maker, cancel_taker, cancel_both
+	AttachAlgoOrds []oxkAttachAlgoOrd `json:"attachAlgoOrds,omitempty"` // 下单附带止盈止损信息数组
+}
 
-	return nil, nil
+// 止盈止损附加订单结构体
+type oxkAttachAlgoOrd struct {
+	AttachAlgoClOrdId    string `json:"attachAlgoClOrdId,omitempty"`    // 客户自定义的策略订单ID
+	TpTriggerPx          string `json:"tpTriggerPx,omitempty"`          // 止盈触发价
+	TpOrdPx              string `json:"tpOrdPx,omitempty"`              // 止盈委托价
+	TpOrdKind            string `json:"tpOrdKind,omitempty"`            // 止盈订单类型: condition(条件单), limit(限价单)
+	SlTriggerPx          string `json:"slTriggerPx,omitempty"`          // 止损触发价
+	SlOrdPx              string `json:"slOrdPx,omitempty"`              // 止损委托价
+	TpTriggerPxType      string `json:"tpTriggerPxType,omitempty"`      // 止盈触发价类型: last(最新价格), index(指数价格), mark(标记价格)
+	SlTriggerPxType      string `json:"slTriggerPxType,omitempty"`      // 止损触发价类型: last(最新价格), index(指数价格), mark(标记价格)
+	Sz                   string `json:"sz,omitempty"`                   // 数量 (适用于"多笔止盈")
+	AmendPxOnTriggerType string `json:"amendPxOnTriggerType,omitempty"` // 是否启用开仓价止损: "0"(不开启), "1"(开启)
+}
+
+func (e *OKXExchange) CreateOrder(ctx context.Context, order *Order) (*Order, error) {
+	if e.user == nil || e.user.AccessKey == "" || e.user.SecretKey == "" || e.user.Passphrase == "" {
+		return nil, fmt.Errorf("user information is missing, user: %+v ", e.user)
+	}
+
+	reqBody := oxkOrderRequest{
+		InstID:        e.ConvertToExchangeSymbol(order.Symbol),
+		TdMode:        order.MarginType,
+		Side:          order.Side,
+		OrdType:       order.Type,
+		TradeQuoteCcy: "USDT", // tradeQuoteCcy 对于特定国家和地区的用户，下单成功需要填写该参数，否则会取 `instId` 的计价币种为默认值，报错 51000。
+	}
+
+	// 按类型填充价格与数量
+	if strings.ToLower(order.Type) == "limit" {
+		reqBody.Px = fmt.Sprintf("%f", order.Price)
+	}
+	// OKX合约下单数量字段为 sz，单位张。此处直接使用传入数量
+	reqBody.Sz = fmt.Sprintf("%f", order.Size)
+
+	reqBodyByte, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, err
+	}
+
+	body := make(map[string]interface{})
+	err = json.Unmarshal(reqBodyByte, &body)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := e.sendRequest(ctx, "POST", okxUriUserTradeOrder, body)
+	if err != nil {
+		return nil, fmt.Errorf("okx create order err: %w", err)
+	}
+	if result.Code != "0" {
+		return nil, fmt.Errorf("okx create order error: %s", result.Msg)
+	}
+
+	// 解析返回，写回订单ID
+	var dataArr []map[string]interface{}
+	bytes, _ := json.Marshal(result.Data)
+	if err := json.Unmarshal(bytes, &dataArr); err != nil {
+		return nil, fmt.Errorf("okx create order json decode err: %w", err)
+	}
+	if len(dataArr) == 0 {
+		return nil, fmt.Errorf("okx create order empty data")
+	}
+	if val, ok := dataArr[0]["ordId"].(string); ok {
+		order.ID = val
+	}
+
+	return order, nil
 }
 
 func (e *OKXExchange) CancelOrder(ctx context.Context, orderID string) error {
@@ -404,34 +492,33 @@ func (e *OKXExchange) SetLeverage(ctx context.Context, symbol string, leverage i
 		MgnMode: marginTypeMap[marginType],
 	}
 
-	// 在开平仓模式且保证金模式为逐仓条件下必填
-	if reqBody.MgnMode == "isolated" {
-		reqBody.PosSide = "long"
-	}
-
 	jsonBytes, err := json.Marshal(reqBody)
 	if err != nil {
 		return err
 	}
-	var resultMap map[string]interface{}
-	err = json.Unmarshal(jsonBytes, &resultMap)
+	var bodyMap map[string]interface{}
+	err = json.Unmarshal(jsonBytes, &bodyMap)
 	if err != nil {
 		return err
 	}
 
-	result, err := e.sendRequest(ctx, "POST", okxUriSetLeverage, resultMap)
+	result, err := e.sendRequest(ctx, "POST", okxUriSetLeverage, bodyMap)
 	if err != nil {
-		return fmt.Errorf("failed to set leverage [%s] err: %w", resultMap, err)
+		return fmt.Errorf("failed to set leverage [%s] err: %w", bodyMap, err)
 	}
 
-	resultData := okxSetLeverageBody{}
-	resultByte, _ := json.Marshal(result)
+	if result.Code != "0" {
+		return fmt.Errorf("okx SetLeverage [%s] error: %s", bodyMap, result.Msg)
+	}
+
+	resultData := make([]okxSetLeverageBody, 0)
+	resultByte, _ := json.Marshal(result.Data)
 	err = json.Unmarshal(resultByte, &resultData)
 	if err != nil {
 		return fmt.Errorf("failed to set leverage [%s] json.Decode err: %w", string(resultByte), err)
 	}
 
-	if resultData.Lever != reqBody.Lever {
+	if len(resultData) == 0 || resultData[0].Lever != reqBody.Lever {
 		return fmt.Errorf("set lever exception, resultData: %+v", resultData)
 	}
 
