@@ -6,13 +6,21 @@ import (
 	"sync"
 )
 
+// DataParam 单个数据参数
+type DataParam struct {
+	Name  string      `json:"name"`
+	Value interface{} `json:"value"` // 实际值
+}
+
 // Module 数据模块接口
 type Module interface {
 	// GetName 获取模块名称
 	GetName() string
 
 	// GetData 获取数据
-	GetData(ctx context.Context, entity, field string) (interface{}, error)
+	// params 为可选参数，使用 ...DataParam 的方式传递
+	// 如果不传递参数，则使用默认行为
+	GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error)
 }
 
 // Manager 数据管理器
@@ -49,13 +57,13 @@ func (m *Manager) GetModule(name string) (Module, error) {
 }
 
 // GetData 获取数据
-func (m *Manager) GetData(ctx context.Context, moduleName, entity, field string) (interface{}, error) {
+func (m *Manager) GetData(ctx context.Context, moduleName, entity, field string, params ...DataParam) (interface{}, error) {
 	module, err := m.GetModule(moduleName)
 	if err != nil {
 		return nil, err
 	}
 
-	return module.GetData(ctx, entity, field)
+	return module.GetData(ctx, entity, field, params...)
 }
 
 // ListModules 列出所有注册的模块

@@ -18,7 +18,7 @@ type IndicatorsData struct {
 
 // IndicatorsModule 指标数据模块
 type IndicatorsModule struct {
-	name       string
+	*BaseModule
 	indicators map[string]*IndicatorsData
 	mu         sync.RWMutex
 }
@@ -26,7 +26,7 @@ type IndicatorsModule struct {
 // NewIndicatorsModule 创建指标数据模块
 func NewIndicatorsModule() *IndicatorsModule {
 	module := &IndicatorsModule{
-		name:       "indicators",
+		BaseModule: NewBaseModule("indicators"),
 		indicators: make(map[string]*IndicatorsData),
 	}
 
@@ -34,13 +34,11 @@ func NewIndicatorsModule() *IndicatorsModule {
 	return module
 }
 
-// GetName 获取模块名称
-func (m *IndicatorsModule) GetName() string {
-	return m.name
-}
-
 // GetData 获取数据
-func (m *IndicatorsModule) GetData(ctx context.Context, entity, field string) (interface{}, error) {
+// IndicatorsModule 只支持单个数据值，不支持历史数据
+// params 参数（可选）：
+// - 目前暂未使用，保留用于未来扩展
+func (m *IndicatorsModule) GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 

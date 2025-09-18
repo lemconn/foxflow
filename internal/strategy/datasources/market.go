@@ -19,7 +19,7 @@ type MarketData struct {
 
 // MarketModule 行情数据模块
 type MarketModule struct {
-	name   string
+	*BaseModule
 	market map[string]*MarketData
 	mu     sync.RWMutex
 }
@@ -27,21 +27,19 @@ type MarketModule struct {
 // NewMarketModule 创建行情数据模块
 func NewMarketModule() *MarketModule {
 	module := &MarketModule{
-		name:   "market",
-		market: make(map[string]*MarketData),
+		BaseModule: NewBaseModule("market"),
+		market:     make(map[string]*MarketData),
 	}
 
 	module.initMockData()
 	return module
 }
 
-// GetName 获取模块名称
-func (m *MarketModule) GetName() string {
-	return m.name
-}
-
 // GetData 获取数据
-func (m *MarketModule) GetData(ctx context.Context, entity, field string) (interface{}, error) {
+// MarketModule 只支持单个数据值，不支持历史数据
+// params 参数（可选）：
+// - 目前暂未使用，保留用于未来扩展
+func (m *MarketModule) GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 

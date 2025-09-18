@@ -20,7 +20,7 @@ type KlineData struct {
 
 // KlineModule K线数据模块
 type KlineModule struct {
-	name   string
+	*BaseModule
 	klines map[string]*KlineData
 	// 历史数据存储，用于技术分析
 	historicalData map[string][]*KlineData
@@ -30,7 +30,7 @@ type KlineModule struct {
 // NewKlineModule 创建K线数据模块
 func NewKlineModule() *KlineModule {
 	module := &KlineModule{
-		name:           "kline",
+		BaseModule:     NewBaseModule("kline"),
 		klines:         make(map[string]*KlineData),
 		historicalData: make(map[string][]*KlineData),
 	}
@@ -39,44 +39,37 @@ func NewKlineModule() *KlineModule {
 	return module
 }
 
-// GetName 获取模块名称
-func (m *KlineModule) GetName() string {
-	return m.name
-}
-
 // GetData 获取数据
-func (m *KlineModule) GetData(ctx context.Context, entity, field string) (interface{}, error) {
+// KlineModule 只支持历史数据数组，不支持单个数据值
+// params 支持的参数：
+// - period: int - 历史数据周期数（必需）
+// - start_time: time.Time - 开始时间（可选）
+// - end_time: time.Time - 结束时间（可选）
+func (m *KlineModule) GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	klineData, exists := m.klines[entity]
-	if !exists {
-		return nil, fmt.Errorf("no kline data found for entity: %s", entity)
+	// 检查是否提供了参数
+	if len(params) == 0 {
+		return nil, fmt.Errorf("kline module requires DataParam with 'period' field")
 	}
 
-	switch field {
-	case "open":
-		return klineData.Open, nil
-	case "high":
-		return klineData.High, nil
-	case "low":
-		return klineData.Low, nil
-	case "close":
-		return klineData.Close, nil
-	case "volume":
-		return klineData.Volume, nil
-	case "timestamp":
-		return klineData.Timestamp, nil
-	default:
-		return nil, fmt.Errorf("unknown field: %s", field)
+	// 获取必需参数 period
+	period, err := m.GetIntParam(params, "period")
+	if err != nil {
+		return nil, fmt.Errorf("kline module requires 'period' parameter: %w", err)
 	}
+
+	if period <= 0 {
+		return nil, fmt.Errorf("period must be greater than 0, got %d", period)
+	}
+
+	// 返回历史数据数组
+	return m.getHistoricalDataArray(entity, field, period)
 }
 
-// GetHistoricalData 获取历史数据（内部方法，用于技术分析）
-func (m *KlineModule) GetHistoricalData(ctx context.Context, entity, field string, period int) ([]interface{}, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
+// getHistoricalDataArray 获取历史数据数组
+func (m *KlineModule) getHistoricalDataArray(entity, field string, period int) ([]interface{}, error) {
 	historicalData, exists := m.historicalData[entity]
 	if !exists {
 		// 如果没有历史数据，生成模拟数据
@@ -108,12 +101,29 @@ func (m *KlineModule) GetHistoricalData(ctx context.Context, entity, field strin
 
 	// 如果数据不够，用当前数据填充
 	if len(result) < period {
-		currentData, err := m.GetData(ctx, entity, field)
-		if err != nil {
-			return nil, err
+		klineData, exists := m.klines[entity]
+		if !exists {
+			return nil, fmt.Errorf("no kline data found for entity: %s", entity)
 		}
+
+		var currentValue interface{}
+		switch field {
+		case "open":
+			currentValue = klineData.Open
+		case "high":
+			currentValue = klineData.High
+		case "low":
+			currentValue = klineData.Low
+		case "close":
+			currentValue = klineData.Close
+		case "volume":
+			currentValue = klineData.Volume
+		default:
+			return nil, fmt.Errorf("unknown field: %s", field)
+		}
+
 		for len(result) < period {
-			result = append([]interface{}{currentData}, result...)
+			result = append([]interface{}{currentValue}, result...)
 		}
 	}
 

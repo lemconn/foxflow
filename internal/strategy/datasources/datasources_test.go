@@ -36,8 +36,11 @@ func TestKlineModule(t *testing.T) {
 	manager := InitDefaultModules()
 	ctx := context.Background()
 
-	// 测试获取K线数据
-	data, err := manager.GetData(ctx, "kline", "SOL", "close")
+	// 测试获取K线数据（需要 period 参数）
+	params := []DataParam{
+		NewParam("period", 1),
+	}
+	data, err := manager.GetData(ctx, "kline", "SOL", "close", params...)
 	if err != nil {
 		t.Errorf("获取K线数据失败: %v", err)
 	}
@@ -52,18 +55,23 @@ func TestKlineModule(t *testing.T) {
 		t.Errorf("获取K线模块失败: %v", err)
 	}
 
-	// 类型断言为KlineModule
-	if kline, ok := klineModule.(*KlineModule); ok {
-		historicalData, err := kline.GetHistoricalData(ctx, "SOL", "close", 5)
-		if err != nil {
-			t.Errorf("获取历史数据失败: %v", err)
-		}
+	// 使用新的 GetData 方法获取历史数据
+	historicalParams := []DataParam{
+		NewParam("period", 5),
+	}
+	historicalData, err := klineModule.GetData(ctx, "SOL", "close", historicalParams...)
+	if err != nil {
+		t.Errorf("获取历史数据失败: %v", err)
+	}
 
-		if len(historicalData) != 5 {
-			t.Errorf("期望 5 个历史数据点，但得到 %d 个", len(historicalData))
-		}
-	} else {
-		t.Errorf("K线模块类型断言失败")
+	// 检查返回的数据类型
+	historicalArray, ok := historicalData.([]interface{})
+	if !ok {
+		t.Errorf("期望 []interface{} 类型，但得到 %T", historicalData)
+	}
+
+	if len(historicalArray) != 5 {
+		t.Errorf("期望 5 个历史数据点，但得到 %d 个", len(historicalArray))
 	}
 }
 
@@ -184,7 +192,7 @@ func (m *CustomModule) GetName() string {
 	return m.name
 }
 
-func (m *CustomModule) GetData(ctx context.Context, entity, field string) (interface{}, error) {
+func (m *CustomModule) GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error) {
 	entityData, exists := m.data[entity]
 	if !exists {
 		return nil, fmt.Errorf("entity not found: %s", entity)
@@ -200,20 +208,20 @@ func (m *CustomModule) GetData(ctx context.Context, entity, field string) (inter
 		return nil, fmt.Errorf("field not found: %s", field)
 	}
 
+	// 如果请求历史数据，返回重复的值数组
+	if len(params) > 0 {
+		for _, param := range params {
+			if param.Name == "period" {
+				if period, ok := param.Value.(int); ok && period > 0 {
+					result := make([]interface{}, period)
+					for i := 0; i < period; i++ {
+						result[i] = value
+					}
+					return result, nil
+				}
+			}
+		}
+	}
+
 	return value, nil
-}
-
-func (m *CustomModule) GetHistoricalData(ctx context.Context, entity, field string, period int) ([]interface{}, error) {
-	// 简单的历史数据实现
-	data, err := m.GetData(ctx, entity, field)
-	if err != nil {
-		return nil, err
-	}
-
-	historicalData := make([]interface{}, period)
-	for i := 0; i < period; i++ {
-		historicalData[i] = data
-	}
-
-	return historicalData, nil
 }

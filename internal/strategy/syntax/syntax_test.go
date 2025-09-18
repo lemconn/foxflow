@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lemconn/foxflow/internal/strategy"
+	"github.com/lemconn/foxflow/internal/strategy/datasources"
 )
 
 // MockDataProvider 模拟数据提供者
@@ -25,12 +26,19 @@ func (m *MockKlineDataSource) GetName() string {
 	return "kline"
 }
 
-func (m *MockKlineDataSource) GetData(ctx context.Context, entity, field string) (interface{}, error) {
+func (m *MockKlineDataSource) GetData(ctx context.Context, entity, field string, params ...datasources.DataParam) (interface{}, error) {
+	// 如果请求历史数据
+	if len(params) > 0 {
+		for _, param := range params {
+			if param.Name == "period" {
+				if period, ok := param.Value.(int); ok && period > 0 {
+					return m.provider.GetHistoricalData(ctx, "kline", entity, field, period)
+				}
+			}
+		}
+	}
+	// 返回单个数据值
 	return m.provider.GetKlineField(ctx, entity, field)
-}
-
-func (m *MockKlineDataSource) GetHistoricalData(ctx context.Context, entity, field string, period int) ([]interface{}, error) {
-	return m.provider.GetHistoricalData(ctx, "kline", entity, field, period)
 }
 
 // MockMarketDataSource 模拟行情数据源
@@ -42,7 +50,7 @@ func (m *MockMarketDataSource) GetName() string {
 	return "market"
 }
 
-func (m *MockMarketDataSource) GetData(ctx context.Context, entity, field string) (interface{}, error) {
+func (m *MockMarketDataSource) GetData(ctx context.Context, entity, field string, params ...datasources.DataParam) (interface{}, error) {
 	return m.provider.GetMarketField(ctx, entity, field)
 }
 
@@ -55,7 +63,7 @@ func (m *MockNewsDataSource) GetName() string {
 	return "news"
 }
 
-func (m *MockNewsDataSource) GetData(ctx context.Context, entity, field string) (interface{}, error) {
+func (m *MockNewsDataSource) GetData(ctx context.Context, entity, field string, params ...datasources.DataParam) (interface{}, error) {
 	return m.provider.GetNewsField(ctx, entity, field)
 }
 
@@ -68,7 +76,7 @@ func (m *MockIndicatorsDataSource) GetName() string {
 	return "indicators"
 }
 
-func (m *MockIndicatorsDataSource) GetData(ctx context.Context, entity, field string) (interface{}, error) {
+func (m *MockIndicatorsDataSource) GetData(ctx context.Context, entity, field string, params ...datasources.DataParam) (interface{}, error) {
 	return m.provider.GetIndicatorField(ctx, entity, field)
 }
 
