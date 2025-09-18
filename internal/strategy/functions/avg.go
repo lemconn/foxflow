@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	sources "github.com/lemconn/foxflow/internal/strategy/datasources"
+	"github.com/lemconn/foxflow/internal/strategy/datasources"
 )
 
 // AvgFunction avg函数实现
@@ -98,51 +98,36 @@ func (f *AvgFunction) getKlineData(ctx context.Context, evaluator Evaluator, sym
 		return nil, fmt.Errorf("kline data source not found")
 	}
 
-	// 尝试类型断言为KlineModule
-	if klineModule, ok := ds.(*sources.KlineModule); ok {
-		// 获取历史数据
-		historicalData, err := klineModule.GetHistoricalData(ctx, symbol, field, 100)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get kline historical data for %s.%s: %w", symbol, field, err)
-		}
-
-		// 转换为float64数组
-		result := make([]float64, len(historicalData))
-		for i, v := range historicalData {
-			if f, ok := v.(float64); ok {
-				result[i] = f
-			} else {
-				return nil, fmt.Errorf("invalid data type in historical data: %T", v)
-			}
-		}
-
-		return result, nil
+	// 类型断言为 Module 接口
+	module, ok := ds.(datasources.Module)
+	if !ok {
+		return nil, fmt.Errorf("data source is not a Module")
 	}
 
-	// 如果不是KlineModule，尝试通过GetHistoricalData接口获取
-	// 这里需要定义一个接口来统一处理
-	type HistoricalDataProvider interface {
-		GetHistoricalData(ctx context.Context, entity, field string, period int) ([]interface{}, error)
+	// 使用新的 GetData 方法获取历史数据
+	params := []datasources.DataParam{
+		datasources.NewParam("period", 100),
+	}
+	historicalData, err := module.GetData(ctx, symbol, field, params...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get kline historical data for %s.%s: %w", symbol, field, err)
 	}
 
-	if historicalProvider, ok := ds.(HistoricalDataProvider); ok {
-		historicalData, err := historicalProvider.GetHistoricalData(ctx, symbol, field, 100)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get kline historical data for %s.%s: %w", symbol, field, err)
-		}
-
-		// 转换为float64数组
-		result := make([]float64, len(historicalData))
-		for i, v := range historicalData {
-			if f, ok := v.(float64); ok {
-				result[i] = f
-			} else {
-				return nil, fmt.Errorf("invalid data type in historical data: %T", v)
-			}
-		}
-
-		return result, nil
+	// 检查返回的数据类型
+	historicalArray, ok := historicalData.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("expected []interface{} for historical data, got %T", historicalData)
 	}
 
-	return nil, fmt.Errorf("invalid kline module type")
+	// 转换为float64数组
+	result := make([]float64, len(historicalArray))
+	for i, v := range historicalArray {
+		if f, ok := v.(float64); ok {
+			result[i] = f
+		} else {
+			return nil, fmt.Errorf("invalid data type in historical data: %T", v)
+		}
+	}
+
+	return result, nil
 }

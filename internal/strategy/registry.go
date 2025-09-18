@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"sync"
 
-	sources "github.com/lemconn/foxflow/internal/strategy/datasources"
+	"github.com/lemconn/foxflow/internal/strategy/datasources"
 	"github.com/lemconn/foxflow/internal/strategy/functions"
 )
 
 // Registry 注册器，支持函数和数据源注册
 type Registry struct {
 	functions   map[string]functions.Function
-	dataSources map[string]sources.Module
+	dataSources map[string]datasources.Module
 	mu          sync.RWMutex
 }
 
@@ -20,7 +20,7 @@ type Registry struct {
 func NewRegistry() *Registry {
 	return &Registry{
 		functions:   make(map[string]functions.Function),
-		dataSources: make(map[string]sources.Module),
+		dataSources: make(map[string]datasources.Module),
 	}
 }
 
@@ -32,7 +32,7 @@ func (r *Registry) RegisterFunction(fn functions.Function) {
 }
 
 // RegisterDataSource 注册数据源
-func (r *Registry) RegisterDataSource(ds sources.Module) {
+func (r *Registry) RegisterDataSource(ds datasources.Module) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.dataSources[ds.GetName()] = ds
@@ -47,7 +47,7 @@ func (r *Registry) GetFunction(name string) (functions.Function, bool) {
 }
 
 // GetDataSource 获取数据源
-func (r *Registry) GetDataSource(name string) (sources.Module, bool) {
+func (r *Registry) GetDataSource(name string) (datasources.Module, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	ds, exists := r.dataSources[name]
@@ -79,13 +79,13 @@ func (r *Registry) ListDataSources() []string {
 }
 
 // GetData 获取数据（统一接口）
-func (r *Registry) GetData(ctx context.Context, source, entity, field string) (interface{}, error) {
+func (r *Registry) GetData(ctx context.Context, source, entity, field string, params ...datasources.DataParam) (interface{}, error) {
 	ds, exists := r.GetDataSource(source)
 	if !exists {
 		return nil, fmt.Errorf("data source not found: %s", source)
 	}
 
-	return ds.GetData(ctx, entity, field)
+	return ds.GetData(ctx, entity, field, params...)
 }
 
 // DefaultRegistry 创建默认注册器，注册所有默认函数和数据源
@@ -101,10 +101,10 @@ func DefaultRegistry() *Registry {
 	registry.RegisterFunction(functions.NewSumFunction())
 
 	// 注册默认数据源
-	registry.RegisterDataSource(sources.NewKlineModule())
-	registry.RegisterDataSource(sources.NewMarketModule())
-	registry.RegisterDataSource(sources.NewNewsModule())
-	registry.RegisterDataSource(sources.NewIndicatorsModule())
+	registry.RegisterDataSource(datasources.NewKlineModule())
+	registry.RegisterDataSource(datasources.NewMarketModule())
+	registry.RegisterDataSource(datasources.NewNewsModule())
+	registry.RegisterDataSource(datasources.NewIndicatorsModule())
 
 	return registry
 }

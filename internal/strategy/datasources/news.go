@@ -21,7 +21,7 @@ type NewsData struct {
 
 // NewsModule 新闻数据模块
 type NewsModule struct {
-	name string
+	*BaseModule
 	news map[string]*NewsData
 	mu   sync.RWMutex
 }
@@ -29,21 +29,19 @@ type NewsModule struct {
 // NewNewsModule 创建新闻数据模块
 func NewNewsModule() *NewsModule {
 	module := &NewsModule{
-		name: "news",
-		news: make(map[string]*NewsData),
+		BaseModule: NewBaseModule("news"),
+		news:       make(map[string]*NewsData),
 	}
 
 	module.initMockData()
 	return module
 }
 
-// GetName 获取模块名称
-func (m *NewsModule) GetName() string {
-	return m.name
-}
-
 // GetData 获取数据
-func (m *NewsModule) GetData(ctx context.Context, entity, field string) (interface{}, error) {
+// NewsModule 只支持单个数据值，不支持历史数据
+// params 参数（可选）：
+// - 目前暂未使用，保留用于未来扩展
+func (m *NewsModule) GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
