@@ -328,6 +328,23 @@ func (e *OKXExchange) CreateOrder(ctx context.Context, order *Order) (*Order, er
 	// OKX合约下单数量字段为 sz，单位张。此处直接使用传入数量
 	reqBody.Sz = fmt.Sprintf("%f", order.Size)
 
+	// 增加订单条件
+	if len(order.OrderCondition) > 0 {
+		for _, cond := range order.OrderCondition {
+			reqBody.AttachAlgoOrds = append(reqBody.AttachAlgoOrds, oxkAttachAlgoOrd{
+				TpTriggerPx:          cond.TpTriggerPx,
+				TpOrdPx:              cond.TpOrdPx,
+				TpOrdKind:            cond.TpOrdKind,
+				SlTriggerPx:          cond.SlTriggerPx,
+				SlOrdPx:              cond.SlOrdPx,
+				TpTriggerPxType:      cond.TpTriggerPxType,
+				SlTriggerPxType:      cond.SlTriggerPxType,
+				Sz:                   cond.Sz,
+				AmendPxOnTriggerType: cond.AmendPxOnTriggerType,
+			})
+		}
+	}
+
 	reqBodyByte, err := json.Marshal(reqBody)
 	if err != nil {
 		return nil, err
