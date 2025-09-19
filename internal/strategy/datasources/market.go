@@ -112,3 +112,9 @@ func (m *MarketModule) GetMarketData(symbol string) (*MarketData, bool) {
 	data, exists := m.market[symbol]
 	return data, exists
 }
+
+// GetFunctionParamMapping 获取函数参数映射
+func (m *MarketModule) GetFunctionParamMapping() map[string]FunctionParamInfo {
+	// Market 模块目前不需要函数参数
+	return map[string]FunctionParamInfo{}
+}

@@ -118,3 +118,9 @@ func (m *NewsModule) GetNewsData(source string) (*NewsData, bool) {
 	data, exists := m.news[source]
 	return data, exists
 }
+
+// GetFunctionParamMapping 获取函数参数映射
+func (m *NewsModule) GetFunctionParamMapping() map[string]FunctionParamInfo {
+	// News 模块目前不需要函数参数
+	return map[string]FunctionParamInfo{}
+}

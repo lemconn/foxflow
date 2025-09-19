@@ -43,6 +43,9 @@ type Node struct {
 	Module string
 	Entity string
 	Field  string
+
+	// 上下文信息（用于传递函数参数）
+	Parent *Node
 }
 
 // String 返回节点的字符串表示
@@ -98,6 +101,15 @@ func (n *Node) Evaluate(ctx context.Context, evaluator *Evaluator) (interface{},
 		return nil, fmt.Errorf("invalid identifier: %s", n.Ident)
 
 	case NodeFieldAccess:
+		// 检查是否在函数调用中，如果是，传递函数参数
+		if n.isInFunctionCall() {
+			funcNode := n.getFunctionCallNode()
+			if funcNode != nil {
+				// 提取函数参数作为数据源参数
+				params := n.extractDataSourceParams(funcNode)
+				return evaluator.GetFieldValueWithParams(ctx, n.Module, n.Entity, n.Field, params...)
+			}
+		}
 		return evaluator.GetFieldValue(ctx, n.Module, n.Entity, n.Field)
 
 	case NodeBinary:
@@ -131,18 +143,11 @@ func (n *Node) evaluateFunction(ctx context.Context, evaluator *Evaluator) (inte
 	// 评估所有参数
 	args := make([]interface{}, len(n.Args))
 	for i, arg := range n.Args {
-		// 对于某些函数，需要特殊处理字段访问节点
-		if n.FuncName == "avg" && i == 0 && arg.Type == NodeFieldAccess {
-			// 将字段访问节点转换为字符串路径
-			path := fmt.Sprintf("%s.%s.%s", arg.Module, arg.Entity, arg.Field)
-			args[i] = path
-		} else {
-			value, err := arg.Evaluate(ctx, evaluator)
-			if err != nil {
-				return nil, fmt.Errorf("failed to evaluate argument %d: %w", i, err)
-			}
-			args[i] = value
+		value, err := arg.Evaluate(ctx, evaluator)
+		if err != nil {
+			return nil, fmt.Errorf("failed to evaluate argument %d: %w", i, err)
 		}
+		args[i] = value
 	}
 
 	// 调用函数
@@ -268,4 +273,35 @@ func toTimes(left, right interface{}) (time.Time, time.Time, bool) {
 // contains 检查字符串是否包含子字符串
 func contains(text, substr string) bool {
 	return strings.Contains(text, substr)
+}
+
+// isInFunctionCall 检查当前节点是否在函数调用中
+func (n *Node) isInFunctionCall() bool {
+	current := n.Parent
+	for current != nil {
+		if current.Type == NodeFuncCall {
+			return true
+		}
+		current = current.Parent
+	}
+	return false
+}
+
+// getFunctionCallNode 获取包含当前节点的函数调用节点
+func (n *Node) getFunctionCallNode() *Node {
+	current := n.Parent
+	for current != nil {
+		if current.Type == NodeFuncCall {
+			return current
+		}
+		current = current.Parent
+	}
+	return nil
+}
+
+// extractDataSourceParams 从函数调用中提取数据源参数
+func (n *Node) extractDataSourceParams(funcNode *Node) []interface{} {
+	// 这里不再硬编码函数名称，而是通过数据源模块的映射来获取参数
+	// 具体的参数提取逻辑将在 Evaluator 中实现
+	return []interface{}{funcNode}
 }

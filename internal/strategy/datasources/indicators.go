@@ -108,3 +108,9 @@ func (m *IndicatorsModule) GetIndicatorsData(symbol, indicator string) (*Indicat
 	data, exists := m.indicators[key]
 	return data, exists
 }
+
+// GetFunctionParamMapping 获取函数参数映射
+func (m *IndicatorsModule) GetFunctionParamMapping() map[string]FunctionParamInfo {
+	// Indicators 模块目前不需要函数参数
+	return map[string]FunctionParamInfo{}
+}

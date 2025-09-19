@@ -213,11 +213,18 @@ func (p *Parser) parseFunctionCall(name string) *Node {
 	}
 	p.nextToken()
 
-	return &Node{
+	funcNode := &Node{
 		Type:     NodeFuncCall,
 		FuncName: name,
 		Args:     args,
 	}
+
+	// 设置子节点的 Parent 关系
+	for _, arg := range args {
+		arg.Parent = funcNode
+	}
+
+	return funcNode
 }
 
 // parseFieldAccess 解析字段访问

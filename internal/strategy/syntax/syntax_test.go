@@ -41,6 +41,55 @@ func (m *MockKlineDataSource) GetData(ctx context.Context, entity, field string,
 	return m.provider.GetKlineField(ctx, entity, field)
 }
 
+func (m *MockKlineDataSource) GetFunctionParamMapping() map[string]datasources.FunctionParamInfo {
+	return map[string]datasources.FunctionParamInfo{
+		"avg": {
+			FunctionName: "avg",
+			Params: []datasources.FunctionParam{
+				{
+					ParamIndex: 1,
+					ParamName:  "period",
+					ParamType:  datasources.ParamTypeInt,
+					Required:   true,
+				},
+			},
+		},
+		"max": {
+			FunctionName: "max",
+			Params: []datasources.FunctionParam{
+				{
+					ParamIndex: 1,
+					ParamName:  "period",
+					ParamType:  datasources.ParamTypeInt,
+					Required:   true,
+				},
+			},
+		},
+		"min": {
+			FunctionName: "min",
+			Params: []datasources.FunctionParam{
+				{
+					ParamIndex: 1,
+					ParamName:  "period",
+					ParamType:  datasources.ParamTypeInt,
+					Required:   true,
+				},
+			},
+		},
+		"sum": {
+			FunctionName: "sum",
+			Params: []datasources.FunctionParam{
+				{
+					ParamIndex: 1,
+					ParamName:  "period",
+					ParamType:  datasources.ParamTypeInt,
+					Required:   true,
+				},
+			},
+		},
+	}
+}
+
 // MockMarketDataSource 模拟行情数据源
 type MockMarketDataSource struct {
 	provider *MockDataProvider
@@ -52,6 +101,10 @@ func (m *MockMarketDataSource) GetName() string {
 
 func (m *MockMarketDataSource) GetData(ctx context.Context, entity, field string, params ...datasources.DataParam) (interface{}, error) {
 	return m.provider.GetMarketField(ctx, entity, field)
+}
+
+func (m *MockMarketDataSource) GetFunctionParamMapping() map[string]datasources.FunctionParamInfo {
+	return map[string]datasources.FunctionParamInfo{}
 }
 
 // MockNewsDataSource 模拟新闻数据源
@@ -67,6 +120,10 @@ func (m *MockNewsDataSource) GetData(ctx context.Context, entity, field string, 
 	return m.provider.GetNewsField(ctx, entity, field)
 }
 
+func (m *MockNewsDataSource) GetFunctionParamMapping() map[string]datasources.FunctionParamInfo {
+	return map[string]datasources.FunctionParamInfo{}
+}
+
 // MockIndicatorsDataSource 模拟指标数据源
 type MockIndicatorsDataSource struct {
 	provider *MockDataProvider
@@ -78,6 +135,10 @@ func (m *MockIndicatorsDataSource) GetName() string {
 
 func (m *MockIndicatorsDataSource) GetData(ctx context.Context, entity, field string, params ...datasources.DataParam) (interface{}, error) {
 	return m.provider.GetIndicatorField(ctx, entity, field)
+}
+
+func (m *MockIndicatorsDataSource) GetFunctionParamMapping() map[string]datasources.FunctionParamInfo {
+	return map[string]datasources.FunctionParamInfo{}
 }
 
 func NewMockDataProvider() *MockDataProvider {
