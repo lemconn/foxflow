@@ -8,17 +8,30 @@ import (
 
 // Order 订单信息
 type Order struct {
-	ID         string  `json:"id"`
-	Symbol     string  `json:"symbol"`
-	Side       string  `json:"side"`
-	PosSide    string  `json:"pos_side"`
-	MarginType string  `json:"margin_type"`
-	Price      float64 `json:"price"`
-	Size       float64 `json:"size"`
-	Type       string  `json:"type"`
-	Status     string  `json:"status"`
-	Filled     float64 `json:"filled"`
-	Remain     float64 `json:"remain"`
+	ID             string           `json:"id"`
+	Symbol         string           `json:"symbol"`
+	Side           string           `json:"side"`
+	PosSide        string           `json:"pos_side"`
+	MarginType     string           `json:"margin_type"`
+	Price          float64          `json:"price"`
+	Size           float64          `json:"size"`
+	Type           string           `json:"type"`
+	Status         string           `json:"status"`
+	Filled         float64          `json:"filled"`
+	Remain         float64          `json:"remain"`
+	OrderCondition []OrderCondition `json:"order_condition"`
+}
+
+type OrderCondition struct {
+	TpTriggerPx          string `json:"tpTriggerPx,omitempty"`          // 止盈触发价
+	TpOrdPx              string `json:"tpOrdPx,omitempty"`              // 止盈委托价
+	TpOrdKind            string `json:"tpOrdKind,omitempty"`            // 止盈订单类型: condition(条件单), limit(限价单)
+	SlTriggerPx          string `json:"slTriggerPx,omitempty"`          // 止损触发价
+	SlOrdPx              string `json:"slOrdPx,omitempty"`              // 止损委托价
+	TpTriggerPxType      string `json:"tpTriggerPxType,omitempty"`      // 止盈触发价类型: last(最新价格), index(指数价格), mark(标记价格)
+	SlTriggerPxType      string `json:"slTriggerPxType,omitempty"`      // 止损触发价类型: last(最新价格), index(指数价格), mark(标记价格)
+	Sz                   string `json:"sz,omitempty"`                   // 数量 (适用于"多笔止盈")
+	AmendPxOnTriggerType string `json:"amendPxOnTriggerType,omitempty"` // 是否启用开仓价止损: "0"(不开启), "1"(开启)
 }
 
 // Position 仓位信息
