@@ -225,3 +225,8 @@ func (m *CustomModule) GetData(ctx context.Context, entity, field string, params
 
 	return value, nil
 }
+
+func (m *CustomModule) GetFunctionParamMapping() map[string]FunctionParamInfo {
+	// Custom 模块不需要函数参数
+	return map[string]FunctionParamInfo{}
+}

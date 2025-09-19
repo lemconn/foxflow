@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/lemconn/foxflow/internal/strategy"
+	"github.com/lemconn/foxflow/internal/strategy/datasources"
 )
 
 // Evaluator AST求值器
@@ -51,6 +52,65 @@ func (e *Evaluator) EvaluateToBool(ctx context.Context, node *Node) (bool, error
 func (e *Evaluator) GetFieldValue(ctx context.Context, module, entity, field string) (interface{}, error) {
 	// 使用统一注册器获取数据
 	return e.registry.GetData(ctx, module, entity, field)
+}
+
+// GetFieldValueWithParams 获取字段值（带参数）
+func (e *Evaluator) GetFieldValueWithParams(ctx context.Context, module, entity, field string, params ...interface{}) (interface{}, error) {
+	// 获取数据源模块
+	ds, exists := e.registry.GetDataSource(module)
+	if !exists {
+		return nil, fmt.Errorf("data source not found: %s", module)
+	}
+
+	// 获取函数参数映射
+	paramMapping := ds.GetFunctionParamMapping()
+
+	// 将参数转换为 DataParam
+	dataParams := make([]datasources.DataParam, 0)
+
+	for _, param := range params {
+		if funcNode, ok := param.(*Node); ok && funcNode.Type == NodeFuncCall {
+			// 从函数调用节点中提取参数
+			funcName := funcNode.FuncName
+
+			// 查找该函数的参数映射
+			if paramInfo, exists := paramMapping[funcName]; exists {
+				// 处理多个参数
+				for _, paramDef := range paramInfo.Params {
+					// 检查参数索引是否有效
+					if paramDef.ParamIndex < len(funcNode.Args) {
+						paramNode := funcNode.Args[paramDef.ParamIndex]
+
+						// 求值参数节点
+						value, err := paramNode.Evaluate(ctx, e)
+						if err != nil {
+							return nil, fmt.Errorf("failed to evaluate parameter for function %s: %w", funcName, err)
+						}
+
+						// 根据参数类型转换值
+						paramValue, err := datasources.ConvertParamValue(value, paramDef.ParamType)
+						if err != nil {
+							return nil, fmt.Errorf("failed to convert parameter %s for function %s: %w",
+								paramDef.ParamName, funcName, err)
+						}
+
+						dataParams = append(dataParams, datasources.NewParam(paramDef.ParamName, paramValue))
+					} else if paramDef.Required {
+						// 如果参数是必需的但没有提供，使用默认值
+						if paramDef.Default != nil {
+							dataParams = append(dataParams, datasources.NewParam(paramDef.ParamName, paramDef.Default))
+						} else {
+							return nil, fmt.Errorf("function %s requires parameter %s at index %d but only %d arguments provided",
+								funcName, paramDef.ParamName, paramDef.ParamIndex, len(funcNode.Args))
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// 使用统一注册器获取数据
+	return e.registry.GetData(ctx, module, entity, field, dataParams...)
 }
 
 // CallFunction 调用函数

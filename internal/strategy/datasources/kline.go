@@ -216,3 +216,53 @@ func (m *KlineModule) GetKlineData(symbol string) (*KlineData, bool) {
 	data, exists := m.klines[symbol]
 	return data, exists
 }
+
+// GetFunctionParamMapping 获取函数参数映射
+func (m *KlineModule) GetFunctionParamMapping() map[string]FunctionParamInfo {
+	return map[string]FunctionParamInfo{
+		"avg": {
+			FunctionName: "avg",
+			Params: []FunctionParam{
+				{
+					ParamIndex: 1, // 第二个参数（从0开始）
+					ParamName:  "period",
+					ParamType:  ParamTypeInt,
+					Required:   true,
+				},
+			},
+		},
+		"max": {
+			FunctionName: "max",
+			Params: []FunctionParam{
+				{
+					ParamIndex: 1, // 第二个参数（从0开始）
+					ParamName:  "period",
+					ParamType:  ParamTypeInt,
+					Required:   true,
+				},
+			},
+		},
+		"min": {
+			FunctionName: "min",
+			Params: []FunctionParam{
+				{
+					ParamIndex: 1, // 第二个参数（从0开始）
+					ParamName:  "period",
+					ParamType:  ParamTypeInt,
+					Required:   true,
+				},
+			},
+		},
+		"sum": {
+			FunctionName: "sum",
+			Params: []FunctionParam{
+				{
+					ParamIndex: 1, // 第二个参数（从0开始）
+					ParamName:  "period",
+					ParamType:  ParamTypeInt,
+					Required:   true,
+				},
+			},
+		},
+	}
+}
