@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/lemconn/foxflow/internal/strategy"
-	"github.com/lemconn/foxflow/internal/strategy/datasources"
+	"github.com/lemconn/foxflow/internal/strategy/provider"
 )
 
 // MockDataProvider 模拟数据提供者
@@ -26,7 +26,7 @@ func (m *MockKlineDataSource) GetName() string {
 	return "kline"
 }
 
-func (m *MockKlineDataSource) GetData(ctx context.Context, entity, field string, params ...datasources.DataParam) (interface{}, error) {
+func (m *MockKlineDataSource) GetData(ctx context.Context, entity, field string, params ...provider.DataParam) (interface{}, error) {
 	// 如果请求历史数据
 	if len(params) > 0 {
 		for _, param := range params {
@@ -41,48 +41,48 @@ func (m *MockKlineDataSource) GetData(ctx context.Context, entity, field string,
 	return m.provider.GetKlineField(ctx, entity, field)
 }
 
-func (m *MockKlineDataSource) GetFunctionParamMapping() map[string]datasources.FunctionParamInfo {
-	return map[string]datasources.FunctionParamInfo{
+func (m *MockKlineDataSource) GetFunctionParamMapping() map[string]provider.FunctionParamInfo {
+	return map[string]provider.FunctionParamInfo{
 		"avg": {
 			FunctionName: "avg",
-			Params: []datasources.FunctionParam{
+			Params: []provider.FunctionParam{
 				{
 					ParamIndex: 1,
 					ParamName:  "period",
-					ParamType:  datasources.ParamTypeInt,
+					ParamType:  provider.ParamTypeInt,
 					Required:   true,
 				},
 			},
 		},
 		"max": {
 			FunctionName: "max",
-			Params: []datasources.FunctionParam{
+			Params: []provider.FunctionParam{
 				{
 					ParamIndex: 1,
 					ParamName:  "period",
-					ParamType:  datasources.ParamTypeInt,
+					ParamType:  provider.ParamTypeInt,
 					Required:   true,
 				},
 			},
 		},
 		"min": {
 			FunctionName: "min",
-			Params: []datasources.FunctionParam{
+			Params: []provider.FunctionParam{
 				{
 					ParamIndex: 1,
 					ParamName:  "period",
-					ParamType:  datasources.ParamTypeInt,
+					ParamType:  provider.ParamTypeInt,
 					Required:   true,
 				},
 			},
 		},
 		"sum": {
 			FunctionName: "sum",
-			Params: []datasources.FunctionParam{
+			Params: []provider.FunctionParam{
 				{
 					ParamIndex: 1,
 					ParamName:  "period",
-					ParamType:  datasources.ParamTypeInt,
+					ParamType:  provider.ParamTypeInt,
 					Required:   true,
 				},
 			},
@@ -99,12 +99,12 @@ func (m *MockMarketDataSource) GetName() string {
 	return "market"
 }
 
-func (m *MockMarketDataSource) GetData(ctx context.Context, entity, field string, params ...datasources.DataParam) (interface{}, error) {
+func (m *MockMarketDataSource) GetData(ctx context.Context, entity, field string, params ...provider.DataParam) (interface{}, error) {
 	return m.provider.GetMarketField(ctx, entity, field)
 }
 
-func (m *MockMarketDataSource) GetFunctionParamMapping() map[string]datasources.FunctionParamInfo {
-	return map[string]datasources.FunctionParamInfo{}
+func (m *MockMarketDataSource) GetFunctionParamMapping() map[string]provider.FunctionParamInfo {
+	return map[string]provider.FunctionParamInfo{}
 }
 
 // MockNewsDataSource 模拟新闻数据源
@@ -116,12 +116,12 @@ func (m *MockNewsDataSource) GetName() string {
 	return "news"
 }
 
-func (m *MockNewsDataSource) GetData(ctx context.Context, entity, field string, params ...datasources.DataParam) (interface{}, error) {
+func (m *MockNewsDataSource) GetData(ctx context.Context, entity, field string, params ...provider.DataParam) (interface{}, error) {
 	return m.provider.GetNewsField(ctx, entity, field)
 }
 
-func (m *MockNewsDataSource) GetFunctionParamMapping() map[string]datasources.FunctionParamInfo {
-	return map[string]datasources.FunctionParamInfo{}
+func (m *MockNewsDataSource) GetFunctionParamMapping() map[string]provider.FunctionParamInfo {
+	return map[string]provider.FunctionParamInfo{}
 }
 
 // MockIndicatorsDataSource 模拟指标数据源
@@ -133,12 +133,12 @@ func (m *MockIndicatorsDataSource) GetName() string {
 	return "indicators"
 }
 
-func (m *MockIndicatorsDataSource) GetData(ctx context.Context, entity, field string, params ...datasources.DataParam) (interface{}, error) {
+func (m *MockIndicatorsDataSource) GetData(ctx context.Context, entity, field string, params ...provider.DataParam) (interface{}, error) {
 	return m.provider.GetIndicatorField(ctx, entity, field)
 }
 
-func (m *MockIndicatorsDataSource) GetFunctionParamMapping() map[string]datasources.FunctionParamInfo {
-	return map[string]datasources.FunctionParamInfo{}
+func (m *MockIndicatorsDataSource) GetFunctionParamMapping() map[string]provider.FunctionParamInfo {
+	return map[string]provider.FunctionParamInfo{}
 }
 
 func NewMockDataProvider() *MockDataProvider {
@@ -473,10 +473,10 @@ func TestSyntaxEngine(t *testing.T) {
 	newsDataSource := &MockNewsDataSource{provider: mockProvider}
 	indicatorsDataSource := &MockIndicatorsDataSource{provider: mockProvider}
 
-	registry.RegisterDataSource(klineDataSource)
-	registry.RegisterDataSource(marketDataSource)
-	registry.RegisterDataSource(newsDataSource)
-	registry.RegisterDataSource(indicatorsDataSource)
+	registry.RegisterProvider(klineDataSource)
+	registry.RegisterProvider(marketDataSource)
+	registry.RegisterProvider(newsDataSource)
+	registry.RegisterProvider(indicatorsDataSource)
 
 	evaluator := NewEvaluator(registry)
 	engine := &Engine{

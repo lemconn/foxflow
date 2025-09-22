@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/lemconn/foxflow/internal/strategy"
-	"github.com/lemconn/foxflow/internal/strategy/functions"
+	"github.com/lemconn/foxflow/internal/strategy/builtin"
 )
 
 // Engine 语法引擎
@@ -83,9 +83,9 @@ func (e *Engine) ExecuteExpressionToBool(ctx context.Context, expression string)
 	return e.ExecuteToBool(ctx, node)
 }
 
-// RegisterFunction 注册自定义函数
-func (e *Engine) RegisterFunction(fn functions.Function) {
-	e.registry.RegisterFunction(fn)
+// RegisterBuiltin 注册自定义内置函数
+func (e *Engine) RegisterBuiltin(fn builtin.Builtin) {
+	e.registry.RegisterBuiltin(fn)
 }
 
 // GetRegistry 获取函数注册表

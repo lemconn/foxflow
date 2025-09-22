@@ -1,4 +1,4 @@
-package datasources
+package provider
 
 import (
 	"context"
@@ -16,17 +16,17 @@ type IndicatorsData struct {
 	Metadata  map[string]interface{} `json:"metadata"` // 额外元数据
 }
 
-// IndicatorsModule 指标数据模块
-type IndicatorsModule struct {
-	*BaseModule
+// IndicatorsProvider 指标数据模块
+type IndicatorsProvider struct {
+	*BaseProvider
 	indicators map[string]*IndicatorsData
 	mu         sync.RWMutex
 }
 
-// NewIndicatorsModule 创建指标数据模块
-func NewIndicatorsModule() *IndicatorsModule {
-	module := &IndicatorsModule{
-		BaseModule: NewBaseModule("indicators"),
+// NewIndicatorsProvider 创建指标数据模块
+func NewIndicatorsProvider() *IndicatorsProvider {
+	module := &IndicatorsProvider{
+		BaseProvider: NewBaseProvider("indicators"),
 		indicators: make(map[string]*IndicatorsData),
 	}
 
@@ -35,16 +35,16 @@ func NewIndicatorsModule() *IndicatorsModule {
 }
 
 // GetData 获取数据
-// IndicatorsModule 只支持单个数据值，不支持历史数据
+// IndicatorsProvider 只支持单个数据值，不支持历史数据
 // params 参数（可选）：
 // - 目前暂未使用，保留用于未来扩展
-func (m *IndicatorsModule) GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+func (p *IndicatorsProvider) GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 
 	// 构建指标键：symbol-indicator
 	key := fmt.Sprintf("%s-%s", entity, field)
-	indicatorsData, exists := m.indicators[key]
+	indicatorsData, exists := p.indicators[key]
 	if !exists {
 		return nil, fmt.Errorf("no indicator data found for %s %s", entity, field)
 	}
@@ -53,12 +53,12 @@ func (m *IndicatorsModule) GetData(ctx context.Context, entity, field string, pa
 }
 
 // initMockData 初始化Mock数据
-func (m *IndicatorsModule) initMockData() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+func (p *IndicatorsProvider) initMockData() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	// 初始化指标数据
-	m.indicators["SOL-MACD"] = &IndicatorsData{
+	p.indicators["SOL-MACD"] = &IndicatorsData{
 		Symbol:    "SOL",
 		Indicator: "MACD",
 		Value:     0.5,
@@ -69,7 +69,7 @@ func (m *IndicatorsModule) initMockData() {
 		},
 	}
 
-	m.indicators["BTC-RSI"] = &IndicatorsData{
+	p.indicators["BTC-RSI"] = &IndicatorsData{
 		Symbol:    "BTC",
 		Indicator: "RSI",
 		Value:     65.5,
@@ -80,7 +80,7 @@ func (m *IndicatorsModule) initMockData() {
 		},
 	}
 
-	m.indicators["ETH-Volume"] = &IndicatorsData{
+	p.indicators["ETH-Volume"] = &IndicatorsData{
 		Symbol:    "ETH",
 		Indicator: "Volume",
 		Value:     2500.0,
@@ -93,24 +93,24 @@ func (m *IndicatorsModule) initMockData() {
 }
 
 // UpdateIndicatorsData 更新指标数据（用于测试）
-func (m *IndicatorsModule) UpdateIndicatorsData(symbol, indicator string, data *IndicatorsData) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+func (p *IndicatorsProvider) UpdateIndicatorsData(symbol, indicator string, data *IndicatorsData) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	key := fmt.Sprintf("%s-%s", symbol, indicator)
-	m.indicators[key] = data
+	p.indicators[key] = data
 }
 
 // GetIndicatorsData 获取指标数据（用于测试）
-func (m *IndicatorsModule) GetIndicatorsData(symbol, indicator string) (*IndicatorsData, bool) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+func (p *IndicatorsProvider) GetIndicatorsData(symbol, indicator string) (*IndicatorsData, bool) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	key := fmt.Sprintf("%s-%s", symbol, indicator)
-	data, exists := m.indicators[key]
+	data, exists := p.indicators[key]
 	return data, exists
 }
 
 // GetFunctionParamMapping 获取函数参数映射
-func (m *IndicatorsModule) GetFunctionParamMapping() map[string]FunctionParamInfo {
+func (p *IndicatorsProvider) GetFunctionParamMapping() map[string]FunctionParamInfo {
 	// Indicators 模块目前不需要函数参数
 	return map[string]FunctionParamInfo{}
 }

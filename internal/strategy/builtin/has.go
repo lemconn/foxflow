@@ -1,16 +1,16 @@
-package functions
+package builtin
 
 import (
 	"context"
 )
 
-// HasFunction has函数实现
-type HasFunction struct {
-	*BaseFunction
+// HasBuiltin has函数实现
+type HasBuiltin struct {
+	*BaseBuiltin
 }
 
-// NewHasFunction 创建has函数
-func NewHasFunction() *HasFunction {
+// NewHasBuiltin 创建has函数
+func NewHasBuiltin() *HasBuiltin {
 	signature := Signature{
 		Name:        "has",
 		Description: "检查文本是否包含关键词",
@@ -31,13 +31,13 @@ func NewHasFunction() *HasFunction {
 		},
 	}
 
-	return &HasFunction{
-		BaseFunction: NewBaseFunction("has", "检查文本是否包含关键词", signature),
+	return &HasBuiltin{
+		BaseBuiltin: NewBaseBuiltin("has", "检查文本是否包含关键词", signature),
 	}
 }
 
 // Execute 执行has函数
-func (f *HasFunction) Execute(ctx context.Context, args []interface{}, evaluator Evaluator) (interface{}, error) {
+func (f *HasBuiltin) Execute(ctx context.Context, args []interface{}, evaluator Evaluator) (interface{}, error) {
 	if err := f.ValidateArgs(args); err != nil {
 		return nil, err
 	}

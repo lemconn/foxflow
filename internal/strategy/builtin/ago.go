@@ -1,4 +1,4 @@
-package functions
+package builtin
 
 import (
 	"context"
@@ -6,13 +6,13 @@ import (
 	"time"
 )
 
-// AgoFunction ago函数实现
-type AgoFunction struct {
-	*BaseFunction
+// AgoBuiltin ago函数实现
+type AgoBuiltin struct {
+	*BaseBuiltin
 }
 
-// NewAgoFunction 创建ago函数
-func NewAgoFunction() *AgoFunction {
+// NewAgoBuiltin 创建ago函数
+func NewAgoBuiltin() *AgoBuiltin {
 	signature := Signature{
 		Name:        "ago",
 		Description: "计算从指定时间到现在的秒数",
@@ -27,13 +27,13 @@ func NewAgoFunction() *AgoFunction {
 		},
 	}
 
-	return &AgoFunction{
-		BaseFunction: NewBaseFunction("ago", "计算从指定时间到现在的秒数", signature),
+	return &AgoBuiltin{
+		BaseBuiltin: NewBaseBuiltin("ago", "计算从指定时间到现在的秒数", signature),
 	}
 }
 
 // Execute 执行ago函数
-func (f *AgoFunction) Execute(ctx context.Context, args []interface{}, evaluator Evaluator) (interface{}, error) {
+func (f *AgoBuiltin) Execute(ctx context.Context, args []interface{}, evaluator Evaluator) (interface{}, error) {
 	if err := f.ValidateArgs(args); err != nil {
 		return nil, err
 	}
