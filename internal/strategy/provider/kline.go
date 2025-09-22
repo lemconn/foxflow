@@ -1,4 +1,4 @@
-package datasources
+package provider
 
 import (
 	"context"
@@ -18,46 +18,46 @@ type KlineData struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// KlineModule K线数据模块
-type KlineModule struct {
-	*BaseModule
+// KlineProvider K线数据提供者
+type KlineProvider struct {
+	*BaseProvider
 	klines map[string]*KlineData
 	// 历史数据存储，用于技术分析
 	historicalData map[string][]*KlineData
 	mu             sync.RWMutex
 }
 
-// NewKlineModule 创建K线数据模块
-func NewKlineModule() *KlineModule {
-	module := &KlineModule{
-		BaseModule:     NewBaseModule("kline"),
+// NewKlineProvider 创建K线数据提供者
+func NewKlineProvider() *KlineProvider {
+	provider := &KlineProvider{
+		BaseProvider:   NewBaseProvider("kline"),
 		klines:         make(map[string]*KlineData),
 		historicalData: make(map[string][]*KlineData),
 	}
 
-	module.initMockData()
-	return module
+	provider.initMockData()
+	return provider
 }
 
 // GetData 获取数据
-// KlineModule 只支持历史数据数组，不支持单个数据值
+// KlineProvider 只支持历史数据数组，不支持单个数据值
 // params 支持的参数：
 // - period: int - 历史数据周期数（必需）
 // - start_time: time.Time - 开始时间（可选）
 // - end_time: time.Time - 结束时间（可选）
-func (m *KlineModule) GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+func (p *KlineProvider) GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 
 	// 检查是否提供了参数
 	if len(params) == 0 {
-		return nil, fmt.Errorf("kline module requires DataParam with 'period' field")
+		return nil, fmt.Errorf("kline provider requires DataParam with 'period' field")
 	}
 
 	// 获取必需参数 period
-	period, err := m.GetIntParam(params, "period")
+	period, err := p.GetIntParam(params, "period")
 	if err != nil {
-		return nil, fmt.Errorf("kline module requires 'period' parameter: %w", err)
+		return nil, fmt.Errorf("kline provider requires 'period' parameter: %w", err)
 	}
 
 	if period <= 0 {
@@ -65,15 +65,15 @@ func (m *KlineModule) GetData(ctx context.Context, entity, field string, params 
 	}
 
 	// 返回历史数据数组
-	return m.getHistoricalDataArray(entity, field, period)
+	return p.getHistoricalDataArray(entity, field, period)
 }
 
 // getHistoricalDataArray 获取历史数据数组
-func (m *KlineModule) getHistoricalDataArray(entity, field string, period int) ([]interface{}, error) {
-	historicalData, exists := m.historicalData[entity]
+func (p *KlineProvider) getHistoricalDataArray(entity, field string, period int) ([]interface{}, error) {
+	historicalData, exists := p.historicalData[entity]
 	if !exists {
 		// 如果没有历史数据，生成模拟数据
-		return m.generateMockHistoricalData(entity, field, period)
+		return p.generateMockHistoricalData(entity, field, period)
 	}
 
 	// 获取指定字段的历史数据
@@ -101,7 +101,7 @@ func (m *KlineModule) getHistoricalDataArray(entity, field string, period int) (
 
 	// 如果数据不够，用当前数据填充
 	if len(result) < period {
-		klineData, exists := m.klines[entity]
+		klineData, exists := p.klines[entity]
 		if !exists {
 			return nil, fmt.Errorf("no kline data found for entity: %s", entity)
 		}
@@ -131,9 +131,9 @@ func (m *KlineModule) getHistoricalDataArray(entity, field string, period int) (
 }
 
 // generateMockHistoricalData 生成模拟历史数据
-func (m *KlineModule) generateMockHistoricalData(entity, field string, period int) ([]interface{}, error) {
+func (p *KlineProvider) generateMockHistoricalData(entity, field string, period int) ([]interface{}, error) {
 	// 获取当前数据作为基准
-	currentData, exists := m.klines[entity]
+	currentData, exists := p.klines[entity]
 	if !exists {
 		return nil, fmt.Errorf("no kline data found for entity: %s", entity)
 	}
@@ -166,12 +166,12 @@ func (m *KlineModule) generateMockHistoricalData(entity, field string, period in
 }
 
 // initMockData 初始化Mock数据
-func (m *KlineModule) initMockData() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+func (p *KlineProvider) initMockData() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	// 初始化K线数据
-	m.klines["SOL"] = &KlineData{
+	p.klines["SOL"] = &KlineData{
 		Symbol:    "SOL",
 		Open:      195.5,
 		High:      210.2,
@@ -181,7 +181,7 @@ func (m *KlineModule) initMockData() {
 		Timestamp: time.Now(),
 	}
 
-	m.klines["BTC"] = &KlineData{
+	p.klines["BTC"] = &KlineData{
 		Symbol:    "BTC",
 		Open:      45000.0,
 		High:      46000.0,
@@ -191,7 +191,7 @@ func (m *KlineModule) initMockData() {
 		Timestamp: time.Now(),
 	}
 
-	m.klines["ETH"] = &KlineData{
+	p.klines["ETH"] = &KlineData{
 		Symbol:    "ETH",
 		Open:      3200.0,
 		High:      3300.0,
@@ -203,22 +203,22 @@ func (m *KlineModule) initMockData() {
 }
 
 // UpdateKlineData 更新K线数据（用于测试）
-func (m *KlineModule) UpdateKlineData(symbol string, data *KlineData) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.klines[symbol] = data
+func (p *KlineProvider) UpdateKlineData(symbol string, data *KlineData) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.klines[symbol] = data
 }
 
 // GetKlineData 获取K线数据（用于测试）
-func (m *KlineModule) GetKlineData(symbol string) (*KlineData, bool) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	data, exists := m.klines[symbol]
+func (p *KlineProvider) GetKlineData(symbol string) (*KlineData, bool) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	data, exists := p.klines[symbol]
 	return data, exists
 }
 
 // GetFunctionParamMapping 获取函数参数映射
-func (m *KlineModule) GetFunctionParamMapping() map[string]FunctionParamInfo {
+func (p *KlineProvider) GetFunctionParamMapping() map[string]FunctionParamInfo {
 	return map[string]FunctionParamInfo{
 		"avg": {
 			FunctionName: "avg",

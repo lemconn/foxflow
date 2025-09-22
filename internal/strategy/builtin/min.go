@@ -1,20 +1,20 @@
-package functions
+package builtin
 
 import (
 	"context"
 	"fmt"
 )
 
-// SumFunction sum函数实现
-type SumFunction struct {
-	*BaseFunction
+// MinBuiltin min函数实现
+type MinBuiltin struct {
+	*BaseBuiltin
 }
 
-// NewSumFunction 创建sum函数
-func NewSumFunction() *SumFunction {
+// NewMinBuiltin 创建min函数
+func NewMinBuiltin() *MinBuiltin {
 	signature := Signature{
-		Name:        "sum",
-		Description: "计算指定数据源和字段的总和",
+		Name:        "min",
+		Description: "计算指定数据源和字段的最小值",
 		ReturnType:  "float64",
 		Args: []ArgInfo{
 			{
@@ -32,13 +32,13 @@ func NewSumFunction() *SumFunction {
 		},
 	}
 
-	return &SumFunction{
-		BaseFunction: NewBaseFunction("sum", "计算指定数据源和字段的总和", signature),
+	return &MinBuiltin{
+		BaseBuiltin: NewBaseBuiltin("min", "计算指定数据源和字段的最小值", signature),
 	}
 }
 
-// Execute 执行sum函数
-func (f *SumFunction) Execute(ctx context.Context, args []interface{}, evaluator Evaluator) (interface{}, error) {
+// Execute 执行min函数
+func (f *MinBuiltin) Execute(ctx context.Context, args []interface{}, evaluator Evaluator) (interface{}, error) {
 	if err := f.ValidateArgs(args); err != nil {
 		return nil, err
 	}
@@ -46,29 +46,40 @@ func (f *SumFunction) Execute(ctx context.Context, args []interface{}, evaluator
 	// 第一个参数应该是数据数组
 	data, ok := args[0].([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("first argument to sum must be a data array")
+		return nil, fmt.Errorf("first argument to min must be a data array")
 	}
 
 	// 第二个参数应该是周期数
 	period, err := toFloat64(args[1])
 	if err != nil {
-		return nil, fmt.Errorf("second argument to sum must be a number: %w", err)
+		return nil, fmt.Errorf("second argument to min must be a number: %w", err)
 	}
 
-	// 计算总和
+	// 计算最小值
 	n := int(period)
 	if len(data) < n {
 		n = len(data)
 	}
+	if n == 0 {
+		return 0.0, nil
+	}
 
-	sum := 0.0
+	min := 0.0
+	hasValue := false
 	for _, v := range data[len(data)-n:] {
 		if val, ok := v.(float64); ok {
-			sum += val
+			if !hasValue || val < min {
+				min = val
+				hasValue = true
+			}
 		} else {
 			return nil, fmt.Errorf("invalid data type in array: %T", v)
 		}
 	}
 
-	return sum, nil
+	if !hasValue {
+		return 0.0, nil
+	}
+
+	return min, nil
 }

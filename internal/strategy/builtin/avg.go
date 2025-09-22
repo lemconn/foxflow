@@ -1,20 +1,20 @@
-package functions
+package builtin
 
 import (
 	"context"
 	"fmt"
 )
 
-// MaxFunction max函数实现
-type MaxFunction struct {
-	*BaseFunction
+// AvgBuiltin avg函数实现
+type AvgBuiltin struct {
+	*BaseBuiltin
 }
 
-// NewMaxFunction 创建max函数
-func NewMaxFunction() *MaxFunction {
+// NewAvgBuiltin 创建avg函数
+func NewAvgBuiltin() *AvgBuiltin {
 	signature := Signature{
-		Name:        "max",
-		Description: "计算指定数据源和字段的最大值",
+		Name:        "avg",
+		Description: "计算指定数据源和字段的平均值",
 		ReturnType:  "float64",
 		Args: []ArgInfo{
 			{
@@ -32,13 +32,13 @@ func NewMaxFunction() *MaxFunction {
 		},
 	}
 
-	return &MaxFunction{
-		BaseFunction: NewBaseFunction("max", "计算指定数据源和字段的最大值", signature),
+	return &AvgBuiltin{
+		BaseBuiltin: NewBaseBuiltin("avg", "计算指定数据源和字段的平均值", signature),
 	}
 }
 
-// Execute 执行max函数
-func (f *MaxFunction) Execute(ctx context.Context, args []interface{}, evaluator Evaluator) (interface{}, error) {
+// Execute 执行avg函数
+func (f *AvgBuiltin) Execute(ctx context.Context, args []interface{}, evaluator Evaluator) (interface{}, error) {
 	if err := f.ValidateArgs(args); err != nil {
 		return nil, err
 	}
@@ -46,16 +46,16 @@ func (f *MaxFunction) Execute(ctx context.Context, args []interface{}, evaluator
 	// 第一个参数应该是数据数组
 	data, ok := args[0].([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("first argument to max must be a data array")
+		return nil, fmt.Errorf("first argument to avg must be a data array")
 	}
 
 	// 第二个参数应该是周期数
 	period, err := toFloat64(args[1])
 	if err != nil {
-		return nil, fmt.Errorf("second argument to max must be a number: %w", err)
+		return nil, fmt.Errorf("second argument to avg must be a number: %w", err)
 	}
 
-	// 计算最大值
+	// 计算平均值
 	n := int(period)
 	if len(data) < n {
 		n = len(data)
@@ -64,22 +64,14 @@ func (f *MaxFunction) Execute(ctx context.Context, args []interface{}, evaluator
 		return 0.0, nil
 	}
 
-	max := 0.0
-	hasValue := false
+	sum := 0.0
 	for _, v := range data[len(data)-n:] {
 		if val, ok := v.(float64); ok {
-			if !hasValue || val > max {
-				max = val
-				hasValue = true
-			}
+			sum += val
 		} else {
 			return nil, fmt.Errorf("invalid data type in array: %T", v)
 		}
 	}
 
-	if !hasValue {
-		return 0.0, nil
-	}
-
-	return max, nil
+	return sum / float64(n), nil
 }

@@ -1,27 +1,27 @@
-package datasources
+package provider
 
 import (
 	"fmt"
 	"time"
 )
 
-// BaseModule 基础模块，提供通用的参数处理方法
-type BaseModule struct {
+// BaseProvider 基础提供者，提供通用的参数处理方法
+type BaseProvider struct {
 	name string
 }
 
-// NewBaseModule 创建基础模块
-func NewBaseModule(name string) *BaseModule {
-	return &BaseModule{name: name}
+// NewBaseProvider 创建基础提供者
+func NewBaseProvider(name string) *BaseProvider {
+	return &BaseProvider{name: name}
 }
 
-// GetName 获取模块名称
-func (b *BaseModule) GetName() string {
+// GetName 获取提供者名称
+func (b *BaseProvider) GetName() string {
 	return b.name
 }
 
 // GetParam 获取指定类型的参数值
-func (b *BaseModule) GetParam(params []DataParam, name string, expectedType string) (interface{}, error) {
+func (b *BaseProvider) GetParam(params []DataParam, name string, expectedType string) (interface{}, error) {
 	for _, param := range params {
 		if param.Name == name {
 			// 直接进行类型转换
@@ -70,7 +70,7 @@ func (b *BaseModule) GetParam(params []DataParam, name string, expectedType stri
 }
 
 // GetIntParam 获取 int 类型参数
-func (b *BaseModule) GetIntParam(params []DataParam, name string) (int, error) {
+func (b *BaseProvider) GetIntParam(params []DataParam, name string) (int, error) {
 	value, err := b.GetParam(params, name, "int")
 	if err != nil {
 		return 0, err
@@ -79,7 +79,7 @@ func (b *BaseModule) GetIntParam(params []DataParam, name string) (int, error) {
 }
 
 // GetFloat64Param 获取 float64 类型参数
-func (b *BaseModule) GetFloat64Param(params []DataParam, name string) (float64, error) {
+func (b *BaseProvider) GetFloat64Param(params []DataParam, name string) (float64, error) {
 	value, err := b.GetParam(params, name, "float64")
 	if err != nil {
 		return 0, err
@@ -88,7 +88,7 @@ func (b *BaseModule) GetFloat64Param(params []DataParam, name string) (float64, 
 }
 
 // GetStringParam 获取 string 类型参数
-func (b *BaseModule) GetStringParam(params []DataParam, name string) (string, error) {
+func (b *BaseProvider) GetStringParam(params []DataParam, name string) (string, error) {
 	value, err := b.GetParam(params, name, "string")
 	if err != nil {
 		return "", err
@@ -97,7 +97,7 @@ func (b *BaseModule) GetStringParam(params []DataParam, name string) (string, er
 }
 
 // GetBoolParam 获取 bool 类型参数
-func (b *BaseModule) GetBoolParam(params []DataParam, name string) (bool, error) {
+func (b *BaseProvider) GetBoolParam(params []DataParam, name string) (bool, error) {
 	value, err := b.GetParam(params, name, "bool")
 	if err != nil {
 		return false, err
@@ -106,7 +106,7 @@ func (b *BaseModule) GetBoolParam(params []DataParam, name string) (bool, error)
 }
 
 // GetTimeParam 获取 time.Time 类型参数
-func (b *BaseModule) GetTimeParam(params []DataParam, name string) (time.Time, error) {
+func (b *BaseProvider) GetTimeParam(params []DataParam, name string) (time.Time, error) {
 	value, err := b.GetParam(params, name, "time")
 	if err != nil {
 		return time.Time{}, err
@@ -115,7 +115,7 @@ func (b *BaseModule) GetTimeParam(params []DataParam, name string) (time.Time, e
 }
 
 // GetArrayParam 获取 array 类型参数
-func (b *BaseModule) GetArrayParam(params []DataParam, name string) ([]interface{}, error) {
+func (b *BaseProvider) GetArrayParam(params []DataParam, name string) ([]interface{}, error) {
 	value, err := b.GetParam(params, name, "array")
 	if err != nil {
 		return nil, err
@@ -124,7 +124,7 @@ func (b *BaseModule) GetArrayParam(params []DataParam, name string) ([]interface
 }
 
 // GetMapParam 获取 map 类型参数
-func (b *BaseModule) GetMapParam(params []DataParam, name string) (map[string]interface{}, error) {
+func (b *BaseProvider) GetMapParam(params []DataParam, name string) (map[string]interface{}, error) {
 	value, err := b.GetParam(params, name, "map")
 	if err != nil {
 		return nil, err
@@ -133,7 +133,7 @@ func (b *BaseModule) GetMapParam(params []DataParam, name string) (map[string]in
 }
 
 // HasParam 检查参数是否存在
-func (b *BaseModule) HasParam(params []DataParam, name string) bool {
+func (b *BaseProvider) HasParam(params []DataParam, name string) bool {
 	for _, param := range params {
 		if param.Name == name {
 			return true

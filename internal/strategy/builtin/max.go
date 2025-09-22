@@ -1,20 +1,20 @@
-package functions
+package builtin
 
 import (
 	"context"
 	"fmt"
 )
 
-// MinFunction min函数实现
-type MinFunction struct {
-	*BaseFunction
+// MaxBuiltin max函数实现
+type MaxBuiltin struct {
+	*BaseBuiltin
 }
 
-// NewMinFunction 创建min函数
-func NewMinFunction() *MinFunction {
+// NewMaxBuiltin 创建max函数
+func NewMaxBuiltin() *MaxBuiltin {
 	signature := Signature{
-		Name:        "min",
-		Description: "计算指定数据源和字段的最小值",
+		Name:        "max",
+		Description: "计算指定数据源和字段的最大值",
 		ReturnType:  "float64",
 		Args: []ArgInfo{
 			{
@@ -32,13 +32,13 @@ func NewMinFunction() *MinFunction {
 		},
 	}
 
-	return &MinFunction{
-		BaseFunction: NewBaseFunction("min", "计算指定数据源和字段的最小值", signature),
+	return &MaxBuiltin{
+		BaseBuiltin: NewBaseBuiltin("max", "计算指定数据源和字段的最大值", signature),
 	}
 }
 
-// Execute 执行min函数
-func (f *MinFunction) Execute(ctx context.Context, args []interface{}, evaluator Evaluator) (interface{}, error) {
+// Execute 执行max函数
+func (f *MaxBuiltin) Execute(ctx context.Context, args []interface{}, evaluator Evaluator) (interface{}, error) {
 	if err := f.ValidateArgs(args); err != nil {
 		return nil, err
 	}
@@ -46,16 +46,16 @@ func (f *MinFunction) Execute(ctx context.Context, args []interface{}, evaluator
 	// 第一个参数应该是数据数组
 	data, ok := args[0].([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("first argument to min must be a data array")
+		return nil, fmt.Errorf("first argument to max must be a data array")
 	}
 
 	// 第二个参数应该是周期数
 	period, err := toFloat64(args[1])
 	if err != nil {
-		return nil, fmt.Errorf("second argument to min must be a number: %w", err)
+		return nil, fmt.Errorf("second argument to max must be a number: %w", err)
 	}
 
-	// 计算最小值
+	// 计算最大值
 	n := int(period)
 	if len(data) < n {
 		n = len(data)
@@ -64,12 +64,12 @@ func (f *MinFunction) Execute(ctx context.Context, args []interface{}, evaluator
 		return 0.0, nil
 	}
 
-	min := 0.0
+	max := 0.0
 	hasValue := false
 	for _, v := range data[len(data)-n:] {
 		if val, ok := v.(float64); ok {
-			if !hasValue || val < min {
-				min = val
+			if !hasValue || val > max {
+				max = val
 				hasValue = true
 			}
 		} else {
@@ -81,5 +81,5 @@ func (f *MinFunction) Execute(ctx context.Context, args []interface{}, evaluator
 		return 0.0, nil
 	}
 
-	return min, nil
+	return max, nil
 }

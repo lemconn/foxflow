@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/lemconn/foxflow/internal/strategy"
-	"github.com/lemconn/foxflow/internal/strategy/datasources"
+	"github.com/lemconn/foxflow/internal/strategy/provider"
 )
 
 // Evaluator AST求值器
@@ -57,7 +57,7 @@ func (e *Evaluator) GetFieldValue(ctx context.Context, module, entity, field str
 // GetFieldValueWithParams 获取字段值（带参数）
 func (e *Evaluator) GetFieldValueWithParams(ctx context.Context, module, entity, field string, params ...interface{}) (interface{}, error) {
 	// 获取数据源模块
-	ds, exists := e.registry.GetDataSource(module)
+	ds, exists := e.registry.GetProvider(module)
 	if !exists {
 		return nil, fmt.Errorf("data source not found: %s", module)
 	}
@@ -66,7 +66,7 @@ func (e *Evaluator) GetFieldValueWithParams(ctx context.Context, module, entity,
 	paramMapping := ds.GetFunctionParamMapping()
 
 	// 将参数转换为 DataParam
-	dataParams := make([]datasources.DataParam, 0)
+	dataParams := make([]provider.DataParam, 0)
 
 	for _, param := range params {
 		if funcNode, ok := param.(*Node); ok && funcNode.Type == NodeFuncCall {
@@ -88,17 +88,17 @@ func (e *Evaluator) GetFieldValueWithParams(ctx context.Context, module, entity,
 						}
 
 						// 根据参数类型转换值
-						paramValue, err := datasources.ConvertParamValue(value, paramDef.ParamType)
+						paramValue, err := provider.ConvertParamValue(value, paramDef.ParamType)
 						if err != nil {
 							return nil, fmt.Errorf("failed to convert parameter %s for function %s: %w",
 								paramDef.ParamName, funcName, err)
 						}
 
-						dataParams = append(dataParams, datasources.NewParam(paramDef.ParamName, paramValue))
+						dataParams = append(dataParams, provider.NewParam(paramDef.ParamName, paramValue))
 					} else if paramDef.Required {
 						// 如果参数是必需的但没有提供，使用默认值
 						if paramDef.Default != nil {
-							dataParams = append(dataParams, datasources.NewParam(paramDef.ParamName, paramDef.Default))
+							dataParams = append(dataParams, provider.NewParam(paramDef.ParamName, paramDef.Default))
 						} else {
 							return nil, fmt.Errorf("function %s requires parameter %s at index %d but only %d arguments provided",
 								funcName, paramDef.ParamName, paramDef.ParamIndex, len(funcNode.Args))
@@ -115,7 +115,7 @@ func (e *Evaluator) GetFieldValueWithParams(ctx context.Context, module, entity,
 
 // CallFunction 调用函数
 func (e *Evaluator) CallFunction(ctx context.Context, name string, args []interface{}) (interface{}, error) {
-	fn, exists := e.registry.GetFunction(name)
+	fn, exists := e.registry.GetBuiltin(name)
 	if !exists {
 		return nil, fmt.Errorf("unknown function: %s", name)
 	}
@@ -123,9 +123,19 @@ func (e *Evaluator) CallFunction(ctx context.Context, name string, args []interf
 	return fn.Execute(ctx, args, e)
 }
 
-// GetDataSource 获取数据源
+// CallBuiltin 调用内置函数（实现 builtin.Evaluator 接口）
+func (e *Evaluator) CallBuiltin(ctx context.Context, name string, args []interface{}) (interface{}, error) {
+	return e.CallFunction(ctx, name, args)
+}
+
+// GetProvider 获取数据提供者
+func (e *Evaluator) GetProvider(name string) (interface{}, bool) {
+	return e.registry.GetProvider(name)
+}
+
+// GetDataSource 获取数据源（实现 builtin.Evaluator 接口）
 func (e *Evaluator) GetDataSource(name string) (interface{}, bool) {
-	return e.registry.GetDataSource(name)
+	return e.GetProvider(name)
 }
 
 // EvaluateBinary 评估二元表达式
@@ -315,7 +325,7 @@ func (e *Evaluator) validateBinaryExpression(node *Node) error {
 // validateFunctionCall 验证函数调用
 func (e *Evaluator) validateFunctionCall(node *Node) error {
 	// 验证函数是否存在
-	_, exists := e.registry.GetFunction(node.FuncName)
+	_, exists := e.registry.GetBuiltin(node.FuncName)
 	if !exists {
 		return fmt.Errorf("unknown function: %s", node.FuncName)
 	}
@@ -394,6 +404,6 @@ func (e *Evaluator) isValidOperator(op string) bool {
 // isValidModule 检查模块是否有效
 func (e *Evaluator) isValidModule(module string) bool {
 	// 使用统一注册器检查数据源是否存在
-	_, exists := e.registry.GetDataSource(module)
+	_, exists := e.registry.GetProvider(module)
 	return exists
 }

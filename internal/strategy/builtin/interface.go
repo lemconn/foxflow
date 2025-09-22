@@ -1,11 +1,11 @@
-package functions
+package builtin
 
 import (
 	"context"
 )
 
-// Function 函数接口定义
-type Function interface {
+// Builtin 函数接口定义
+type Builtin interface {
 	// GetName 获取函数名称
 	GetName() string
 
@@ -54,8 +54,8 @@ type Evaluator interface {
 	// GetFieldValue 获取字段值
 	GetFieldValue(ctx context.Context, module, entity, field string) (interface{}, error)
 
-	// CallFunction 调用函数
-	CallFunction(ctx context.Context, name string, args []interface{}) (interface{}, error)
+	// CallBuiltin 调用函数
+	CallBuiltin(ctx context.Context, name string, args []interface{}) (interface{}, error)
 
 	// GetDataSource 获取数据源
 	GetDataSource(name string) (interface{}, bool)
@@ -64,11 +64,11 @@ type Evaluator interface {
 // Registry 函数注册表接口
 type Registry interface {
 	// Register 注册函数
-	Register(fn Function)
+	Register(fn Builtin)
 
-	// GetFunction 获取函数
-	GetFunction(name string) (Function, bool)
+	// GetBuiltin 获取函数
+	GetBuiltin(name string) (Builtin, bool)
 
-	// ListFunctions 列出所有函数
-	ListFunctions() []string
+	// ListBuiltins 列出所有函数
+	ListBuiltins() []string
 }

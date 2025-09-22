@@ -1,4 +1,4 @@
-package datasources
+package provider
 
 import (
 	"context"
@@ -8,17 +8,17 @@ import (
 
 func TestDataManager(t *testing.T) {
 	// 创建数据管理器并初始化默认模块
-	manager := InitDefaultModules()
+	manager := InitDefaultProviders()
 
 	// 测试列出所有模块
-	modules := manager.ListModules()
-	expectedModules := []string{"kline", "market", "news", "indicators"}
+	modules := manager.ListProviders()
+	expectedProviders := []string{"kline", "market", "news", "indicators"}
 
-	if len(modules) != len(expectedModules) {
-		t.Errorf("期望 %d 个模块，但得到 %d 个", len(expectedModules), len(modules))
+	if len(modules) != len(expectedProviders) {
+		t.Errorf("期望 %d 个模块，但得到 %d 个", len(expectedProviders), len(modules))
 	}
 
-	for _, expected := range expectedModules {
+	for _, expected := range expectedProviders {
 		found := false
 		for _, module := range modules {
 			if module == expected {
@@ -32,8 +32,8 @@ func TestDataManager(t *testing.T) {
 	}
 }
 
-func TestKlineModule(t *testing.T) {
-	manager := InitDefaultModules()
+func TestKlineProvider(t *testing.T) {
+	manager := InitDefaultProviders()
 	ctx := context.Background()
 
 	// 测试获取K线数据（需要 period 参数）
@@ -50,7 +50,7 @@ func TestKlineModule(t *testing.T) {
 	}
 
 	// 测试获取K线模块并调用历史数据方法
-	klineModule, err := manager.GetModule("kline")
+	klineProvider, err := manager.GetProvider("kline")
 	if err != nil {
 		t.Errorf("获取K线模块失败: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestKlineModule(t *testing.T) {
 	historicalParams := []DataParam{
 		NewParam("period", 5),
 	}
-	historicalData, err := klineModule.GetData(ctx, "SOL", "close", historicalParams...)
+	historicalData, err := klineProvider.GetData(ctx, "SOL", "close", historicalParams...)
 	if err != nil {
 		t.Errorf("获取历史数据失败: %v", err)
 	}
@@ -75,8 +75,8 @@ func TestKlineModule(t *testing.T) {
 	}
 }
 
-func TestMarketModule(t *testing.T) {
-	manager := InitDefaultModules()
+func TestMarketProvider(t *testing.T) {
+	manager := InitDefaultProviders()
 	ctx := context.Background()
 
 	// 测试获取行情数据
@@ -90,13 +90,13 @@ func TestMarketModule(t *testing.T) {
 	}
 
 	// 测试获取行情模块
-	marketModule, err := manager.GetModule("market")
+	marketProvider, err := manager.GetProvider("market")
 	if err != nil {
 		t.Errorf("获取行情模块失败: %v", err)
 	}
 
-	// 类型断言为MarketModule
-	if market, ok := marketModule.(*MarketModule); ok {
+	// 类型断言为MarketProvider
+	if market, ok := marketProvider.(*MarketProvider); ok {
 		// 测试获取行情数据
 		marketData, exists := market.GetMarketData("SOL")
 		if !exists {
@@ -111,8 +111,8 @@ func TestMarketModule(t *testing.T) {
 	}
 }
 
-func TestNewsModule(t *testing.T) {
-	manager := InitDefaultModules()
+func TestNewsProvider(t *testing.T) {
+	manager := InitDefaultProviders()
 	ctx := context.Background()
 
 	// 测试获取新闻数据
@@ -127,8 +127,8 @@ func TestNewsModule(t *testing.T) {
 
 }
 
-func TestIndicatorsModule(t *testing.T) {
-	manager := InitDefaultModules()
+func TestIndicatorsProvider(t *testing.T) {
+	manager := InitDefaultProviders()
 	ctx := context.Background()
 
 	// 测试获取指标数据
@@ -143,8 +143,8 @@ func TestIndicatorsModule(t *testing.T) {
 
 }
 
-func TestModuleNotFound(t *testing.T) {
-	manager := InitDefaultModules()
+func TestProviderNotFound(t *testing.T) {
+	manager := InitDefaultProviders()
 	ctx := context.Background()
 
 	// 测试获取不存在的模块
@@ -154,9 +154,9 @@ func TestModuleNotFound(t *testing.T) {
 	}
 }
 
-func TestCustomModule(t *testing.T) {
+func TestCustomProvider(t *testing.T) {
 	// 创建自定义模块
-	customModule := &CustomModule{
+	customProvider := &CustomProvider{
 		name: "custom",
 		data: map[string]interface{}{
 			"test": map[string]interface{}{
@@ -167,7 +167,7 @@ func TestCustomModule(t *testing.T) {
 
 	// 创建管理器并注册自定义模块
 	manager := NewManager()
-	manager.RegisterModule(customModule)
+	manager.RegisterProvider(customProvider)
 
 	ctx := context.Background()
 
@@ -182,18 +182,18 @@ func TestCustomModule(t *testing.T) {
 	}
 }
 
-// CustomModule 自定义模块用于测试
-type CustomModule struct {
+// CustomProvider 自定义模块用于测试
+type CustomProvider struct {
 	name string
 	data map[string]interface{}
 }
 
-func (m *CustomModule) GetName() string {
-	return m.name
+func (p *CustomProvider) GetName() string {
+	return p.name
 }
 
-func (m *CustomModule) GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error) {
-	entityData, exists := m.data[entity]
+func (p *CustomProvider) GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error) {
+	entityData, exists := p.data[entity]
 	if !exists {
 		return nil, fmt.Errorf("entity not found: %s", entity)
 	}
@@ -226,7 +226,7 @@ func (m *CustomModule) GetData(ctx context.Context, entity, field string, params
 	return value, nil
 }
 
-func (m *CustomModule) GetFunctionParamMapping() map[string]FunctionParamInfo {
+func (p *CustomProvider) GetFunctionParamMapping() map[string]FunctionParamInfo {
 	// Custom 模块不需要函数参数
 	return map[string]FunctionParamInfo{}
 }

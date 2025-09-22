@@ -1,4 +1,4 @@
-package datasources
+package provider
 
 import (
 	"context"
@@ -19,17 +19,17 @@ type NewsData struct {
 	Sentiment      string    `json:"sentiment"`        // 情感分析：positive, negative, neutral
 }
 
-// NewsModule 新闻数据模块
-type NewsModule struct {
-	*BaseModule
+// NewsProvider 新闻数据模块
+type NewsProvider struct {
+	*BaseProvider
 	news map[string]*NewsData
 	mu   sync.RWMutex
 }
 
-// NewNewsModule 创建新闻数据模块
-func NewNewsModule() *NewsModule {
-	module := &NewsModule{
-		BaseModule: NewBaseModule("news"),
+// NewNewsProvider 创建新闻数据模块
+func NewNewsProvider() *NewsProvider {
+	module := &NewsProvider{
+		BaseProvider: NewBaseProvider("news"),
 		news:       make(map[string]*NewsData),
 	}
 
@@ -38,14 +38,14 @@ func NewNewsModule() *NewsModule {
 }
 
 // GetData 获取数据
-// NewsModule 只支持单个数据值，不支持历史数据
+// NewsProvider 只支持单个数据值，不支持历史数据
 // params 参数（可选）：
 // - 目前暂未使用，保留用于未来扩展
-func (m *NewsModule) GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+func (p *NewsProvider) GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 
-	newsData, exists := m.news[entity]
+	newsData, exists := p.news[entity]
 	if !exists {
 		return nil, fmt.Errorf("no news data found for entity: %s", entity)
 	}
@@ -65,12 +65,12 @@ func (m *NewsModule) GetData(ctx context.Context, entity, field string, params .
 }
 
 // initMockData 初始化Mock数据
-func (m *NewsModule) initMockData() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+func (p *NewsProvider) initMockData() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	// 初始化新闻数据
-	m.news["theblockbeats"] = &NewsData{
+	p.news["theblockbeats"] = &NewsData{
 		Source:         "theblockbeats",
 		Title:          "SOL突破新高，市值创新纪录",
 		Content:        "Solana代币SOL价格突破200美元大关，创下历史新高...",
@@ -81,7 +81,7 @@ func (m *NewsModule) initMockData() {
 		Sentiment:      "positive",
 	}
 
-	m.news["coindesk"] = &NewsData{
+	p.news["coindesk"] = &NewsData{
 		Source:         "coindesk",
 		Title:          "比特币ETF获批，市场反应积极",
 		Content:        "美国证券交易委员会批准了首个比特币ETF...",
@@ -92,7 +92,7 @@ func (m *NewsModule) initMockData() {
 		Sentiment:      "positive",
 	}
 
-	m.news["cointelegraph"] = &NewsData{
+	p.news["cointelegraph"] = &NewsData{
 		Source:         "cointelegraph",
 		Title:          "以太坊2.0升级进展顺利",
 		Content:        "以太坊网络升级进展顺利，交易费用显著降低...",
@@ -105,22 +105,22 @@ func (m *NewsModule) initMockData() {
 }
 
 // UpdateNewsData 更新新闻数据（用于测试）
-func (m *NewsModule) UpdateNewsData(source string, data *NewsData) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.news[source] = data
+func (p *NewsProvider) UpdateNewsData(source string, data *NewsData) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.news[source] = data
 }
 
 // GetNewsData 获取新闻数据（用于测试）
-func (m *NewsModule) GetNewsData(source string) (*NewsData, bool) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	data, exists := m.news[source]
+func (p *NewsProvider) GetNewsData(source string) (*NewsData, bool) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	data, exists := p.news[source]
 	return data, exists
 }
 
 // GetFunctionParamMapping 获取函数参数映射
-func (m *NewsModule) GetFunctionParamMapping() map[string]FunctionParamInfo {
+func (p *NewsProvider) GetFunctionParamMapping() map[string]FunctionParamInfo {
 	// News 模块目前不需要函数参数
 	return map[string]FunctionParamInfo{}
 }

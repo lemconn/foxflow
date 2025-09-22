@@ -1,4 +1,4 @@
-package datasources
+package provider
 
 import (
 	"context"
@@ -17,17 +17,17 @@ type MarketData struct {
 	Timestamp  time.Time `json:"timestamp"`
 }
 
-// MarketModule 行情数据模块
-type MarketModule struct {
-	*BaseModule
+// MarketProvider 行情数据模块
+type MarketProvider struct {
+	*BaseProvider
 	market map[string]*MarketData
 	mu     sync.RWMutex
 }
 
-// NewMarketModule 创建行情数据模块
-func NewMarketModule() *MarketModule {
-	module := &MarketModule{
-		BaseModule: NewBaseModule("market"),
+// NewMarketProvider 创建行情数据模块
+func NewMarketProvider() *MarketProvider {
+	module := &MarketProvider{
+		BaseProvider: NewBaseProvider("market"),
 		market:     make(map[string]*MarketData),
 	}
 
@@ -36,14 +36,14 @@ func NewMarketModule() *MarketModule {
 }
 
 // GetData 获取数据
-// MarketModule 只支持单个数据值，不支持历史数据
+// MarketProvider 只支持单个数据值，不支持历史数据
 // params 参数（可选）：
 // - 目前暂未使用，保留用于未来扩展
-func (m *MarketModule) GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+func (p *MarketProvider) GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 
-	marketData, exists := m.market[entity]
+	marketData, exists := p.market[entity]
 	if !exists {
 		return nil, fmt.Errorf("no market data found for entity: %s", entity)
 	}
@@ -65,12 +65,12 @@ func (m *MarketModule) GetData(ctx context.Context, entity, field string, params
 }
 
 // initMockData 初始化Mock数据
-func (m *MarketModule) initMockData() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+func (p *MarketProvider) initMockData() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	// 初始化行情数据
-	m.market["SOL"] = &MarketData{
+	p.market["SOL"] = &MarketData{
 		Symbol:     "SOL",
 		LastPx:     205.8,
 		LastVolume: 1500000.0,
@@ -79,7 +79,7 @@ func (m *MarketModule) initMockData() {
 		Timestamp:  time.Now(),
 	}
 
-	m.market["BTC"] = &MarketData{
+	p.market["BTC"] = &MarketData{
 		Symbol:     "BTC",
 		LastPx:     45500.0,
 		LastVolume: 500.0,
@@ -88,7 +88,7 @@ func (m *MarketModule) initMockData() {
 		Timestamp:  time.Now(),
 	}
 
-	m.market["ETH"] = &MarketData{
+	p.market["ETH"] = &MarketData{
 		Symbol:     "ETH",
 		LastPx:     3250.0,
 		LastVolume: 2000.0,
@@ -99,22 +99,22 @@ func (m *MarketModule) initMockData() {
 }
 
 // UpdateMarketData 更新行情数据（用于测试）
-func (m *MarketModule) UpdateMarketData(symbol string, data *MarketData) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.market[symbol] = data
+func (p *MarketProvider) UpdateMarketData(symbol string, data *MarketData) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.market[symbol] = data
 }
 
 // GetMarketData 获取行情数据（用于测试）
-func (m *MarketModule) GetMarketData(symbol string) (*MarketData, bool) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	data, exists := m.market[symbol]
+func (p *MarketProvider) GetMarketData(symbol string) (*MarketData, bool) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	data, exists := p.market[symbol]
 	return data, exists
 }
 
 // GetFunctionParamMapping 获取函数参数映射
-func (m *MarketModule) GetFunctionParamMapping() map[string]FunctionParamInfo {
+func (p *MarketProvider) GetFunctionParamMapping() map[string]FunctionParamInfo {
 	// Market 模块目前不需要函数参数
 	return map[string]FunctionParamInfo{}
 }
