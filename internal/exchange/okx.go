@@ -20,6 +20,7 @@ import (
 const (
 	okxPublicUriInstruments = "/api/v5/public/instruments"
 	okxUriSetLeverage       = "/api/v5/account/set-leverage"
+	okxUriGetLeverageInfo   = "/api/v5/account/leverage-info"
 
 	okxUriUserAssetValuation   = "/api/v5/asset/asset-valuation"
 	okxUriUserBalance          = "/api/v5/account/balance"
@@ -145,7 +146,7 @@ func (e *OKXExchange) getAssetValuation(ctx context.Context) (float64, error) {
 	return floatNum, nil
 }
 
-type okxAccountBalance struct {
+type okxAccountBalanceResp struct {
 	UTime                 string `json:"uTime"`                 // 账户信息的更新时间，Unix时间戳的毫秒数格式，如 1597026383085
 	TotalEq               string `json:"totalEq"`               // 美金层面权益
 	IsoEq                 string `json:"isoEq"`                 // 美金层面逐仓仓位权益。适用于合约模式/跨币种保证金模式/组合保证金模式
@@ -227,7 +228,7 @@ func (e *OKXExchange) GetBalance(ctx context.Context) ([]Asset, error) {
 		return nil, fmt.Errorf("okx GetBalance error: %s", result.Msg)
 	}
 
-	accountBalance := make([]okxAccountBalance, 0)
+	accountBalance := make([]okxAccountBalanceResp, 0)
 	resultBytes, _ := json.Marshal(result.Data)
 	err = json.Unmarshal(resultBytes, &accountBalance)
 	if err != nil {
@@ -255,12 +256,148 @@ func (e *OKXExchange) GetBalance(ctx context.Context) ([]Asset, error) {
 	return assets, nil
 }
 
+type okxPositionsRequest struct {
+	InstType string `json:"instType,omitempty"` // 产品类型 MARGIN：币币杠杆 SWAP：永续合约 FUTURES：交割合约 OPTION：期权 instType和instId同时传入的时候会校验instId与instType是否一致。
+	InstId   string `json:"instId,omitempty"`   // 交易产品ID，如：BTC-USDT-SWAP 支持多个instId查询（不超过10个），半角逗号分隔
+	PosId    string `json:"posId,omitempty"`    // 持仓ID 支持多个posId查询（不超过20个）。 存在有效期的属性，自最近一次完全平仓算起，满30天 posId 以及整个仓位会被清除。
+}
+
+type okxPositionsResp struct {
+	InstType               string           `json:"instType"`
+	MgnMode                string           `json:"mgnMode"`                // 保证金模式: cross-全仓, isolated-逐仓
+	PosId                  string           `json:"posId"`                  // 持仓ID
+	PosSide                string           `json:"posSide"`                // 持仓方向: long, short, net
+	Pos                    string           `json:"pos"`                    // 持仓数量
+	PosCcy                 string           `json:"posCcy"`                 // 仓位资产币种，仅适用于币币杠杆仓位
+	AvailPos               string           `json:"availPos"`               // 可平仓数量
+	AvgPx                  string           `json:"avgPx"`                  // 开仓均价
+	NonSettleAvgPx         string           `json:"nonSettleAvgPx"`         // 未结算均价，仅适用于全仓交割
+	Upl                    string           `json:"upl"`                    // 未实现收益(标记价格计算)
+	UplRatio               string           `json:"uplRatio"`               // 未实现收益率(标记价格计算)
+	UplLastPx              string           `json:"uplLastPx"`              // 以最新成交价格计算的未实现收益
+	UplRatioLastPx         string           `json:"uplRatioLastPx"`         // 以最新成交价格计算的未实现收益率
+	InstId                 string           `json:"instId"`                 // 产品ID
+	Lever                  string           `json:"lever"`                  // 杠杆倍数
+	LiqPx                  string           `json:"liqPx"`                  // 预估强平价
+	MarkPx                 string           `json:"markPx"`                 // 最新标记价格
+	Imr                    string           `json:"imr"`                    // 初始保证金，仅适用于全仓
+	Margin                 string           `json:"margin"`                 // 保证金余额，仅适用于逐仓
+	MgnRatio               string           `json:"mgnRatio"`               // 维持保证金率
+	Mmr                    string           `json:"mmr"`                    // 维持保证金
+	Liab                   string           `json:"liab"`                   // 负债额，仅适用于币币杠杆
+	LiabCcy                string           `json:"liabCcy"`                // 负债币种，仅适用于币币杠杆
+	Interest               string           `json:"interest"`               // 利息
+	TradeId                string           `json:"tradeId"`                // 最新成交ID
+	OptVal                 string           `json:"optVal"`                 // 期权市值，仅适用于期权
+	PendingCloseOrdLiabVal string           `json:"pendingCloseOrdLiabVal"` // 逐仓杠杆负债对应平仓挂单的数量
+	NotionalUsd            string           `json:"notionalUsd"`            // 以美金价值为单位的持仓数量
+	Adl                    string           `json:"adl"`                    // 信号区(1-5)
+	Ccy                    string           `json:"ccy"`                    // 占用保证金的币种
+	Last                   string           `json:"last"`                   // 最新成交价
+	IdxPx                  string           `json:"idxPx"`                  // 最新指数价格
+	UsdPx                  string           `json:"usdPx"`                  // 保证金币种的市场最新美金价格，仅适用于期权
+	BePx                   string           `json:"bePx"`                   // 盈亏平衡价
+	DeltaBS                string           `json:"deltaBS"`                // 美金本位持仓仓位delta，仅适用于期权
+	DeltaPA                string           `json:"deltaPA"`                // 币本位持仓仓位delta，仅适用于期权
+	GammaBS                string           `json:"gammaBS"`                // 美金本位持仓仓位gamma，仅适用于期权
+	GammaPA                string           `json:"gammaPA"`                // 币本位持仓仓位gamma，仅适用于期权
+	ThetaBS                string           `json:"thetaBS"`                // 美金本位持仓仓位theta，仅适用于期权
+	ThetaPA                string           `json:"thetaPA"`                // 币本位持仓仓位theta，仅适用于期权
+	VegaBS                 string           `json:"vegaBS"`                 // 美金本位持仓仓位vega，仅适用于期权
+	VegaPA                 string           `json:"vegaPA"`                 // 币本位持仓仓位vega，仅适用于期权
+	SpotInUseAmt           string           `json:"spotInUseAmt"`           // 现货对冲占用数量，适用于组合保证金模式
+	SpotInUseCcy           string           `json:"spotInUseCcy"`           // 现货对冲占用币种，适用于组合保证金模式
+	ClSpotInUseAmt         string           `json:"clSpotInUseAmt"`         // 用户自定义现货占用数量，适用于组合保证金模式
+	MaxSpotInUseAmt        string           `json:"maxSpotInUseAmt"`        // 系统计算得到的最大可能现货占用数量，适用于组合保证金模式
+	RealizedPnl            string           `json:"realizedPnl"`            // 已实现收益
+	SettledPnl             string           `json:"settledPnl"`             // 已结算收益，仅适用于全仓交割
+	Pnl                    string           `json:"pnl"`                    // 平仓订单累计收益额(不包括手续费)
+	Fee                    string           `json:"fee"`                    // 累计手续费金额
+	FundingFee             string           `json:"fundingFee"`             // 累计资金费用
+	LiqPenalty             string           `json:"liqPenalty"`             // 累计爆仓罚金
+	CloseOrderAlgo         []CloseOrderAlgo `json:"closeOrderAlgo"`         // 平仓策略委托订单
+	CTime                  string           `json:"cTime"`                  // 持仓创建时间(时间戳)
+	UTime                  string           `json:"uTime"`                  // 持仓更新时间(时间戳)
+	BizRefId               string           `json:"bizRefId"`               // 外部业务id
+	BizRefType             string           `json:"bizRefType"`             // 外部业务类型
+}
+
+type CloseOrderAlgo struct {
+	AlgoId          string `json:"algoId"`          // 策略委托单ID
+	SlTriggerPx     string `json:"slTriggerPx"`     // 止损触发价
+	SlTriggerPxType string `json:"slTriggerPxType"` // 止损触发价类型: last, index, mark
+	TpTriggerPx     string `json:"tpTriggerPx"`     // 止盈触发价
+	TpTriggerPxType string `json:"tpTriggerPxType"` // 止盈触发价类型: last, index, mark
+	CloseFraction   string `json:"closeFraction"`   // 平仓百分比(1=100%)
+}
+
 func (e *OKXExchange) GetPositions(ctx context.Context) ([]Position, error) {
-	if e.user == nil {
-		return nil, fmt.Errorf("user not connected")
+	if e.user == nil || e.user.AccessKey == "" || e.user.SecretKey == "" || e.user.Passphrase == "" {
+		return nil, fmt.Errorf("user information is missing, user: %+v ", e.user)
 	}
 
-	return nil, nil
+	reqBody := okxPositionsRequest{
+		InstType: "SWAP",
+	}
+	reqBodyByte, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, err
+	}
+
+	body := make(map[string]interface{})
+	err = json.Unmarshal(reqBodyByte, &body)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := e.sendRequest(ctx, "GET", okxUriUserPositions, body)
+	if err != nil {
+		return nil, fmt.Errorf("okx create order err: %w", err)
+	}
+	if result.Code != "0" {
+		return nil, fmt.Errorf("okx create order error: %s", result.Msg)
+	}
+
+	okxPositionInfos := make([]okxPositionsResp, 0)
+	resultByte, _ := json.Marshal(result.Data)
+	err = json.Unmarshal(resultByte, &okxPositionInfos)
+	if err != nil {
+		return nil, fmt.Errorf("okx get positions err: %w", err)
+	}
+
+	if len(okxPositionInfos) == 0 {
+		return nil, nil
+	}
+
+	res := make([]Position, len(okxPositionInfos))
+	for _, positionInfo := range okxPositionInfos {
+
+		position := Position{
+			Symbol:  e.ConvertFromExchangeSymbol(positionInfo.InstId),
+			PosSide: positionInfo.PosSide,
+		}
+		floatSize, err := strconv.ParseFloat(positionInfo.Pos, 64)
+		if err != nil {
+			continue
+		}
+		position.Size = floatSize
+
+		floatAvgPri, err := strconv.ParseFloat(positionInfo.AvgPx, 64)
+		if err != nil {
+			continue
+		}
+		position.AvgPrice = floatAvgPri
+
+		floatUpl, err := strconv.ParseFloat(positionInfo.Upl, 64)
+		if err != nil {
+			continue
+		}
+		position.UnrealPnl = floatUpl
+
+		res = append(res, position)
+	}
+
+	return res, nil
 }
 
 func (e *OKXExchange) GetOrders(ctx context.Context, symbol string, status string) ([]Order, error) {
@@ -327,23 +464,6 @@ func (e *OKXExchange) CreateOrder(ctx context.Context, order *Order) (*Order, er
 	}
 	// OKX合约下单数量字段为 sz，单位张。此处直接使用传入数量
 	reqBody.Sz = fmt.Sprintf("%f", order.Size)
-
-	// 增加订单条件
-	if len(order.OrderCondition) > 0 {
-		for _, cond := range order.OrderCondition {
-			reqBody.AttachAlgoOrds = append(reqBody.AttachAlgoOrds, oxkAttachAlgoOrd{
-				TpTriggerPx:          cond.TpTriggerPx,
-				TpOrdPx:              cond.TpOrdPx,
-				TpOrdKind:            cond.TpOrdKind,
-				SlTriggerPx:          cond.SlTriggerPx,
-				SlOrdPx:              cond.SlOrdPx,
-				TpTriggerPxType:      cond.TpTriggerPxType,
-				SlTriggerPxType:      cond.SlTriggerPxType,
-				Sz:                   cond.Sz,
-				AmendPxOnTriggerType: cond.AmendPxOnTriggerType,
-			})
-		}
-	}
 
 	reqBodyByte, err := json.Marshal(reqBody)
 	if err != nil {
@@ -559,6 +679,76 @@ func (e *OKXExchange) SetMarginType(ctx context.Context, symbol string, marginTy
 	}
 
 	return nil
+}
+
+func (e *OKXExchange) GetLeverageMarginType(ctx context.Context, symbol string) (string, error) {
+	if e.user == nil || e.user.AccessKey == "" || e.user.SecretKey == "" || e.user.Passphrase == "" {
+		return "", fmt.Errorf("user information is missing, user: %+v ", e.user)
+	}
+
+	// 使用结构体组装查询参数
+	type okxGetLeverageInfoParams struct {
+		InstId  string `json:"instId"`
+		MgnMode string `json:"mgnMode,omitempty"`
+	}
+
+	reqParams := okxGetLeverageInfoParams{
+		InstId: e.ConvertToExchangeSymbol(symbol),
+	}
+
+	// 结构体 -> map，用于拼装查询字符串
+	jsonBytes, err := json.Marshal(reqParams)
+	if err != nil {
+		return "", err
+	}
+	var paramsMap map[string]interface{}
+	if err = json.Unmarshal(jsonBytes, &paramsMap); err != nil {
+		return "", err
+	}
+
+	// 构建查询参数
+	values := url.Values{}
+	for k, v := range paramsMap {
+		if v == nil {
+			continue
+		}
+		// 仅接受字符串参数
+		if s, ok := v.(string); ok && s != "" {
+			values.Set(k, s)
+		}
+	}
+
+	// 发送请求（GET 使用查询字符串，body 为空）
+	endpoint := okxUriGetLeverageInfo
+	if encoded := values.Encode(); encoded != "" {
+		endpoint = fmt.Sprintf("%s?%s", endpoint, encoded)
+	}
+
+	result, err := e.sendRequest(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to get leverage info [%s] err: %w", endpoint, err)
+	}
+	if result.Code != "0" {
+		return "", fmt.Errorf("okx GetLeverageMarginType [%s] error: %s", endpoint, result.Msg)
+	}
+
+	// 解析返回数据
+	type okxLeverageInfo struct {
+		InstId  string `json:"instId"`
+		Lever   string `json:"lever"`
+		MgnMode string `json:"mgnMode"`
+	}
+
+	var infos []okxLeverageInfo
+	resultBytes, _ := json.Marshal(result.Data)
+	if err := json.Unmarshal(resultBytes, &infos); err != nil {
+		return "", fmt.Errorf("okx GetLeverageMarginType jsonDecode result err: %w", err)
+	}
+	if len(infos) == 0 {
+		return "", fmt.Errorf("okx GetLeverageMarginType empty data")
+	}
+
+	return infos[0].MgnMode, nil
 }
 
 // ConvertToExchangeSymbol 将用户输入的币种名称转换为OKX交易所格式

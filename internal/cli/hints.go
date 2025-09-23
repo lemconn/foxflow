@@ -31,7 +31,6 @@ func getSubcommandSuggestions() map[string][]prompt.Suggest {
 			{Text: "exchanges", Description: "展示交易所"},
 			{Text: "users", Description: "展示用户"},
 			{Text: "assets", Description: "展示资产"},
-			{Text: "orders", Description: "展示订单"},
 			{Text: "positions", Description: "展示持仓"},
 			{Text: "strategies", Description: "展示当前可用策略"},
 			{Text: "symbols", Description: "展示交易对"},
@@ -48,7 +47,7 @@ func getSubcommandSuggestions() map[string][]prompt.Suggest {
 		},
 		"update": {
 			{Text: "leverage", Description: "调整交易对杠杆系数"},
-			{Text: "margin-type", Description: "调整交易对保证金模式"},
+			//{Text: "margin-type", Description: "调整交易对保证金模式"},
 		},
 		"cancel": {
 			{Text: "ss", Description: "取消策略订单"},
