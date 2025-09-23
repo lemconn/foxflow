@@ -197,14 +197,22 @@ func (e *Engine) processOrder(exchangeInstance exchange.Exchange, order *models.
 
 // submitOrder 提交订单到交易所
 func (e *Engine) submitOrder(exchangeInstance exchange.Exchange, order *models.FoxSS) error {
+	// 从 FoxSymbol 表查询 MarginType
+	db := database.GetDB()
+	var symbol models.FoxSymbol
+	if err := db.Where("name = ?", order.Symbol).First(&symbol).Error; err != nil {
+		return fmt.Errorf("failed to get symbol margin type: %w", err)
+	}
+
 	// 构建订单对象
 	exchangeOrder := &exchange.Order{
-		Symbol:  order.Symbol,
-		Side:    order.Side,
-		PosSide: order.PosSide,
-		Price:   order.Px,
-		Size:    order.Sz,
-		Type:    order.OrderType,
+		Symbol:     order.Symbol,
+		Side:       order.Side,
+		PosSide:    order.PosSide,
+		MarginType: symbol.MarginType,
+		Price:      order.Px,
+		Size:       order.Sz,
+		Type:       order.OrderType,
 	}
 
 	// 提交订单
@@ -214,7 +222,6 @@ func (e *Engine) submitOrder(exchangeInstance exchange.Exchange, order *models.F
 	}
 
 	// 更新数据库
-	db := database.GetDB()
 	order.OrderID = result.ID
 	order.Status = "pending"
 
