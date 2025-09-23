@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/lemconn/foxflow/internal/database"
+	"github.com/lemconn/foxflow/internal/engine/syntax"
 	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/models"
-	"github.com/lemconn/foxflow/internal/strategy/syntax"
 )
 
 // Engine 策略引擎

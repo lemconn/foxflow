@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/lemconn/foxflow/internal/strategy"
-	"github.com/lemconn/foxflow/internal/strategy/provider"
+	"github.com/lemconn/foxflow/internal/engine/provider"
+	"github.com/lemconn/foxflow/internal/engine/registry"
 )
 
 // Evaluator AST求值器
 type Evaluator struct {
-	registry *strategy.Registry
+	registry *registry.Registry
 }
 
 // NewEvaluator 创建AST求值器
-func NewEvaluator(registry *strategy.Registry) *Evaluator {
+func NewEvaluator(registry *registry.Registry) *Evaluator {
 	return &Evaluator{
 		registry: registry,
 	}
