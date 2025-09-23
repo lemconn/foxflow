@@ -1,12 +1,12 @@
-package strategy
+package registry
 
 import (
 	"context"
 	"fmt"
 	"sync"
 
-	"github.com/lemconn/foxflow/internal/strategy/builtin"
-	"github.com/lemconn/foxflow/internal/strategy/provider"
+	"github.com/lemconn/foxflow/internal/engine/builtin"
+	"github.com/lemconn/foxflow/internal/engine/provider"
 )
 
 // Registry 注册器，支持内置函数和数据提供者注册

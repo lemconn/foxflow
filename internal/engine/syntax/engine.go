@@ -4,22 +4,22 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/lemconn/foxflow/internal/strategy"
-	"github.com/lemconn/foxflow/internal/strategy/builtin"
+	"github.com/lemconn/foxflow/internal/engine/builtin"
+	"github.com/lemconn/foxflow/internal/engine/registry"
 )
 
 // Engine 语法引擎
 type Engine struct {
 	parser    *Parser
 	evaluator *Evaluator
-	registry  *strategy.Registry
+	registry  *registry.Registry
 }
 
 // NewEngine 创建语法引擎
 func NewEngine() *Engine {
 	// 创建组件
 	parser := NewParser()
-	registry := strategy.DefaultRegistry()
+	registry := registry.DefaultRegistry()
 	evaluator := NewEvaluator(registry)
 
 	return &Engine{
@@ -89,7 +89,7 @@ func (e *Engine) RegisterBuiltin(fn builtin.Builtin) {
 }
 
 // GetRegistry 获取函数注册表
-func (e *Engine) GetRegistry() *strategy.Registry {
+func (e *Engine) GetRegistry() *registry.Registry {
 	return e.registry
 }
 

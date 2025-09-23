@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lemconn/foxflow/internal/strategy"
-	"github.com/lemconn/foxflow/internal/strategy/provider"
+	"github.com/lemconn/foxflow/internal/engine/provider"
+	"github.com/lemconn/foxflow/internal/engine/registry"
 )
 
 // MockDataProvider 模拟数据提供者
@@ -465,7 +465,7 @@ func TestSyntaxEngine(t *testing.T) {
 	}
 
 	// 创建语法引擎
-	registry := strategy.DefaultRegistry()
+	registry := registry.DefaultRegistry()
 
 	// 将 MockDataProvider 注册为数据源
 	klineDataSource := &MockKlineDataSource{provider: mockProvider}
