@@ -32,3 +32,9 @@ func DeleteSymbolByNameForUser(userID uint, name string) error {
 	db := database.GetDB()
 	return db.Where("name = ? AND user_id = ?", name, userID).Delete(&models.FoxSymbol{}).Error
 }
+
+// UpdateSymbol 更新标的
+func UpdateSymbol(symbol *models.FoxSymbol) error {
+	db := database.GetDB()
+	return db.Save(symbol).Error
+}

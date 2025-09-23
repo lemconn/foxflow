@@ -124,8 +124,7 @@ func (c *CreateCommand) createSymbol(ctx command.Context, args []string) error {
 	}
 
 	// 检测本地用户下是否已经有交易对
-	exchangeSymbol := exchangeClient.ConvertToExchangeSymbol(args[0])
-	localSymbol, err := repository.GetSymbolByNameUser(exchangeSymbol, ctx.GetUserInstance().ID)
+	localSymbol, err := repository.GetSymbolByNameUser(args[0], ctx.GetUserInstance().ID)
 	if err != nil {
 		return fmt.Errorf("get local symbol err: %w", err)
 	}
@@ -229,8 +228,7 @@ func (c *CreateCommand) createStrategyOrder(ctx command.Context, args []string) 
 	}
 
 	// 获取当前用户要构面的交易对信息是否存在
-	exchangeSymbol := exchangeClient.ConvertToExchangeSymbol(order.Symbol)
-	localSymbol, err := repository.GetSymbolByNameUser(exchangeSymbol, ctx.GetUserInstance().ID)
+	localSymbol, err := repository.GetSymbolByNameUser(order.Symbol, ctx.GetUserInstance().ID)
 	if err != nil {
 		return fmt.Errorf("get local symbol err: %w", err)
 	}
