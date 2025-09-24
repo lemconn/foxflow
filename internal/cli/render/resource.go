@@ -2,8 +2,9 @@ package render
 
 import (
 	"fmt"
-	"strings"
 
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/models"
 	"github.com/lemconn/foxflow/internal/news"
@@ -267,38 +268,38 @@ func RenderNews(newsList []news.NewsItem) string {
 		return utils.RenderWarning("暂无新闻数据")
 	}
 
-	var result strings.Builder
-	result.WriteString(utils.RenderInfo(fmt.Sprintf("📰 最新新闻 (共 %d 条)", len(newsList))))
-	result.WriteString("\n")
-	result.WriteString(strings.Repeat("=", 80))
-	result.WriteString("\n\n")
-
+	// 按时间正序排列（最新的在下面）
+	// 由于 newsList 已经是按时间倒序排列的，我们需要反转它
+	reversedList := make([]news.NewsItem, len(newsList))
 	for i, item := range newsList {
-		// 新闻序号和标题
-		result.WriteString(fmt.Sprintf("📄 新闻 %d: %s\n", i+1, item.Title))
-
-		// 新闻元信息
-		result.WriteString(fmt.Sprintf("   🏢 来源: %s\n", item.Source))
-		result.WriteString(fmt.Sprintf("   ⏰ 时间: %s\n", item.PublishedAt.Format("2006-01-02 15:04:05")))
-		result.WriteString(fmt.Sprintf("   🔗 链接: %s\n", item.URL))
-
-		// 标签
-		if len(item.Tags) > 0 {
-			result.WriteString(fmt.Sprintf("   🏷️  标签: %s\n", strings.Join(item.Tags, ", ")))
-		}
-
-		// 新闻内容（截取前200字符）
-		content := truncateString(item.Content, 200)
-		if content != "" {
-			result.WriteString(fmt.Sprintf("   📖 内容: %s\n", content))
-		}
-
-		// 分隔线
-		result.WriteString("   " + strings.Repeat("-", 60))
-		result.WriteString("\n\n")
+		reversedList[len(newsList)-1-i] = item
 	}
 
-	return result.String()
+	// 使用表格格式显示
+	pt := utils.NewPrettyTable()
+	pt.SetTitle(fmt.Sprintf("📰 最新新闻 (共 %d 条)", len(newsList)))
+	pt.SetHeaders([]interface{}{"#", "标题", "时间", "来源", "链接"})
+
+	// 设置列配置：优化列宽和对齐
+	pt.SetColumnConfigs([]table.ColumnConfig{
+		{Number: 1, WidthMax: 4, Align: text.AlignCenter},  // 序号列，居中对齐
+		{Number: 2, WidthMax: 60, Align: text.AlignLeft},   // 标题列，左对齐，增加宽度
+		{Number: 3, WidthMax: 12, Align: text.AlignCenter}, // 时间列，居中对齐
+		{Number: 4, WidthMax: 12, Align: text.AlignCenter}, // 来源列，居中对齐
+		{Number: 5, WidthMax: 60, Align: text.AlignLeft},   // 链接列，左对齐，增加宽度
+	})
+
+	for i, item := range reversedList {
+		pt.AddRow([]interface{}{
+			i + 1,
+			item.Title, // 显示完整标题，不截断
+			item.PublishedAt.Format("01-02 15:04"),
+			item.Source,
+			item.URL,
+		})
+	}
+
+	return pt.Render()
 }
 
 // truncateString 截断字符串到指定长度
