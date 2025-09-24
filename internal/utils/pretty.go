@@ -39,6 +39,11 @@ func (pt *PrettyTable) AddRow(row []interface{}) {
 	pt.writer.AppendRow(row)
 }
 
+// SetColumnConfigs 设置列配置
+func (pt *PrettyTable) SetColumnConfigs(configs []table.ColumnConfig) {
+	pt.writer.SetColumnConfigs(configs)
+}
+
 // Render 渲染表格
 func (pt *PrettyTable) Render() string {
 	return pt.writer.Render()
