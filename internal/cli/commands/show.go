@@ -1,13 +1,17 @@
 package commands
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/lemconn/foxflow/internal/cli/command"
 	cliRender "github.com/lemconn/foxflow/internal/cli/render"
 	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/news"
 	"github.com/lemconn/foxflow/internal/repository"
 	"github.com/lemconn/foxflow/internal/utils"
 )
@@ -24,7 +28,7 @@ func (c *ShowCommand) GetDescription() string {
 }
 
 func (c *ShowCommand) GetUsage() string {
-	return "show <type> [options]"
+	return "show <type> [options]\n  types: exchanges, users, assets, orders, positions, strategies, symbols, ss, news\n  news: show news [count] - 显示最新新闻，count 为可选参数，默认为 10"
 }
 
 func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
@@ -130,9 +134,55 @@ func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
 		}
 		fmt.Println(cliRender.RenderStrategyOrders(ss))
 
+	case "news":
+		return c.handleNewsCommand(ctx, args[1:])
+
 	default:
 		return fmt.Errorf("unknown show type: %s", args[0])
 	}
+
+	return nil
+}
+
+// handleNewsCommand 处理新闻命令
+func (c *ShowCommand) handleNewsCommand(ctx command.Context, args []string) error {
+	// 默认获取 10 条新闻
+	count := 10
+
+	// 如果提供了数量参数，解析它
+	if len(args) > 0 {
+		if parsedCount, err := strconv.Atoi(args[0]); err == nil && parsedCount > 0 {
+			count = parsedCount
+		} else {
+			return fmt.Errorf("无效的新闻数量参数: %s，请输入正整数", args[0])
+		}
+	}
+
+	// 创建新闻管理器
+	manager := news.NewManager()
+
+	// 注册 BlockBeats 新闻源
+	blockBeats := news.NewBlockBeats()
+	manager.RegisterSource(blockBeats)
+
+	// 创建带超时的上下文
+	newsCtx, cancel := context.WithTimeout(ctx.GetContext(), 30*time.Second)
+	defer cancel()
+
+	// 获取新闻
+	fmt.Println(utils.RenderInfo(fmt.Sprintf("正在获取最新 %d 条新闻...", count)))
+	newsList, err := manager.GetNewsFromSource(newsCtx, "blockbeats", count)
+	if err != nil {
+		return fmt.Errorf("获取新闻失败: %w", err)
+	}
+
+	if len(newsList) == 0 {
+		fmt.Println(utils.RenderWarning("暂无新闻数据"))
+		return nil
+	}
+
+	// 渲染新闻
+	fmt.Println(cliRender.RenderNews(newsList))
 
 	return nil
 }

@@ -35,6 +35,7 @@ func getSubcommandSuggestions() map[string][]prompt.Suggest {
 			{Text: "strategies", Description: "展示当前可用策略"},
 			{Text: "symbols", Description: "展示交易对"},
 			{Text: "ss", Description: "展示策略订单"},
+			{Text: "news", Description: "展示新闻"},
 		},
 		"use": {
 			{Text: "exchanges", Description: "选择交易所"},

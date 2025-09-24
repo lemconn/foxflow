@@ -2,9 +2,11 @@ package render
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/news"
 	"github.com/lemconn/foxflow/internal/utils"
 )
 
@@ -257,4 +259,52 @@ func RenderTickers(tickers []exchange.Ticker) string {
 	}
 
 	return pt.Render()
+}
+
+// RenderNews 渲染新闻列表
+func RenderNews(newsList []news.NewsItem) string {
+	if len(newsList) == 0 {
+		return utils.RenderWarning("暂无新闻数据")
+	}
+
+	var result strings.Builder
+	result.WriteString(utils.RenderInfo(fmt.Sprintf("📰 最新新闻 (共 %d 条)", len(newsList))))
+	result.WriteString("\n")
+	result.WriteString(strings.Repeat("=", 80))
+	result.WriteString("\n\n")
+
+	for i, item := range newsList {
+		// 新闻序号和标题
+		result.WriteString(fmt.Sprintf("📄 新闻 %d: %s\n", i+1, item.Title))
+
+		// 新闻元信息
+		result.WriteString(fmt.Sprintf("   🏢 来源: %s\n", item.Source))
+		result.WriteString(fmt.Sprintf("   ⏰ 时间: %s\n", item.PublishedAt.Format("2006-01-02 15:04:05")))
+		result.WriteString(fmt.Sprintf("   🔗 链接: %s\n", item.URL))
+
+		// 标签
+		if len(item.Tags) > 0 {
+			result.WriteString(fmt.Sprintf("   🏷️  标签: %s\n", strings.Join(item.Tags, ", ")))
+		}
+
+		// 新闻内容（截取前200字符）
+		content := truncateString(item.Content, 200)
+		if content != "" {
+			result.WriteString(fmt.Sprintf("   📖 内容: %s\n", content))
+		}
+
+		// 分隔线
+		result.WriteString("   " + strings.Repeat("-", 60))
+		result.WriteString("\n\n")
+	}
+
+	return result.String()
+}
+
+// truncateString 截断字符串到指定长度
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
 }
