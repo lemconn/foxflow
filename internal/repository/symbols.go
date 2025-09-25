@@ -27,6 +27,18 @@ func GetSymbolByNameUser(name string, userID uint) (*models.FoxSymbol, error) {
 	return symbol, nil
 }
 
+// GetSymbolByUser 根据用户查询标的列表
+func GetSymbolByUser(userID uint) ([]*models.FoxSymbol, error) {
+	db := database.GetDB()
+	symbolList := make([]*models.FoxSymbol, 0)
+	err := db.Where("user_id = ?", userID).Find(&symbolList).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	return symbolList, nil
+}
+
 // DeleteSymbolByNameForUser 删除用户下的标的
 func DeleteSymbolByNameForUser(userID uint, name string) error {
 	db := database.GetDB()

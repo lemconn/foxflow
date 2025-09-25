@@ -35,7 +35,11 @@ func (c *CancelCommand) Execute(ctx command.Context, args []string) error {
 
 	order, err := repository.FindSSOrderByIDForUser(ctx.GetUserInstance().ID, orderID)
 	if err != nil {
-		return fmt.Errorf("order not found")
+		return fmt.Errorf("get order error: %s", err)
+	}
+
+	if order == nil || order.ID == 0 {
+		return fmt.Errorf("ss order not found")
 	}
 
 	// 如果订单已提交到交易所，需要取消远程订单
@@ -44,7 +48,12 @@ func (c *CancelCommand) Execute(ctx command.Context, args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to get exchange client: %w", err)
 		}
-		if err := exchangeClient.CancelOrder(ctx.GetContext(), order.OrderID); err != nil {
+
+		exchangeOrder := &exchange.Order{
+			ID:     order.OrderID,
+			Symbol: order.Symbol,
+		}
+		if err := exchangeClient.CancelOrder(ctx.GetContext(), exchangeOrder); err != nil {
 			return fmt.Errorf("failed to cancel remote order: %w", err)
 		}
 	}

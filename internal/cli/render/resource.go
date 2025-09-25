@@ -184,15 +184,18 @@ func RenderStrategies() string {
 }
 
 // RenderSymbols 渲染交易对列表
-func RenderSymbols(symbols []string) string {
+func RenderSymbols(symbols []*models.FoxSymbol) string {
 	pt := utils.NewPrettyTable()
 	pt.SetTitle("💱 交易对列表")
-	pt.SetHeaders([]interface{}{"#", "交易对"})
+	pt.SetHeaders([]interface{}{"#", "交易对", "交易所", "杠杆倍数", "保证金模式"})
 
 	for i, symbol := range symbols {
 		pt.AddRow([]interface{}{
 			i + 1,
-			symbol,
+			symbol.Name,
+			symbol.Exchange,
+			symbol.Leverage,
+			symbol.MarginType,
 		})
 	}
 
@@ -200,7 +203,7 @@ func RenderSymbols(symbols []string) string {
 }
 
 // RenderStrategyOrders 渲染策略订单列表
-func RenderStrategyOrders(orders []models.FoxSS) string {
+func RenderStrategyOrders(orders []*models.FoxSS) string {
 	pt := utils.NewPrettyTable()
 	pt.SetTitle("🎯 策略订单列表")
 	pt.SetHeaders([]interface{}{"ID", "交易对", "方向", "仓位", "价格", "数量", "策略", "状态"})

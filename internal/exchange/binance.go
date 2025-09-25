@@ -227,14 +227,14 @@ func (e *BinanceExchange) CreateOrder(ctx context.Context, order *Order) (*Order
 	return order, nil
 }
 
-func (e *BinanceExchange) CancelOrder(ctx context.Context, orderID string) error {
+func (e *BinanceExchange) CancelOrder(ctx context.Context, order *Order) error {
 	if e.user == nil {
 		return fmt.Errorf("user not connected")
 	}
 
 	path := "/fapi/v1/order"
 	params := map[string]interface{}{
-		"orderId": orderID,
+		"orderId": order.ID,
 	}
 
 	_, err := e.sendRequest(ctx, "DELETE", path, params)

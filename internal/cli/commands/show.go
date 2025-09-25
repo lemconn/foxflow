@@ -10,7 +10,6 @@ import (
 	"github.com/lemconn/foxflow/internal/cli/command"
 	cliRender "github.com/lemconn/foxflow/internal/cli/render"
 	"github.com/lemconn/foxflow/internal/exchange"
-	"github.com/lemconn/foxflow/internal/models"
 	"github.com/lemconn/foxflow/internal/news"
 	"github.com/lemconn/foxflow/internal/repository"
 	"github.com/lemconn/foxflow/internal/utils"
@@ -111,24 +110,19 @@ func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
 			return errors.New("请先选择交易所和用户")
 		}
 
-		exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeInstance().Name)
-		if err != nil {
-			return fmt.Errorf("failed to get exchange client: %w", err)
-		}
-		_, err = exchangeClient.GetSymbols(ctx.GetContext(), args[0])
+		symbolList, err := repository.GetSymbolByUser(ctx.GetUserInstance().ID)
 		if err != nil {
 			return fmt.Errorf("failed to get symbols: %w", err)
 		}
-		fmt.Println(cliRender.RenderSymbols([]string{}))
+
+		fmt.Println(cliRender.RenderSymbols(symbolList))
 
 	case "ss":
-		var ss []models.FoxSS
-		var uid *uint
-		if ctx.IsReady() {
-			u := ctx.GetUserInstance().ID
-			uid = &u
+		if !ctx.IsReady() {
+			return errors.New("请先选择交易所和用户")
 		}
-		ss, err := repository.ListWaitingSSOrders(uid)
+
+		ss, err := repository.ListSSOrders(ctx.GetUserInstance().ID, []string{"waiting", "pending"})
 		if err != nil {
 			return fmt.Errorf("failed to get strategy orders: %w", err)
 		}

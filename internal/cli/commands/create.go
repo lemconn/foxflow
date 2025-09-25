@@ -160,7 +160,7 @@ func (c *CreateCommand) createSymbol(ctx command.Context, args []string) error {
 			}
 		}
 
-		setLeverageErr := exchangeClient.SetLeverage(ctx.GetContext(), args[0], symbol.Leverage, symbol.MarginType)
+		setLeverageErr := exchangeClient.SetLeverage(ctx.GetContext(), symbol.Name, symbol.Leverage, symbol.MarginType)
 		if setLeverageErr != nil {
 			return fmt.Errorf("set leverage error: %w", setLeverageErr)
 		}
@@ -191,7 +191,7 @@ func (c *CreateCommand) createStrategyOrder(ctx command.Context, args []string) 
 
 	for _, arg := range args {
 		if strings.HasPrefix(arg, "--symbol=") {
-			order.Symbol = strings.TrimPrefix(arg, "--symbol=")
+			order.Symbol = strings.ToUpper(strings.TrimPrefix(arg, "--symbol="))
 		} else if strings.HasPrefix(arg, "--side=") {
 			order.Side = strings.TrimPrefix(arg, "--side=")
 		} else if strings.HasPrefix(arg, "--posSide=") {
