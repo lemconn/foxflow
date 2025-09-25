@@ -25,9 +25,8 @@ const (
 	okxUriUserAssetValuation   = "/api/v5/asset/asset-valuation"
 	okxUriUserBalance          = "/api/v5/account/balance"
 	okxUriUserPositions        = "/api/v5/account/positions"
-	okxUriUserCurrentPositions = "/api/v5/copytrading/current-subpositions"
-	okxUriUserOrderPending     = "/api/v5/trade/orders-pending"
 	okxUriUserTradeOrder       = "/api/v5/trade/order"
+	okxUriUserTradeCancelOrder = "/api/v5/trade/cancel-order"
 )
 
 const (
@@ -373,7 +372,7 @@ func (e *OKXExchange) GetPositions(ctx context.Context) ([]Position, error) {
 	for _, positionInfo := range okxPositionInfos {
 
 		position := Position{
-			Symbol:  e.ConvertFromExchangeSymbol(positionInfo.InstId),
+			Symbol:  positionInfo.InstId,
 			PosSide: positionInfo.PosSide,
 		}
 		floatSize, err := strconv.ParseFloat(positionInfo.Pos, 64)
@@ -451,7 +450,7 @@ func (e *OKXExchange) CreateOrder(ctx context.Context, order *Order) (*Order, er
 	}
 
 	reqBody := oxkOrderRequest{
-		InstID:        e.ConvertToExchangeSymbol(order.Symbol),
+		InstID:        order.Symbol,
 		TdMode:        order.MarginType,
 		Side:          order.Side,
 		OrdType:       order.Type,
@@ -481,7 +480,7 @@ func (e *OKXExchange) CreateOrder(ctx context.Context, order *Order) (*Order, er
 		return nil, fmt.Errorf("okx create order err: %w", err)
 	}
 	if result.Code != "0" {
-		return nil, fmt.Errorf("okx create order error: %s", result.Msg)
+		return nil, fmt.Errorf("okx create order error: %s, code:%s", result.Msg, result.Code)
 	}
 
 	// 解析返回，写回订单ID
@@ -500,19 +499,49 @@ func (e *OKXExchange) CreateOrder(ctx context.Context, order *Order) (*Order, er
 	return order, nil
 }
 
-func (e *OKXExchange) CancelOrder(ctx context.Context, orderID string) error {
-	if e.user == nil {
-		return fmt.Errorf("user not connected")
+type oxkCancelOrderRequest struct {
+	InstId  string `json:"instId,omitempty"`  // 产品ID，如 BTC-USDT
+	OrdId   string `json:"ordId,omitempty"`   // 订单ID， ordId和clOrdId必须传一个，若传两个，以ordId为主
+	ClOrdId string `json:"clOrdId,omitempty"` // 用户自定义ID
+}
+
+type okxCancelOrderResponse struct {
+	OrdId   string `json:"ordId"`   // 订单ID
+	ClOrdId string `json:"clOrdId"` // 客户自定义订单ID
+	Ts      string `json:"ts"`      // 系统完成订单请求处理的时间戳，Unix时间戳的毫秒数格式
+	SCode   string `json:"sCode"`   // 事件执行结果的code，0代表成功
+	SMsg    string `json:"sMsg"`    // 事件执行失败时的msg
+	InTime  string `json:"inTime"`  // REST网关接收请求时的时间戳，Unix时间戳的微秒数格式
+	OutTime string `json:"outTime"` // REST网关发送响应时的时间戳，Unix时间戳的微秒数格式
+}
+
+func (e *OKXExchange) CancelOrder(ctx context.Context, order *Order) error {
+	if e.user == nil || e.user.AccessKey == "" || e.user.SecretKey == "" || e.user.Passphrase == "" {
+		return fmt.Errorf("user information is missing, user: %+v ", e.user)
 	}
 
-	path := "/api/v5/trade/cancel-order"
-	params := map[string]interface{}{
-		"ordId": orderID,
+	reqBody := oxkCancelOrderRequest{
+		InstId: order.Symbol,
+		OrdId:  order.ID,
 	}
 
-	_, err := e.sendRequest(ctx, "POST", path, params)
+	reqBodyByte, err := json.Marshal(reqBody)
 	if err != nil {
-		return fmt.Errorf("failed to cancel order: %w", err)
+		return err
+	}
+
+	body := make(map[string]interface{})
+	err = json.Unmarshal(reqBodyByte, &body)
+	if err != nil {
+		return err
+	}
+
+	result, err := e.sendRequest(ctx, "POST", okxUriUserTradeCancelOrder, body)
+	if err != nil {
+		return fmt.Errorf("okx create order err: %w", err)
+	}
+	if result.Code != "0" {
+		return fmt.Errorf("okx create order error: %s, code:%s", result.Msg, result.Code)
 	}
 
 	return nil
@@ -570,12 +599,10 @@ type okxSymbol struct {
 
 func (e *OKXExchange) GetSymbols(ctx context.Context, userSymbol string) (*Symbol, error) {
 
-	exchangeSymbol := e.ConvertToExchangeSymbol(userSymbol)
-
 	// 使用OKX公共接口获取交易对信息
 	params := url.Values{}
 	params.Set("instType", "SWAP")
-	params.Set("instId", exchangeSymbol)
+	params.Set("instId", userSymbol)
 
 	result, err := e.sendRequest(ctx, "GET", fmt.Sprintf("%s?%s", okxPublicUriInstruments, params.Encode()), nil)
 	if err != nil {
@@ -624,7 +651,7 @@ func (e *OKXExchange) SetLeverage(ctx context.Context, symbol string, leverage i
 	}
 
 	reqBody := okxSetLeverageBody{
-		InstId:  e.ConvertToExchangeSymbol(symbol),
+		InstId:  symbol,
 		Lever:   strconv.Itoa(leverage),
 		MgnMode: marginTypeMap[marginType],
 	}
@@ -693,7 +720,7 @@ func (e *OKXExchange) GetLeverageMarginType(ctx context.Context, symbol string) 
 	}
 
 	reqParams := okxGetLeverageInfoParams{
-		InstId: e.ConvertToExchangeSymbol(symbol),
+		InstId: symbol,
 	}
 
 	// 结构体 -> map，用于拼装查询字符串

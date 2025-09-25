@@ -90,7 +90,7 @@ type Exchange interface {
 	// 订单管理
 	GetOrders(ctx context.Context, symbol string, status string) ([]Order, error)
 	CreateOrder(ctx context.Context, order *Order) (*Order, error)
-	CancelOrder(ctx context.Context, orderID string) error
+	CancelOrder(ctx context.Context, order *Order) error
 
 	// 行情数据
 	GetTicker(ctx context.Context, symbol string) (*Ticker, error)

@@ -221,12 +221,12 @@ func (e *GateExchange) CreateOrder(ctx context.Context, order *Order) (*Order, e
 	return order, nil
 }
 
-func (e *GateExchange) CancelOrder(ctx context.Context, orderID string) error {
+func (e *GateExchange) CancelOrder(ctx context.Context, order *Order) error {
 	if e.user == nil {
 		return fmt.Errorf("user not connected")
 	}
 
-	path := "/api/v4/futures/usdt/orders/" + orderID
+	path := "/api/v4/futures/usdt/orders/" + order.ID
 	_, err := e.sendRequest(ctx, "DELETE", path, nil)
 	if err != nil {
 		return fmt.Errorf("failed to cancel order: %w", err)
