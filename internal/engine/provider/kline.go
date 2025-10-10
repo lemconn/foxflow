@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -45,7 +46,7 @@ func NewKlineProvider() *KlineProvider {
 // - period: int - 历史数据周期数（必需）
 // - start_time: time.Time - 开始时间（可选）
 // - end_time: time.Time - 结束时间（可选）
-func (p *KlineProvider) GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error) {
+func (p *KlineProvider) GetData(ctx context.Context, dataSource, field string, params ...DataParam) (interface{}, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
@@ -65,15 +66,29 @@ func (p *KlineProvider) GetData(ctx context.Context, entity, field string, param
 	}
 
 	// 返回历史数据数组
-	return p.getHistoricalDataArray(entity, field, period)
+	return p.getHistoricalDataArray(dataSource, field, period)
 }
 
 // getHistoricalDataArray 获取历史数据数组
-func (p *KlineProvider) getHistoricalDataArray(entity, field string, period int) ([]interface{}, error) {
-	historicalData, exists := p.historicalData[entity]
+func (p *KlineProvider) getHistoricalDataArray(dataSource, field string, period int) ([]interface{}, error) {
+	historicalData, exists := p.historicalData[dataSource]
 	if !exists {
 		// 如果没有历史数据，生成模拟数据
-		return p.generateMockHistoricalData(entity, field, period)
+		return p.generateMockHistoricalData(dataSource, field, period)
+	}
+
+	// 解析字段 - 支持多级字段如 "BTC.close"
+	fieldParts := strings.Split(field, ".")
+	if len(fieldParts) < 2 {
+		return nil, fmt.Errorf("kline field must be in format 'SYMBOL.FIELD', got: %s", field)
+	}
+
+	symbol := fieldParts[0]
+	fieldName := fieldParts[1]
+
+	// 验证符号是否匹配
+	if historicalData[0].Symbol != symbol {
+		return nil, fmt.Errorf("symbol mismatch: expected %s, got %s", symbol, historicalData[0].Symbol)
 	}
 
 	// 获取指定字段的历史数据
@@ -81,7 +96,7 @@ func (p *KlineProvider) getHistoricalDataArray(entity, field string, period int)
 	count := 0
 	for i := len(historicalData) - 1; i >= 0 && count < period; i-- {
 		var value interface{}
-		switch field {
+		switch fieldName {
 		case "open":
 			value = historicalData[i].Open
 		case "high":
@@ -93,7 +108,7 @@ func (p *KlineProvider) getHistoricalDataArray(entity, field string, period int)
 		case "volume":
 			value = historicalData[i].Volume
 		default:
-			return nil, fmt.Errorf("unknown field: %s", field)
+			return nil, fmt.Errorf("unknown field: %s", fieldName)
 		}
 		result = append(result, value)
 		count++
@@ -101,13 +116,13 @@ func (p *KlineProvider) getHistoricalDataArray(entity, field string, period int)
 
 	// 如果数据不够，用当前数据填充
 	if len(result) < period {
-		klineData, exists := p.klines[entity]
+		klineData, exists := p.klines[dataSource]
 		if !exists {
-			return nil, fmt.Errorf("no kline data found for entity: %s", entity)
+			return nil, fmt.Errorf("no kline data found for data source: %s", dataSource)
 		}
 
 		var currentValue interface{}
-		switch field {
+		switch fieldName {
 		case "open":
 			currentValue = klineData.Open
 		case "high":
@@ -119,7 +134,7 @@ func (p *KlineProvider) getHistoricalDataArray(entity, field string, period int)
 		case "volume":
 			currentValue = klineData.Volume
 		default:
-			return nil, fmt.Errorf("unknown field: %s", field)
+			return nil, fmt.Errorf("unknown field: %s", fieldName)
 		}
 
 		for len(result) < period {
@@ -131,15 +146,29 @@ func (p *KlineProvider) getHistoricalDataArray(entity, field string, period int)
 }
 
 // generateMockHistoricalData 生成模拟历史数据
-func (p *KlineProvider) generateMockHistoricalData(entity, field string, period int) ([]interface{}, error) {
+func (p *KlineProvider) generateMockHistoricalData(dataSource, field string, period int) ([]interface{}, error) {
 	// 获取当前数据作为基准
-	currentData, exists := p.klines[entity]
+	currentData, exists := p.klines[dataSource]
 	if !exists {
-		return nil, fmt.Errorf("no kline data found for entity: %s", entity)
+		return nil, fmt.Errorf("no kline data found for data source: %s", dataSource)
+	}
+
+	// 解析字段
+	fieldParts := strings.Split(field, ".")
+	if len(fieldParts) < 2 {
+		return nil, fmt.Errorf("kline field must be in format 'SYMBOL.FIELD', got: %s", field)
+	}
+
+	symbol := fieldParts[0]
+	fieldName := fieldParts[1]
+
+	// 验证符号是否匹配
+	if currentData.Symbol != symbol {
+		return nil, fmt.Errorf("symbol mismatch: expected %s, got %s", symbol, currentData.Symbol)
 	}
 
 	var baseValue float64
-	switch field {
+	switch fieldName {
 	case "open":
 		baseValue = currentData.Open
 	case "high":
@@ -151,7 +180,7 @@ func (p *KlineProvider) generateMockHistoricalData(entity, field string, period 
 	case "volume":
 		baseValue = currentData.Volume
 	default:
-		return nil, fmt.Errorf("unknown field: %s", field)
+		return nil, fmt.Errorf("unknown field: %s", fieldName)
 	}
 
 	// 生成模拟的历史数据
@@ -170,18 +199,9 @@ func (p *KlineProvider) initMockData() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// 初始化K线数据
-	p.klines["SOL"] = &KlineData{
-		Symbol:    "SOL",
-		Open:      195.5,
-		High:      210.2,
-		Low:       190.1,
-		Close:     205.8,
-		Volume:    1500000.0,
-		Timestamp: time.Now(),
-	}
-
-	p.klines["BTC"] = &KlineData{
+	// 初始化K线数据 - 支持多个数据源
+	// OKX 数据源
+	p.klines["okx"] = &KlineData{
 		Symbol:    "BTC",
 		Open:      45000.0,
 		High:      46000.0,
@@ -191,13 +211,25 @@ func (p *KlineProvider) initMockData() {
 		Timestamp: time.Now(),
 	}
 
-	p.klines["ETH"] = &KlineData{
-		Symbol:    "ETH",
-		Open:      3200.0,
-		High:      3300.0,
-		Low:       3100.0,
-		Close:     3250.0,
-		Volume:    2000.0,
+	// Binance 数据源
+	p.klines["binance"] = &KlineData{
+		Symbol:    "BTC",
+		Open:      45100.0,
+		High:      46100.0,
+		Low:       44100.0,
+		Close:     45600.0,
+		Volume:    600.0,
+		Timestamp: time.Now(),
+	}
+
+	// Gate 数据源
+	p.klines["gate"] = &KlineData{
+		Symbol:    "BTC",
+		Open:      45200.0,
+		High:      46200.0,
+		Low:       44200.0,
+		Close:     45700.0,
+		Volume:    700.0,
 		Timestamp: time.Now(),
 	}
 }

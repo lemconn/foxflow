@@ -49,13 +49,13 @@ func (e *Evaluator) EvaluateToBool(ctx context.Context, node *Node) (bool, error
 }
 
 // GetFieldValue 获取字段值
-func (e *Evaluator) GetFieldValue(ctx context.Context, module, entity, field string) (interface{}, error) {
+func (e *Evaluator) GetFieldValue(ctx context.Context, module, dataSource, field string) (interface{}, error) {
 	// 使用统一注册器获取数据
-	return e.registry.GetData(ctx, module, entity, field)
+	return e.registry.GetData(ctx, module, dataSource, field)
 }
 
 // GetFieldValueWithParams 获取字段值（带参数）
-func (e *Evaluator) GetFieldValueWithParams(ctx context.Context, module, entity, field string, params ...interface{}) (interface{}, error) {
+func (e *Evaluator) GetFieldValueWithParams(ctx context.Context, module, dataSource, field string, params ...interface{}) (interface{}, error) {
 	// 获取数据源模块
 	ds, exists := e.registry.GetProvider(module)
 	if !exists {
@@ -110,7 +110,7 @@ func (e *Evaluator) GetFieldValueWithParams(ctx context.Context, module, entity,
 	}
 
 	// 使用统一注册器获取数据
-	return e.registry.GetData(ctx, module, entity, field, dataParams...)
+	return e.registry.GetData(ctx, module, dataSource, field, dataParams...)
 }
 
 // CallFunction 调用函数
@@ -344,7 +344,7 @@ func (e *Evaluator) validateFunctionCall(node *Node) error {
 func (e *Evaluator) validateIdentifier(node *Node) error {
 	// 检查标识符格式
 	parts := strings.Split(node.Ident, ".")
-	if len(parts) != 3 {
+	if len(parts) < 3 {
 		return fmt.Errorf("invalid identifier format: %s", node.Ident)
 	}
 
@@ -372,9 +372,9 @@ func (e *Evaluator) validateFieldAccess(node *Node) error {
 		return fmt.Errorf("invalid module: %s", node.Module)
 	}
 
-	// 验证实体名不为空
-	if node.Entity == "" {
-		return fmt.Errorf("entity name cannot be empty")
+	// 验证数据源名不为空
+	if node.DataSource == "" {
+		return fmt.Errorf("data source name cannot be empty")
 	}
 
 	// 验证字段名不为空

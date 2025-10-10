@@ -40,7 +40,7 @@ func TestKlineProvider(t *testing.T) {
 	params := []DataParam{
 		NewParam("period", 1),
 	}
-	data, err := manager.GetData(ctx, "kline", "SOL", "close", params...)
+	data, err := manager.GetData(ctx, "kline", "okx", "BTC.close", params...)
 	if err != nil {
 		t.Errorf("获取K线数据失败: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestKlineProvider(t *testing.T) {
 	historicalParams := []DataParam{
 		NewParam("period", 5),
 	}
-	historicalData, err := klineProvider.GetData(ctx, "SOL", "close", historicalParams...)
+	historicalData, err := klineProvider.GetData(ctx, "okx", "BTC.close", historicalParams...)
 	if err != nil {
 		t.Errorf("获取历史数据失败: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestMarketProvider(t *testing.T) {
 	ctx := context.Background()
 
 	// 测试获取行情数据
-	data, err := manager.GetData(ctx, "market", "SOL", "last_px")
+	data, err := manager.GetData(ctx, "market", "okx", "BTC.last_px")
 	if err != nil {
 		t.Errorf("获取行情数据失败: %v", err)
 	}
@@ -98,13 +98,13 @@ func TestMarketProvider(t *testing.T) {
 	// 类型断言为MarketProvider
 	if market, ok := marketProvider.(*MarketProvider); ok {
 		// 测试获取行情数据
-		marketData, exists := market.GetMarketData("SOL")
+		marketData, exists := market.GetMarketData("okx")
 		if !exists {
-			t.Errorf("未找到SOL的行情数据")
+			t.Errorf("未找到okx的行情数据")
 		}
 
-		if marketData.Symbol != "SOL" {
-			t.Errorf("期望Symbol为SOL，但得到 %s", marketData.Symbol)
+		if marketData.Symbol != "BTC" {
+			t.Errorf("期望Symbol为BTC，但得到 %s", marketData.Symbol)
 		}
 	} else {
 		t.Errorf("行情模块类型断言失败")
@@ -116,7 +116,7 @@ func TestNewsProvider(t *testing.T) {
 	ctx := context.Background()
 
 	// 测试获取新闻数据
-	data, err := manager.GetData(ctx, "news", "theblockbeats", "last_title")
+	data, err := manager.GetData(ctx, "news", "coindesk", "title")
 	if err != nil {
 		t.Errorf("获取新闻数据失败: %v", err)
 	}
@@ -132,7 +132,7 @@ func TestIndicatorsProvider(t *testing.T) {
 	ctx := context.Background()
 
 	// 测试获取指标数据
-	data, err := manager.GetData(ctx, "indicators", "SOL", "MACD")
+	data, err := manager.GetData(ctx, "indicators", "okx", "rsi")
 	if err != nil {
 		t.Errorf("获取指标数据失败: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestProviderNotFound(t *testing.T) {
 	ctx := context.Background()
 
 	// 测试获取不存在的模块
-	_, err := manager.GetData(ctx, "nonexistent", "entity", "field")
+	_, err := manager.GetData(ctx, "nonexistent", "dataSource", "field")
 	if err == nil {
 		t.Errorf("应该返回模块不存在的错误")
 	}
@@ -192,15 +192,15 @@ func (p *CustomProvider) GetName() string {
 	return p.name
 }
 
-func (p *CustomProvider) GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error) {
-	entityData, exists := p.data[entity]
+func (p *CustomProvider) GetData(ctx context.Context, dataSource, field string, params ...DataParam) (interface{}, error) {
+	entityData, exists := p.data[dataSource]
 	if !exists {
-		return nil, fmt.Errorf("entity not found: %s", entity)
+		return nil, fmt.Errorf("data source not found: %s", dataSource)
 	}
 
 	entityMap, ok := entityData.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("invalid entity data type")
+		return nil, fmt.Errorf("invalid data source data type")
 	}
 
 	value, exists := entityMap[field]

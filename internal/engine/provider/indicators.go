@@ -27,7 +27,7 @@ type IndicatorsProvider struct {
 func NewIndicatorsProvider() *IndicatorsProvider {
 	module := &IndicatorsProvider{
 		BaseProvider: NewBaseProvider("indicators"),
-		indicators: make(map[string]*IndicatorsData),
+		indicators:   make(map[string]*IndicatorsData),
 	}
 
 	module.initMockData()
@@ -38,15 +38,15 @@ func NewIndicatorsProvider() *IndicatorsProvider {
 // IndicatorsProvider 只支持单个数据值，不支持历史数据
 // params 参数（可选）：
 // - 目前暂未使用，保留用于未来扩展
-func (p *IndicatorsProvider) GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error) {
+func (p *IndicatorsProvider) GetData(ctx context.Context, dataSource, field string, params ...DataParam) (interface{}, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
 	// 构建指标键：symbol-indicator
-	key := fmt.Sprintf("%s-%s", entity, field)
+	key := fmt.Sprintf("%s-%s", dataSource, field)
 	indicatorsData, exists := p.indicators[key]
 	if !exists {
-		return nil, fmt.Errorf("no indicator data found for %s %s", entity, field)
+		return nil, fmt.Errorf("no indicator data found for %s %s", dataSource, field)
 	}
 
 	return indicatorsData.Value, nil
@@ -57,19 +57,9 @@ func (p *IndicatorsProvider) initMockData() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// 初始化指标数据
-	p.indicators["SOL-MACD"] = &IndicatorsData{
-		Symbol:    "SOL",
-		Indicator: "MACD",
-		Value:     0.5,
-		Timestamp: time.Now(),
-		Metadata: map[string]interface{}{
-			"signal":    0.3,
-			"histogram": 0.2,
-		},
-	}
-
-	p.indicators["BTC-RSI"] = &IndicatorsData{
+	// 初始化指标数据 - 支持多个数据源
+	// OKX 数据源
+	p.indicators["okx-rsi"] = &IndicatorsData{
 		Symbol:    "BTC",
 		Indicator: "RSI",
 		Value:     65.5,
@@ -80,8 +70,32 @@ func (p *IndicatorsProvider) initMockData() {
 		},
 	}
 
-	p.indicators["ETH-Volume"] = &IndicatorsData{
-		Symbol:    "ETH",
+	p.indicators["okx-macd"] = &IndicatorsData{
+		Symbol:    "BTC",
+		Indicator: "MACD",
+		Value:     0.5,
+		Timestamp: time.Now(),
+		Metadata: map[string]interface{}{
+			"signal":    0.3,
+			"histogram": 0.2,
+		},
+	}
+
+	// Binance 数据源
+	p.indicators["binance-rsi"] = &IndicatorsData{
+		Symbol:    "BTC",
+		Indicator: "RSI",
+		Value:     68.0,
+		Timestamp: time.Now(),
+		Metadata: map[string]interface{}{
+			"overbought": false,
+			"oversold":   false,
+		},
+	}
+
+	// Gate 数据源
+	p.indicators["gate-volume"] = &IndicatorsData{
+		Symbol:    "BTC",
 		Indicator: "Volume",
 		Value:     2500.0,
 		Timestamp: time.Now(),

@@ -79,13 +79,13 @@ func (r *Registry) ListProviders() []string {
 }
 
 // GetData 获取数据（统一接口）
-func (r *Registry) GetData(ctx context.Context, source, entity, field string, params ...provider.DataParam) (interface{}, error) {
-	ds, exists := r.GetProvider(source)
+func (r *Registry) GetData(ctx context.Context, module, dataSource, field string, params ...provider.DataParam) (interface{}, error) {
+	ds, exists := r.GetProvider(module)
 	if !exists {
-		return nil, fmt.Errorf("data source not found: %s", source)
+		return nil, fmt.Errorf("data source not found: %s", module)
 	}
 
-	return ds.GetData(ctx, entity, field, params...)
+	return ds.GetData(ctx, dataSource, field, params...)
 }
 
 // DefaultRegistry 创建默认注册器，注册所有默认函数和数据源
