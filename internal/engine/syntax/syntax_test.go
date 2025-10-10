@@ -3,6 +3,7 @@ package syntax
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,19 +27,19 @@ func (m *MockKlineDataSource) GetName() string {
 	return "kline"
 }
 
-func (m *MockKlineDataSource) GetData(ctx context.Context, entity, field string, params ...provider.DataParam) (interface{}, error) {
+func (m *MockKlineDataSource) GetData(ctx context.Context, dataSource, field string, params ...provider.DataParam) (interface{}, error) {
 	// 如果请求历史数据
 	if len(params) > 0 {
 		for _, param := range params {
 			if param.Name == "period" {
 				if period, ok := param.Value.(int); ok && period > 0 {
-					return m.provider.GetHistoricalData(ctx, "kline", entity, field, period)
+					return m.provider.GetHistoricalData(ctx, "kline", dataSource, field, period)
 				}
 			}
 		}
 	}
 	// 返回单个数据值
-	return m.provider.GetKlineField(ctx, entity, field)
+	return m.provider.GetKlineField(ctx, dataSource, field)
 }
 
 func (m *MockKlineDataSource) GetFunctionParamMapping() map[string]provider.FunctionParamInfo {
@@ -99,8 +100,8 @@ func (m *MockMarketDataSource) GetName() string {
 	return "market"
 }
 
-func (m *MockMarketDataSource) GetData(ctx context.Context, entity, field string, params ...provider.DataParam) (interface{}, error) {
-	return m.provider.GetMarketField(ctx, entity, field)
+func (m *MockMarketDataSource) GetData(ctx context.Context, dataSource, field string, params ...provider.DataParam) (interface{}, error) {
+	return m.provider.GetMarketField(ctx, dataSource, field)
 }
 
 func (m *MockMarketDataSource) GetFunctionParamMapping() map[string]provider.FunctionParamInfo {
@@ -116,8 +117,8 @@ func (m *MockNewsDataSource) GetName() string {
 	return "news"
 }
 
-func (m *MockNewsDataSource) GetData(ctx context.Context, entity, field string, params ...provider.DataParam) (interface{}, error) {
-	return m.provider.GetNewsField(ctx, entity, field)
+func (m *MockNewsDataSource) GetData(ctx context.Context, dataSource, field string, params ...provider.DataParam) (interface{}, error) {
+	return m.provider.GetNewsField(ctx, dataSource, field)
 }
 
 func (m *MockNewsDataSource) GetFunctionParamMapping() map[string]provider.FunctionParamInfo {
@@ -133,8 +134,8 @@ func (m *MockIndicatorsDataSource) GetName() string {
 	return "indicators"
 }
 
-func (m *MockIndicatorsDataSource) GetData(ctx context.Context, entity, field string, params ...provider.DataParam) (interface{}, error) {
-	return m.provider.GetIndicatorField(ctx, entity, field)
+func (m *MockIndicatorsDataSource) GetData(ctx context.Context, dataSource, field string, params ...provider.DataParam) (interface{}, error) {
+	return m.provider.GetIndicatorField(ctx, dataSource, field)
 }
 
 func (m *MockIndicatorsDataSource) GetFunctionParamMapping() map[string]provider.FunctionParamInfo {
@@ -158,9 +159,18 @@ func (m *MockDataProvider) GetKline(ctx context.Context, symbol, field string) (
 	return []float64{100, 101, 102, 103, 104}, nil // 默认数据
 }
 
-func (m *MockDataProvider) GetKlineField(ctx context.Context, symbol, field string) (interface{}, error) {
+func (m *MockDataProvider) GetKlineField(ctx context.Context, dataSource, field string) (interface{}, error) {
+	// 解析字段 - 支持多级字段如 "BTC.close"
+	fieldParts := strings.Split(field, ".")
+	if len(fieldParts) < 2 {
+		return nil, fmt.Errorf("kline field must be in format 'SYMBOL.FIELD', got: %s", field)
+	}
+
+	symbol := fieldParts[0]
+	fieldName := fieldParts[1]
+
 	if symbolData, exists := m.klineData[symbol]; exists {
-		if fieldData, exists := symbolData[field]; exists {
+		if fieldData, exists := symbolData[fieldName]; exists {
 			if len(fieldData) > 0 {
 				return fieldData[len(fieldData)-1], nil
 			}
@@ -176,15 +186,24 @@ func (m *MockDataProvider) GetKlineField(ctx context.Context, symbol, field stri
 	return 104.0, nil
 }
 
-func (m *MockDataProvider) GetMarketField(ctx context.Context, symbol, field string) (interface{}, error) {
+func (m *MockDataProvider) GetMarketField(ctx context.Context, dataSource, field string) (interface{}, error) {
+	// 解析字段 - 支持多级字段如 "BTC.last_px"
+	fieldParts := strings.Split(field, ".")
+	if len(fieldParts) < 2 {
+		return nil, fmt.Errorf("market field must be in format 'SYMBOL.FIELD', got: %s", field)
+	}
+
+	symbol := fieldParts[0]
+	fieldName := fieldParts[1]
+
 	if symbolData, exists := m.marketData[symbol]; exists {
-		if fieldData, exists := symbolData[field]; exists {
+		if fieldData, exists := symbolData[fieldName]; exists {
 			return fieldData, nil
 		}
 	}
 
 	// 默认行情数据
-	switch field {
+	switch fieldName {
 	case "last_px":
 		if symbol == "BTC" {
 			return 104.0, nil
@@ -209,11 +228,12 @@ func (m *MockDataProvider) GetMarketField(ctx context.Context, symbol, field str
 		}
 		return 104.5, nil
 	}
-	return nil, fmt.Errorf("unknown field: %s", field)
+	return nil, fmt.Errorf("unknown field: %s", fieldName)
 }
 
-func (m *MockDataProvider) GetNewsField(ctx context.Context, source, field string) (interface{}, error) {
-	if sourceData, exists := m.newsData[source]; exists {
+func (m *MockDataProvider) GetNewsField(ctx context.Context, dataSource, field string) (interface{}, error) {
+	// News 模块支持简单字段名，不需要多级字段
+	if sourceData, exists := m.newsData[dataSource]; exists {
 		if fieldData, exists := sourceData[field]; exists {
 			return fieldData, nil
 		}
@@ -228,9 +248,9 @@ func (m *MockDataProvider) GetNewsField(ctx context.Context, source, field strin
 	// 默认新闻数据
 	switch field {
 	case "title", "last_title":
-		if source == "coindesk" {
+		if dataSource == "coindesk" {
 			return "比特币价格创新高突破历史记录", nil
-		} else if source == "theblockbeats" {
+		} else if dataSource == "theblockbeats" {
 			return "加密货币市场迎来重大突破创新高", nil
 		}
 		return "比特币价格创新高突破历史记录", nil
@@ -243,7 +263,7 @@ func (m *MockDataProvider) GetNewsField(ctx context.Context, source, field strin
 	}
 }
 
-func (m *MockDataProvider) GetIndicatorField(ctx context.Context, symbol, field string) (interface{}, error) {
+func (m *MockDataProvider) GetIndicatorField(ctx context.Context, dataSource, field string) (interface{}, error) {
 	// 默认指标数据
 	switch field {
 	case "rsi":
@@ -256,16 +276,16 @@ func (m *MockDataProvider) GetIndicatorField(ctx context.Context, symbol, field 
 }
 
 // 实现 functions.Evaluator 接口
-func (m *MockDataProvider) GetFieldValue(ctx context.Context, module, entity, field string) (interface{}, error) {
+func (m *MockDataProvider) GetFieldValue(ctx context.Context, module, dataSource, field string) (interface{}, error) {
 	switch module {
 	case "kline":
-		return m.GetKlineField(ctx, entity, field)
+		return m.GetKlineField(ctx, dataSource, field)
 	case "market":
-		return m.GetMarketField(ctx, entity, field)
+		return m.GetMarketField(ctx, dataSource, field)
 	case "news":
-		return m.GetNewsField(ctx, entity, field)
+		return m.GetNewsField(ctx, dataSource, field)
 	case "indicators":
-		return m.GetIndicatorField(ctx, entity, field)
+		return m.GetIndicatorField(ctx, dataSource, field)
 	default:
 		return nil, fmt.Errorf("unknown module: %s", module)
 	}
@@ -292,10 +312,18 @@ func (m *MockDataProvider) GetDataSource(name string) (interface{}, bool) {
 	}
 }
 
-func (m *MockDataProvider) GetHistoricalData(ctx context.Context, source, entity, field string, period int) ([]interface{}, error) {
+func (m *MockDataProvider) GetHistoricalData(ctx context.Context, source, dataSource, field string, period int) ([]interface{}, error) {
 	switch source {
 	case "kline":
-		data, err := m.GetKline(ctx, entity, field)
+		// 解析字段获取符号
+		fieldParts := strings.Split(field, ".")
+		if len(fieldParts) < 2 {
+			return nil, fmt.Errorf("kline field must be in format 'SYMBOL.FIELD', got: %s", field)
+		}
+		symbol := fieldParts[0]
+		fieldName := fieldParts[1]
+
+		data, err := m.GetKline(ctx, symbol, fieldName)
 		if err != nil {
 			return nil, err
 		}
@@ -320,22 +348,22 @@ func TestParser(t *testing.T) {
 	}{
 		{
 			name:       "简单比较",
-			expression: "kline.BTC.close > 100",
+			expression: "kline.okx.BTC.close > 100",
 			shouldErr:  false,
 		},
 		{
 			name:       "逻辑表达式",
-			expression: "kline.BTC.close > 100 and kline.ETH.close < 200",
+			expression: "kline.okx.BTC.close > 100 and kline.binance.ETH.close < 200",
 			shouldErr:  false,
 		},
 		{
 			name:       "函数调用",
-			expression: "avg(kline.BTC.close, 5)",
+			expression: "avg(kline.okx.BTC.close, 5)",
 			shouldErr:  false,
 		},
 		{
 			name:       "括号表达式",
-			expression: "(kline.BTC.close > 100) and (kline.ETH.close < 200)",
+			expression: "(kline.okx.BTC.close > 100) and (kline.binance.ETH.close < 200)",
 			shouldErr:  false,
 		},
 		{
@@ -345,17 +373,17 @@ func TestParser(t *testing.T) {
 		},
 		{
 			name:       "复杂表达式",
-			expression: "(avg(kline.BTC.close, 5) > 100 and ago(news.coindesk.last_update_time) < 600) or (kline.SOL.close >= 200 and contains(news.theblockbeats.title, [\"新高\"]))",
+			expression: "(avg(kline.okx.BTC.close, 5) > 100 and ago(news.coindesk.last_update_time) < 600) or (kline.gate.SOL.close >= 200 and contains(news.theblockbeats.title, [\"新高\"]))",
 			shouldErr:  false,
 		},
 		{
 			name:       "语法错误 - 缺少括号",
-			expression: "kline.BTC.close > 100 and",
+			expression: "kline.okx.BTC.close > 100 and",
 			shouldErr:  true,
 		},
 		{
 			name:       "语法错误 - 无效操作符",
-			expression: "kline.BTC.close >> 100",
+			expression: "kline.okx.BTC.close >> 100",
 			shouldErr:  true,
 		},
 	}
@@ -386,10 +414,12 @@ func TestParser(t *testing.T) {
 }
 
 func TestTokenizer(t *testing.T) {
-	tokenizer := NewTokenizer("kline.BTC.close > 100 and avg(kline.ETH.close, 5) < 200")
+	tokenizer := NewTokenizer("kline.okx.BTC.close > 100 and avg(kline.binance.ETH.close, 5) < 200")
 
 	expectedTokens := []Token{
 		{Type: TokenIdent, Value: "kline"},
+		{Type: TokenDot, Value: "."},
+		{Type: TokenIdent, Value: "okx"},
 		{Type: TokenDot, Value: "."},
 		{Type: TokenIdent, Value: "BTC"},
 		{Type: TokenDot, Value: "."},
@@ -400,6 +430,8 @@ func TestTokenizer(t *testing.T) {
 		{Type: TokenIdent, Value: "avg"},
 		{Type: TokenLParen, Value: "("},
 		{Type: TokenIdent, Value: "kline"},
+		{Type: TokenDot, Value: "."},
+		{Type: TokenIdent, Value: "binance"},
 		{Type: TokenDot, Value: "."},
 		{Type: TokenIdent, Value: "ETH"},
 		{Type: TokenDot, Value: "."},
@@ -496,25 +528,25 @@ func TestSyntaxEngine(t *testing.T) {
 	}{
 		{
 			name:       "简单比较",
-			expression: "kline.BTC.close > 100",
+			expression: "kline.okx.BTC.close > 100",
 			expected:   true,
 			shouldErr:  false,
 		},
 		{
 			name:       "逻辑AND",
-			expression: "kline.BTC.close > 100 and kline.BTC.close < 200",
+			expression: "kline.okx.BTC.close > 100 and kline.okx.BTC.close < 200",
 			expected:   true,
 			shouldErr:  false,
 		},
 		{
 			name:       "逻辑OR",
-			expression: "kline.BTC.close < 50 or kline.BTC.close > 100",
+			expression: "kline.okx.BTC.close < 50 or kline.okx.BTC.close > 100",
 			expected:   true,
 			shouldErr:  false,
 		},
 		{
 			name:       "函数调用 - avg",
-			expression: "avg(kline.BTC.close, 5) > 100",
+			expression: "avg(kline.okx.BTC.close, 5) > 100",
 			expected:   true,
 			shouldErr:  false,
 		},
@@ -532,7 +564,7 @@ func TestSyntaxEngine(t *testing.T) {
 		},
 		{
 			name:       "复杂表达式",
-			expression: "(avg(kline.BTC.close, 5) > market.BTC.last_px and ago(news.coindesk.last_update_time) < 600) or (market.SOL.last_px >= 200 and has(news.theblockbeats.last_title, \"新高\"))",
+			expression: "(avg(kline.okx.BTC.close, 5) > market.okx.BTC.last_px and ago(news.coindesk.last_update_time) < 600) or (market.gate.SOL.last_px >= 200 and has(news.theblockbeats.last_title, \"新高\"))",
 			expected:   true,
 			shouldErr:  false,
 		},

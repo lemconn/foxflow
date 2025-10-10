@@ -3,6 +3,7 @@ package syntax
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // Parser 语法解析器
@@ -20,6 +21,18 @@ func NewParser() *Parser {
 func (p *Parser) Parse(input string) (*Node, error) {
 	p.tokenizer = NewTokenizer(input)
 	p.nextToken()
+
+	// 使用 defer 和 recover 来捕获 panic 并转换为错误
+	defer func() {
+		if r := recover(); r != nil {
+			// 将 panic 转换为错误
+			if err, ok := r.(error); ok {
+				panic(err)
+			} else {
+				panic(fmt.Errorf("parse error: %v", r))
+			}
+		}
+	}()
 
 	node := p.parseExpression()
 	if p.curToken.Type != TokenEOF {
@@ -130,7 +143,12 @@ func (p *Parser) parsePrimary() *Node {
 
 		// 检查是否是带点的标识符（如 kline.BTC.close）
 		if p.curToken.Type == TokenDot {
-			return p.parseFieldAccess(name)
+			node, err := p.parseFieldAccess(name)
+			if err != nil {
+				// 如果解析失败，返回错误而不是 panic
+				panic(err.Error())
+			}
+			return node
 		}
 
 		if p.curToken.Type == TokenLParen {
@@ -228,36 +246,50 @@ func (p *Parser) parseFunctionCall(name string) *Node {
 }
 
 // parseFieldAccess 解析字段访问
-func (p *Parser) parseFieldAccess(module string) *Node {
+func (p *Parser) parseFieldAccess(module string) (*Node, error) {
 	// 跳过第一个点
 	p.nextToken()
 
-	// 获取实体名
+	// 获取数据源名
 	if p.curToken.Type != TokenIdent {
-		panic(fmt.Sprintf("expected identifier after dot but got %s at position %d", p.curToken.Value, p.curToken.Pos))
+		return nil, fmt.Errorf("expected identifier after dot but got %s at position %d", p.curToken.Value, p.curToken.Pos)
 	}
-	entity := p.curToken.Value
+	dataSource := p.curToken.Value
 	p.nextToken()
 
 	// 检查是否有第二个点
 	if p.curToken.Type != TokenDot {
-		panic(fmt.Sprintf("expected second dot but got %s at position %d", p.curToken.Value, p.curToken.Pos))
+		return nil, fmt.Errorf("expected second dot but got %s at position %d", p.curToken.Value, p.curToken.Pos)
 	}
 	p.nextToken()
 
-	// 获取字段名
-	if p.curToken.Type != TokenIdent {
-		panic(fmt.Sprintf("expected field name after second dot but got %s at position %d", p.curToken.Value, p.curToken.Pos))
+	// 获取字段名（可能包含多个点号）
+	fieldParts := []string{}
+	for p.curToken.Type == TokenIdent {
+		fieldParts = append(fieldParts, p.curToken.Value)
+		p.nextToken()
+
+		// 如果下一个token是点号，继续解析
+		if p.curToken.Type == TokenDot {
+			p.nextToken()
+		} else {
+			break
+		}
 	}
-	field := p.curToken.Value
-	p.nextToken()
+
+	if len(fieldParts) == 0 {
+		return nil, fmt.Errorf("expected field name after second dot but got %s at position %d", p.curToken.Value, p.curToken.Pos)
+	}
+
+	// 将字段部分用点号连接
+	field := strings.Join(fieldParts, ".")
 
 	return &Node{
-		Type:   NodeFieldAccess,
-		Module: module,
-		Entity: entity,
-		Field:  field,
-	}
+		Type:       NodeFieldAccess,
+		Module:     module,
+		DataSource: dataSource,
+		Field:      field,
+	}, nil
 }
 
 // parseArray 解析数组

@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -28,7 +29,7 @@ type MarketProvider struct {
 func NewMarketProvider() *MarketProvider {
 	module := &MarketProvider{
 		BaseProvider: NewBaseProvider("market"),
-		market:     make(map[string]*MarketData),
+		market:       make(map[string]*MarketData),
 	}
 
 	module.initMockData()
@@ -39,16 +40,30 @@ func NewMarketProvider() *MarketProvider {
 // MarketProvider 只支持单个数据值，不支持历史数据
 // params 参数（可选）：
 // - 目前暂未使用，保留用于未来扩展
-func (p *MarketProvider) GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error) {
+func (p *MarketProvider) GetData(ctx context.Context, dataSource, field string, params ...DataParam) (interface{}, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	marketData, exists := p.market[entity]
+	marketData, exists := p.market[dataSource]
 	if !exists {
-		return nil, fmt.Errorf("no market data found for entity: %s", entity)
+		return nil, fmt.Errorf("no market data found for data source: %s", dataSource)
 	}
 
-	switch field {
+	// 解析字段 - 支持多级字段如 "BTC.last_px"
+	fieldParts := strings.Split(field, ".")
+	if len(fieldParts) < 2 {
+		return nil, fmt.Errorf("market field must be in format 'SYMBOL.FIELD', got: %s", field)
+	}
+
+	symbol := fieldParts[0]
+	fieldName := fieldParts[1]
+
+	// 验证符号是否匹配
+	if marketData.Symbol != symbol {
+		return nil, fmt.Errorf("symbol mismatch: expected %s, got %s", symbol, marketData.Symbol)
+	}
+
+	switch fieldName {
 	case "last_px":
 		return marketData.LastPx, nil
 	case "last_volume":
@@ -60,7 +75,7 @@ func (p *MarketProvider) GetData(ctx context.Context, entity, field string, para
 	case "timestamp":
 		return marketData.Timestamp, nil
 	default:
-		return nil, fmt.Errorf("unknown field: %s", field)
+		return nil, fmt.Errorf("unknown field: %s", fieldName)
 	}
 }
 
@@ -69,17 +84,9 @@ func (p *MarketProvider) initMockData() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// 初始化行情数据
-	p.market["SOL"] = &MarketData{
-		Symbol:     "SOL",
-		LastPx:     205.8,
-		LastVolume: 1500000.0,
-		Bid:        205.5,
-		Ask:        206.0,
-		Timestamp:  time.Now(),
-	}
-
-	p.market["BTC"] = &MarketData{
+	// 初始化行情数据 - 支持多个数据源
+	// OKX 数据源
+	p.market["okx"] = &MarketData{
 		Symbol:     "BTC",
 		LastPx:     45500.0,
 		LastVolume: 500.0,
@@ -88,12 +95,23 @@ func (p *MarketProvider) initMockData() {
 		Timestamp:  time.Now(),
 	}
 
-	p.market["ETH"] = &MarketData{
-		Symbol:     "ETH",
-		LastPx:     3250.0,
-		LastVolume: 2000.0,
-		Bid:        3245.0,
-		Ask:        3255.0,
+	// Binance 数据源
+	p.market["binance"] = &MarketData{
+		Symbol:     "BTC",
+		LastPx:     45600.0,
+		LastVolume: 600.0,
+		Bid:        45580.0,
+		Ask:        45620.0,
+		Timestamp:  time.Now(),
+	}
+
+	// Gate 数据源
+	p.market["gate"] = &MarketData{
+		Symbol:     "BTC",
+		LastPx:     45700.0,
+		LastVolume: 700.0,
+		Bid:        45680.0,
+		Ask:        45720.0,
 		Timestamp:  time.Now(),
 	}
 }

@@ -40,9 +40,9 @@ type Node struct {
 	Args     []*Node
 
 	// 字段访问
-	Module string
-	Entity string
-	Field  string
+	Module     string
+	DataSource string
+	Field      string
 
 	// 上下文信息（用于传递函数参数）
 	Parent *Node
@@ -73,7 +73,7 @@ func (n *Node) String() string {
 		}
 		return fmt.Sprintf("%s(%s)", n.FuncName, strings.Join(args, ", "))
 	case NodeFieldAccess:
-		return fmt.Sprintf("%s.%s.%s", n.Module, n.Entity, n.Field)
+		return fmt.Sprintf("%s.%s.%s", n.Module, n.DataSource, n.Field)
 	default:
 		return "UNKNOWN"
 	}
@@ -88,13 +88,15 @@ func (n *Node) Evaluate(ctx context.Context, evaluator *Evaluator) (interface{},
 	case NodeIdent:
 		// 标识符需要解析为字段访问
 		parts := strings.Split(n.Ident, ".")
-		if len(parts) == 3 {
+		if len(parts) >= 3 {
 			// 创建字段访问节点
+			// 第一个部分是模块，第二个部分是数据源，剩余部分组合成字段
+			field := strings.Join(parts[2:], ".")
 			fieldNode := &Node{
-				Type:   NodeFieldAccess,
-				Module: parts[0],
-				Entity: parts[1],
-				Field:  parts[2],
+				Type:       NodeFieldAccess,
+				Module:     parts[0],
+				DataSource: parts[1],
+				Field:      field,
 			}
 			return fieldNode.Evaluate(ctx, evaluator)
 		}
@@ -107,10 +109,10 @@ func (n *Node) Evaluate(ctx context.Context, evaluator *Evaluator) (interface{},
 			if funcNode != nil {
 				// 提取函数参数作为数据源参数
 				params := n.extractDataSourceParams(funcNode)
-				return evaluator.GetFieldValueWithParams(ctx, n.Module, n.Entity, n.Field, params...)
+				return evaluator.GetFieldValueWithParams(ctx, n.Module, n.DataSource, n.Field, params...)
 			}
 		}
-		return evaluator.GetFieldValue(ctx, n.Module, n.Entity, n.Field)
+		return evaluator.GetFieldValue(ctx, n.Module, n.DataSource, n.Field)
 
 	case NodeBinary:
 		return n.evaluateBinary(ctx, evaluator)

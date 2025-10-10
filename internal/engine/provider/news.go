@@ -30,7 +30,7 @@ type NewsProvider struct {
 func NewNewsProvider() *NewsProvider {
 	module := &NewsProvider{
 		BaseProvider: NewBaseProvider("news"),
-		news:       make(map[string]*NewsData),
+		news:         make(map[string]*NewsData),
 	}
 
 	module.initMockData()
@@ -41,16 +41,19 @@ func NewNewsProvider() *NewsProvider {
 // NewsProvider 只支持单个数据值，不支持历史数据
 // params 参数（可选）：
 // - 目前暂未使用，保留用于未来扩展
-func (p *NewsProvider) GetData(ctx context.Context, entity, field string, params ...DataParam) (interface{}, error) {
+func (p *NewsProvider) GetData(ctx context.Context, dataSource, field string, params ...DataParam) (interface{}, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	newsData, exists := p.news[entity]
+	newsData, exists := p.news[dataSource]
 	if !exists {
-		return nil, fmt.Errorf("no news data found for entity: %s", entity)
+		return nil, fmt.Errorf("no news data found for data source: %s", dataSource)
 	}
 
+	// News 模块支持简单字段名，不需要多级字段
 	switch field {
+	case "title":
+		return newsData.LastTitle, nil
 	case "last_title":
 		return newsData.LastTitle, nil
 	case "last_update_time":
@@ -69,18 +72,8 @@ func (p *NewsProvider) initMockData() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// 初始化新闻数据
-	p.news["theblockbeats"] = &NewsData{
-		Source:         "theblockbeats",
-		Title:          "SOL突破新高，市值创新纪录",
-		Content:        "Solana代币SOL价格突破200美元大关，创下历史新高...",
-		UpdateTime:     time.Now().Add(-5 * time.Minute),
-		LastTitle:      "SOL突破新高，市值创新纪录",
-		LastUpdateTime: time.Now().Add(-5 * time.Minute),
-		Keywords:       []string{"SOL", "突破", "新高", "市值"},
-		Sentiment:      "positive",
-	}
-
+	// 初始化新闻数据 - 支持多个数据源
+	// CoinDesk 数据源
 	p.news["coindesk"] = &NewsData{
 		Source:         "coindesk",
 		Title:          "比特币ETF获批，市场反应积极",
@@ -92,6 +85,7 @@ func (p *NewsProvider) initMockData() {
 		Sentiment:      "positive",
 	}
 
+	// CoinTelegraph 数据源
 	p.news["cointelegraph"] = &NewsData{
 		Source:         "cointelegraph",
 		Title:          "以太坊2.0升级进展顺利",
@@ -100,6 +94,18 @@ func (p *NewsProvider) initMockData() {
 		LastTitle:      "以太坊2.0升级进展顺利",
 		LastUpdateTime: time.Now().Add(-15 * time.Minute),
 		Keywords:       []string{"以太坊", "升级", "交易费用", "网络"},
+		Sentiment:      "positive",
+	}
+
+	// TheBlockBeats 数据源
+	p.news["theblockbeats"] = &NewsData{
+		Source:         "theblockbeats",
+		Title:          "SOL突破新高，市值创新纪录",
+		Content:        "Solana代币SOL价格突破200美元大关，创下历史新高...",
+		UpdateTime:     time.Now().Add(-5 * time.Minute),
+		LastTitle:      "SOL突破新高，市值创新纪录",
+		LastUpdateTime: time.Now().Add(-5 * time.Minute),
+		Keywords:       []string{"SOL", "突破", "新高", "市值"},
 		Sentiment:      "positive",
 	}
 }
