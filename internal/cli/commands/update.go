@@ -50,8 +50,11 @@ func (c *UpdateCommand) updateLeverage(ctx command.Context, args []string) error
 		return fmt.Errorf("usage: update leverage <symbol> --leverage=<num> --margin-type=<type>")
 	}
 
+	symbolName := strings.ToUpper(args[0])
+	exchangeName := ctx.GetExchangeName()
+
 	// 检索当前用户下是否存在指定的交易对
-	symbolInfo, err := repository.GetSymbolByNameUser(args[0], ctx.GetUserInstance().ID)
+	symbolInfo, err := repository.GetSymbolByNameUser(symbolName, ctx.GetUserInstance().ID)
 	if err != nil {
 		return fmt.Errorf("failed to find symbol: %w", err)
 	}
@@ -72,13 +75,13 @@ func (c *UpdateCommand) updateLeverage(ctx command.Context, args []string) error
 	}
 
 	// 初始化当前激活交易所
-	exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeName())
+	exchangeClient, err := exchange.GetManager().GetExchange(exchangeName)
 	if err != nil {
 		return fmt.Errorf("get exchange client error: %w", err)
 	}
 
 	// 设置杠杆和保证金模式
-	setLeverageErr := exchangeClient.SetLeverage(ctx.GetContext(), args[0], leverage, marginType)
+	setLeverageErr := exchangeClient.SetLeverage(ctx.GetContext(), symbolName, leverage, marginType)
 	if setLeverageErr != nil {
 		return fmt.Errorf("set leverage error: %w", setLeverageErr)
 	}
@@ -91,6 +94,6 @@ func (c *UpdateCommand) updateLeverage(ctx command.Context, args []string) error
 		return fmt.Errorf("failed to update symbol: %w", err)
 	}
 
-	fmt.Println(utils.RenderSuccess(fmt.Sprintf("更新标的杠杆成功: %s-%d-%s", args[0], leverage, marginType)))
+	fmt.Println(utils.RenderSuccess(fmt.Sprintf("更新标的杠杆成功: %s-%d-%s", symbolName, leverage, marginType)))
 	return nil
 }

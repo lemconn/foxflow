@@ -40,6 +40,7 @@ func migrateTables() error {
 	if err := DB.AutoMigrate(
 		&models.FoxUser{},
 		&models.FoxSymbol{},
+		&models.FoxContractMultiplier{},
 		&models.FoxSS{},
 		&models.FoxExchange{},
 		&models.FoxStrategy{},

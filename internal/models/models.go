@@ -8,7 +8,7 @@ import (
 type FoxUser struct {
 	ID         uint   `gorm:"primaryKey" json:"id"`
 	Username   string `gorm:"not null;default:''" json:"username"`
-	Exchange   string `gorm:"not null;default:'binance';check:exchange IN ('binance', 'okx', 'gate')" json:"exchange"`
+	Exchange   string `gorm:"not null;default:'okx';check:exchange IN ('okx', 'binance', 'gate')" json:"exchange"`
 	AccessKey  string `gorm:"not null;default:''" json:"access_key"`
 	SecretKey  string `gorm:"not null;default:''" json:"secret_key"`
 	Passphrase string `gorm:"not null;default:''" json:"passphrase"`
@@ -27,7 +27,7 @@ type FoxSymbol struct {
 	ID         uint   `gorm:"primaryKey" json:"id"`
 	Name       string `gorm:"not null;default:''" json:"name"`
 	UserID     uint   `gorm:"not null;default:0" json:"user_id"`
-	Exchange   string `gorm:"not null;default:'binance';check:exchange IN ('binance', 'okx')" json:"exchange"`
+	Exchange   string `gorm:"not null;default:'okx';check:exchange IN ('okx', 'binance', 'gate')" json:"exchange"`
 	Leverage   int    `gorm:"not null;default:1" json:"leverage"`
 	MarginType string `gorm:"not null;default:'isolated';check:margin_type IN ('isolated', 'cross')" json:"margin_type"`
 	CreatedAt  string `gorm:"not null;default:''" json:"created_at"`
@@ -36,6 +36,20 @@ type FoxSymbol struct {
 
 func (FoxSymbol) TableName() string {
 	return "fox_symbols"
+}
+
+type FoxContractMultiplier struct {
+	ID         uint    `gorm:"primaryKey" json:"id"`
+	Exchange   string  `gorm:"not null;default:'okx';check:exchange IN ('okx', 'binance', 'gate')" json:"exchange"` // 交易所
+	Symbol     string  `gorm:"not null;default:''" json:"symbol"`                                                   // 标的
+	Multiplier float64 `gorm:"not null;default:0" json:"multiplier"`                                                // 每张合约对应的标的数量
+	Unit       string  `gorm:"not null;default:''" json:"unit"`                                                     // 标的单位 coin：币 usds：usdt/usdc
+	CreatedAt  string  `gorm:"not null;default:''" json:"created_at"`
+	UpdatedAt  string  `gorm:"not null;default:''" json:"updated_at"`
+}
+
+func (FoxContractMultiplier) TableName() string {
+	return "fox_contract_multiplier"
 }
 
 // FoxSS 策略订单表
@@ -95,6 +109,7 @@ func InitDB(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&FoxUser{},
 		&FoxSymbol{},
+		&FoxContractMultiplier{},
 		&FoxSS{},
 		&FoxExchange{},
 		&FoxStrategy{},

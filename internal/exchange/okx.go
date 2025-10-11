@@ -18,9 +18,10 @@ import (
 )
 
 const (
-	okxPublicUriInstruments = "/api/v5/public/instruments"
-	okxUriSetLeverage       = "/api/v5/account/set-leverage"
-	okxUriGetLeverageInfo   = "/api/v5/account/leverage-info"
+	okxPublicUriInstruments         = "/api/v5/public/instruments"
+	okxPublicUriConvertContractCoin = "/api/v5/public/convert-contract-coin"
+	okxUriSetLeverage               = "/api/v5/account/set-leverage"
+	okxUriGetLeverageInfo           = "/api/v5/account/leverage-info"
 
 	okxUriUserAssetValuation   = "/api/v5/asset/asset-valuation"
 	okxUriUserBalance          = "/api/v5/account/balance"
@@ -32,6 +33,11 @@ const (
 const (
 	UserTradeTypeMock = "mock"
 	UserTradeTypeLive = "live"
+)
+
+const (
+	ConvertTypeCoin2Contract = "1" // 张币转换-币转张
+	ConvertTypeContract2Coin = "2" // 张币转换-张转币
 )
 
 type okxResponse struct {
@@ -130,11 +136,22 @@ func (e *OKXExchange) getAssetValuation(ctx context.Context) (float64, error) {
 		return 0, fmt.Errorf("okx getAssetValuation err: %w", err)
 	}
 
+	if result.Code != "0" {
+		return 0, fmt.Errorf("okx getAssetValuation msg: %s, code: %s", result.Msg, result.Code)
+	}
+
 	assetValuation := make([]okxAssetValuation, 0)
-	resultBytes, _ := json.Marshal(result.Data)
+	resultBytes, resultBytesErr := json.Marshal(result.Data)
+	if resultBytesErr != nil {
+		return 0, fmt.Errorf("okx getAssetValuation jsonEncode err: %w", resultBytesErr)
+	}
 	err = json.Unmarshal(resultBytes, &assetValuation)
 	if err != nil {
 		return 0, fmt.Errorf("okx getAssetValuation jsonDecode result err: %w", err)
+	}
+
+	if len(assetValuation) == 0 {
+		return 0, fmt.Errorf("okx getAssetValuation empty assetValuation")
 	}
 
 	floatNum, err := strconv.ParseFloat(assetValuation[0].TotalBal, 64)
@@ -351,10 +368,10 @@ func (e *OKXExchange) GetPositions(ctx context.Context) ([]Position, error) {
 
 	result, err := e.sendRequest(ctx, "GET", okxUriUserPositions, body)
 	if err != nil {
-		return nil, fmt.Errorf("okx create order err: %w", err)
+		return nil, fmt.Errorf("okx get positions err: %w", err)
 	}
 	if result.Code != "0" {
-		return nil, fmt.Errorf("okx create order error: %s", result.Msg)
+		return nil, fmt.Errorf("okx get positions error: %s", result.Msg)
 	}
 
 	okxPositionInfos := make([]okxPositionsResp, 0)
@@ -397,6 +414,53 @@ func (e *OKXExchange) GetPositions(ctx context.Context) ([]Position, error) {
 	}
 
 	return res, nil
+}
+
+type okxConvertContractCoinResp struct {
+	Type   string `json:"type"`   // 转换类型: 1-币转张, 2-张转币
+	InstId string `json:"instId"` // 标的
+	Px     string `json:"px"`     // 委托价格
+	Sz     string `json:"sz"`     // 数量: 张转币时为币的数量, 币转张时为张的数量
+	Unit   string `json:"unit"`   // 币的单位: coin-币, usds-usdt/usdc
+}
+
+func (e *OKXExchange) GetConvertContractCoin(ctx context.Context, convert *ConvertContractCoin) (*ConvertContractCoin, error) {
+
+	// 使用OKX公共接口获取交易对信息
+	params := url.Values{}
+	params.Set("type", ConvertTypeContract2Coin) // 所有的默认为 张转币（币转张会出现“0”的情况）
+	params.Set("instId", convert.Symbol)
+	params.Set("sz", "1") // 获取当前币兑换价值，仅获取一张能兑换的币数量（用户存储固定比例）
+	if convert.Price > 0 {
+		// 币本位合约的张币转换时必填, U本位合约USDT与张的转换时
+		params.Set("px", strconv.FormatFloat(convert.Price, 'f', -1, 64))
+	}
+
+	result, err := e.sendRequest(ctx, "GET", fmt.Sprintf("%s?%s", okxPublicUriConvertContractCoin, params.Encode()), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get req [%+v] err: %w", convert, err)
+	}
+
+	if result.Code != "0" {
+		return nil, fmt.Errorf("okx GetConvertContractCoin [%+v] error: %s", convert, result.Msg)
+	}
+
+	okxConvertInfos := make([]okxConvertContractCoinResp, 0)
+	resultBytes, _ := json.Marshal(result.Data)
+	err = json.Unmarshal(resultBytes, &okxConvertInfos)
+	if err != nil {
+		return nil, fmt.Errorf("convert [%+v] json.Decode err: %w", convert, err)
+	}
+
+	resp := &ConvertContractCoin{
+		Type:   okxConvertInfos[0].Type,
+		Symbol: okxConvertInfos[0].InstId,
+		Unit:   okxConvertInfos[0].Unit,
+	}
+	resp.Size, _ = strconv.ParseFloat(okxConvertInfos[0].Sz, 64)
+	resp.Price, _ = strconv.ParseFloat(okxConvertInfos[0].Px, 64)
+
+	return resp, nil
 }
 
 func (e *OKXExchange) GetOrders(ctx context.Context, symbol string, status string) ([]Order, error) {

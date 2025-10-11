@@ -183,11 +183,19 @@ func RenderStrategies() string {
 	return pt.Render()
 }
 
+type RenderSymbolsInfo struct {
+	Name       string  `json:"name"`
+	Exchange   string  `json:"exchange"`
+	Leverage   int     `json:"leverage"`
+	MarginType string  `json:"margin_type"`
+	Multiplier float64 `json:"multiplier"`
+}
+
 // RenderSymbols 渲染交易对列表
-func RenderSymbols(symbols []*models.FoxSymbol) string {
+func RenderSymbols(symbols []RenderSymbolsInfo) string {
 	pt := utils.NewPrettyTable()
 	pt.SetTitle("💱 交易对列表")
-	pt.SetHeaders([]interface{}{"#", "交易对", "交易所", "杠杆倍数", "保证金模式"})
+	pt.SetHeaders([]interface{}{"#", "交易对", "交易所", "杠杆倍数", "保证金模式", "交易对/张"})
 
 	for i, symbol := range symbols {
 		pt.AddRow([]interface{}{
@@ -196,6 +204,7 @@ func RenderSymbols(symbols []*models.FoxSymbol) string {
 			symbol.Exchange,
 			symbol.Leverage,
 			symbol.MarginType,
+			symbol.Multiplier,
 		})
 	}
 
