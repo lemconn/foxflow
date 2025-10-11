@@ -100,21 +100,16 @@ func (p *NewsProvider) updateNewsData() {
 			// 获取最新的一条新闻
 			latestNews := newsItems[0]
 			
-			// 转换为 NewsData 格式
-			newsData := p.convertToNewsData(sourceName, latestNews)
-			p.news[sourceName] = newsData
+			// 直接转换为 NewsData 格式
+			p.news[sourceName] = &NewsData{
+				Title:    latestNews.Title,
+				Content:  latestNews.Content,
+				Datetime: latestNews.PublishedAt,
+			}
 		}
 	}
 }
 
-// convertToNewsData 将 news.NewsItem 转换为 NewsData
-func (p *NewsProvider) convertToNewsData(sourceName string, item news.NewsItem) *NewsData {
-	return &NewsData{
-		Title:    item.Title,
-		Content:  item.Content,
-		Datetime: item.PublishedAt,
-	}
-}
 
 
 

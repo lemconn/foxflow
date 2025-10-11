@@ -116,20 +116,6 @@ func (p *MarketProvider) initMockData() {
 	}
 }
 
-// UpdateMarketData 更新行情数据（用于测试）
-func (p *MarketProvider) UpdateMarketData(symbol string, data *MarketData) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.market[symbol] = data
-}
-
-// GetMarketData 获取行情数据（用于测试）
-func (p *MarketProvider) GetMarketData(symbol string) (*MarketData, bool) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	data, exists := p.market[symbol]
-	return data, exists
-}
 
 // GetFunctionParamMapping 获取函数参数映射
 func (p *MarketProvider) GetFunctionParamMapping() map[string]FunctionParamInfo {

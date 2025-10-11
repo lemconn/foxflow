@@ -95,19 +95,14 @@ func TestMarketProvider(t *testing.T) {
 		t.Errorf("获取行情模块失败: %v", err)
 	}
 
-	// 类型断言为MarketProvider
-	if market, ok := marketProvider.(*MarketProvider); ok {
-		// 测试获取行情数据
-		marketData, exists := market.GetMarketData("okx")
-		if !exists {
-			t.Errorf("未找到okx的行情数据")
-		}
+	// 测试行情数据获取
+	lastPx, err := marketProvider.GetData(ctx, "okx", "BTC.last_px")
+	if err != nil {
+		t.Errorf("获取行情价格失败: %v", err)
+	}
 
-		if marketData.Symbol != "BTC" {
-			t.Errorf("期望Symbol为BTC，但得到 %s", marketData.Symbol)
-		}
-	} else {
-		t.Errorf("行情模块类型断言失败")
+	if lastPx == nil {
+		t.Errorf("行情价格不应为空")
 	}
 }
 

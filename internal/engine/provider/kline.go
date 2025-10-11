@@ -234,20 +234,6 @@ func (p *KlineProvider) initMockData() {
 	}
 }
 
-// UpdateKlineData 更新K线数据（用于测试）
-func (p *KlineProvider) UpdateKlineData(symbol string, data *KlineData) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.klines[symbol] = data
-}
-
-// GetKlineData 获取K线数据（用于测试）
-func (p *KlineProvider) GetKlineData(symbol string) (*KlineData, bool) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	data, exists := p.klines[symbol]
-	return data, exists
-}
 
 // GetFunctionParamMapping 获取函数参数映射
 func (p *KlineProvider) GetFunctionParamMapping() map[string]FunctionParamInfo {
