@@ -30,12 +30,23 @@ func (m *MockKlineDataSource) GetName() string {
 func (m *MockKlineDataSource) GetData(ctx context.Context, dataSource, field string, params ...provider.DataParam) (interface{}, error) {
 	// 如果请求历史数据
 	if len(params) > 0 {
+		var limit int
+		var interval string = "1m" // 默认值
+		
 		for _, param := range params {
-			if param.Name == "period" {
-				if period, ok := param.Value.(int); ok && period > 0 {
-					return m.provider.GetHistoricalData(ctx, "kline", dataSource, field, period)
+			if param.Name == "limit" {
+				if l, ok := param.Value.(int); ok && l > 0 {
+					limit = l
+				}
+			} else if param.Name == "interval" {
+				if i, ok := param.Value.(string); ok {
+					interval = i
 				}
 			}
+		}
+		
+		if limit > 0 {
+			return m.provider.GetHistoricalData(ctx, "kline", dataSource, field, limit, interval)
 		}
 	}
 	// 返回单个数据值
@@ -49,7 +60,13 @@ func (m *MockKlineDataSource) GetFunctionParamMapping() map[string]provider.Func
 			Params: []provider.FunctionParam{
 				{
 					ParamIndex: 1,
-					ParamName:  "period",
+					ParamName:  "interval",
+					ParamType:  provider.ParamTypeString,
+					Required:   true,
+				},
+				{
+					ParamIndex: 2,
+					ParamName:  "limit",
 					ParamType:  provider.ParamTypeInt,
 					Required:   true,
 				},
@@ -60,7 +77,13 @@ func (m *MockKlineDataSource) GetFunctionParamMapping() map[string]provider.Func
 			Params: []provider.FunctionParam{
 				{
 					ParamIndex: 1,
-					ParamName:  "period",
+					ParamName:  "interval",
+					ParamType:  provider.ParamTypeString,
+					Required:   true,
+				},
+				{
+					ParamIndex: 2,
+					ParamName:  "limit",
 					ParamType:  provider.ParamTypeInt,
 					Required:   true,
 				},
@@ -71,7 +94,13 @@ func (m *MockKlineDataSource) GetFunctionParamMapping() map[string]provider.Func
 			Params: []provider.FunctionParam{
 				{
 					ParamIndex: 1,
-					ParamName:  "period",
+					ParamName:  "interval",
+					ParamType:  provider.ParamTypeString,
+					Required:   true,
+				},
+				{
+					ParamIndex: 2,
+					ParamName:  "limit",
 					ParamType:  provider.ParamTypeInt,
 					Required:   true,
 				},
@@ -82,7 +111,13 @@ func (m *MockKlineDataSource) GetFunctionParamMapping() map[string]provider.Func
 			Params: []provider.FunctionParam{
 				{
 					ParamIndex: 1,
-					ParamName:  "period",
+					ParamName:  "interval",
+					ParamType:  provider.ParamTypeString,
+					Required:   true,
+				},
+				{
+					ParamIndex: 2,
+					ParamName:  "limit",
 					ParamType:  provider.ParamTypeInt,
 					Required:   true,
 				},
@@ -312,7 +347,7 @@ func (m *MockDataProvider) GetDataSource(name string) (interface{}, bool) {
 	}
 }
 
-func (m *MockDataProvider) GetHistoricalData(ctx context.Context, source, dataSource, field string, period int) ([]interface{}, error) {
+func (m *MockDataProvider) GetHistoricalData(ctx context.Context, source, dataSource, field string, limit int, interval string) ([]interface{}, error) {
 	switch source {
 	case "kline":
 		// 解析字段获取符号
@@ -327,10 +362,16 @@ func (m *MockDataProvider) GetHistoricalData(ctx context.Context, source, dataSo
 		if err != nil {
 			return nil, err
 		}
+		
+		// 根据 limit 参数返回指定数量的数据
+		if limit > len(data) {
+			limit = len(data)
+		}
+		
 		// 转换为 []interface{}
-		result := make([]interface{}, len(data))
-		for i, v := range data {
-			result[i] = v
+		result := make([]interface{}, limit)
+		for i := 0; i < limit; i++ {
+			result[i] = data[i]
 		}
 		return result, nil
 	default:
@@ -358,7 +399,7 @@ func TestParser(t *testing.T) {
 		},
 		{
 			name:       "函数调用",
-			expression: "avg(kline.okx.BTC.close, 5)",
+			expression: "avg(kline.okx.BTC.close, \"15m\", 5)",
 			shouldErr:  false,
 		},
 		{
@@ -373,7 +414,7 @@ func TestParser(t *testing.T) {
 		},
 		{
 			name:       "复杂表达式",
-			expression: "(avg(kline.okx.BTC.close, 5) > 100 and ago(news.coindesk.last_update_time) < 600) or (kline.gate.SOL.close >= 200 and contains(news.theblockbeats.title, [\"新高\"]))",
+			expression: "(avg(kline.okx.BTC.close, \"15m\", 5) > 100 and ago(news.coindesk.last_update_time) < 600) or (kline.gate.SOL.close >= 200 and contains(news.theblockbeats.title, [\"新高\"]))",
 			shouldErr:  false,
 		},
 		{
@@ -414,7 +455,7 @@ func TestParser(t *testing.T) {
 }
 
 func TestTokenizer(t *testing.T) {
-	tokenizer := NewTokenizer("kline.okx.BTC.close > 100 and avg(kline.binance.ETH.close, 5) < 200")
+	tokenizer := NewTokenizer("kline.okx.BTC.close > 100 and avg(kline.binance.ETH.close, \"1h\", 5) < 200")
 
 	expectedTokens := []Token{
 		{Type: TokenIdent, Value: "kline"},
@@ -436,6 +477,8 @@ func TestTokenizer(t *testing.T) {
 		{Type: TokenIdent, Value: "ETH"},
 		{Type: TokenDot, Value: "."},
 		{Type: TokenIdent, Value: "close"},
+		{Type: TokenComma, Value: ","},
+		{Type: TokenString, Value: "1h"},
 		{Type: TokenComma, Value: ","},
 		{Type: TokenNumber, Value: "5"},
 		{Type: TokenRParen, Value: ")"},
@@ -546,7 +589,7 @@ func TestSyntaxEngine(t *testing.T) {
 		},
 		{
 			name:       "函数调用 - avg",
-			expression: "avg(kline.okx.BTC.close, 5) > 100",
+			expression: "avg(kline.okx.BTC.close, \"15m\", 5) > 100",
 			expected:   true,
 			shouldErr:  false,
 		},
@@ -564,7 +607,7 @@ func TestSyntaxEngine(t *testing.T) {
 		},
 		{
 			name:       "复杂表达式",
-			expression: "(avg(kline.okx.BTC.close, 5) > market.okx.BTC.last_px and ago(news.coindesk.last_update_time) < 600) or (market.gate.SOL.last_px >= 200 and has(news.theblockbeats.last_title, \"新高\"))",
+			expression: "(avg(kline.okx.BTC.close, \"15m\", 5) > market.okx.BTC.last_px and ago(news.coindesk.last_update_time) < 600) or (market.gate.SOL.last_px >= 200 and has(news.theblockbeats.last_title, \"新高\"))",
 			expected:   true,
 			shouldErr:  false,
 		},

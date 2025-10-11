@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 )
 
 func TestDataManager(t *testing.T) {
@@ -36,9 +37,10 @@ func TestKlineProvider(t *testing.T) {
 	manager := InitDefaultProviders()
 	ctx := context.Background()
 
-	// 测试获取K线数据（需要 period 参数）
+	// 测试获取K线数据（需要 limit 参数）
 	params := []DataParam{
-		NewParam("period", 1),
+		NewParam("limit", 1),
+		NewParam("interval", "15m"),
 	}
 	data, err := manager.GetData(ctx, "kline", "okx", "BTC.close", params...)
 	if err != nil {
@@ -57,7 +59,8 @@ func TestKlineProvider(t *testing.T) {
 
 	// 使用新的 GetData 方法获取历史数据
 	historicalParams := []DataParam{
-		NewParam("period", 5),
+		NewParam("limit", 5),
+		NewParam("interval", "1h"),
 	}
 	historicalData, err := klineProvider.GetData(ctx, "okx", "BTC.close", historicalParams...)
 	if err != nil {
@@ -110,8 +113,11 @@ func TestNewsProvider(t *testing.T) {
 	manager := InitDefaultProviders()
 	ctx := context.Background()
 
-	// 测试获取新闻数据
-	data, err := manager.GetData(ctx, "news", "coindesk", "title")
+	// 等待一段时间让新闻提供者获取数据
+	time.Sleep(2 * time.Second)
+
+	// 测试获取新闻数据（使用 blockbeats 数据源）
+	data, err := manager.GetData(ctx, "news", "blockbeats", "title")
 	if err != nil {
 		t.Errorf("获取新闻数据失败: %v", err)
 	}
@@ -120,6 +126,15 @@ func TestNewsProvider(t *testing.T) {
 		t.Errorf("新闻数据为空")
 	}
 
+	// 验证数据是字符串类型
+	if title, ok := data.(string); ok {
+		if title == "" {
+			t.Errorf("新闻标题不应为空")
+		}
+		t.Logf("获取到新闻标题: %s", title)
+	} else {
+		t.Errorf("新闻标题类型错误，期望 string，实际 %T", data)
+	}
 }
 
 func TestIndicatorsProvider(t *testing.T) {

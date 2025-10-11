@@ -43,7 +43,8 @@ func NewKlineProvider() *KlineProvider {
 // GetData 获取数据
 // KlineProvider 只支持历史数据数组，不支持单个数据值
 // params 支持的参数：
-// - period: int - 历史数据周期数（必需）
+// - limit: int - 历史数据周期数（必需）
+// - interval: string - 时间间隔（可选，如 "15m", "1h", "1d"）
 // - start_time: time.Time - 开始时间（可选）
 // - end_time: time.Time - 结束时间（可选）
 func (p *KlineProvider) GetData(ctx context.Context, dataSource, field string, params ...DataParam) (interface{}, error) {
@@ -52,29 +53,35 @@ func (p *KlineProvider) GetData(ctx context.Context, dataSource, field string, p
 
 	// 检查是否提供了参数
 	if len(params) == 0 {
-		return nil, fmt.Errorf("kline provider requires DataParam with 'period' field")
+		return nil, fmt.Errorf("kline provider requires DataParam with 'limit' field")
 	}
 
-	// 获取必需参数 period
-	period, err := p.GetIntParam(params, "period")
+	// 获取必需参数 limit
+	limit, err := p.GetIntParam(params, "limit")
 	if err != nil {
-		return nil, fmt.Errorf("kline provider requires 'period' parameter: %w", err)
+		return nil, fmt.Errorf("kline provider requires 'limit' parameter: %w", err)
 	}
 
-	if period <= 0 {
-		return nil, fmt.Errorf("period must be greater than 0, got %d", period)
+	if limit <= 0 {
+		return nil, fmt.Errorf("limit must be greater than 0, got %d", limit)
+	}
+
+	// 获取可选参数 interval
+	interval := "1m" // 默认1分钟
+	if intervalParam, err := p.GetParam(params, "interval", "string"); err == nil {
+		interval = intervalParam.(string)
 	}
 
 	// 返回历史数据数组
-	return p.getHistoricalDataArray(dataSource, field, period)
+	return p.getHistoricalDataArray(dataSource, field, limit, interval)
 }
 
 // getHistoricalDataArray 获取历史数据数组
-func (p *KlineProvider) getHistoricalDataArray(dataSource, field string, period int) ([]interface{}, error) {
+func (p *KlineProvider) getHistoricalDataArray(dataSource, field string, limit int, interval string) ([]interface{}, error) {
 	historicalData, exists := p.historicalData[dataSource]
 	if !exists {
 		// 如果没有历史数据，生成模拟数据
-		return p.generateMockHistoricalData(dataSource, field, period)
+		return p.generateMockHistoricalData(dataSource, field, limit, interval)
 	}
 
 	// 解析字段 - 支持多级字段如 "BTC.close"
@@ -92,9 +99,9 @@ func (p *KlineProvider) getHistoricalDataArray(dataSource, field string, period 
 	}
 
 	// 获取指定字段的历史数据
-	result := make([]interface{}, 0, period)
+	result := make([]interface{}, 0, limit)
 	count := 0
-	for i := len(historicalData) - 1; i >= 0 && count < period; i-- {
+	for i := len(historicalData) - 1; i >= 0 && count < limit; i-- {
 		var value interface{}
 		switch fieldName {
 		case "open":
@@ -115,7 +122,7 @@ func (p *KlineProvider) getHistoricalDataArray(dataSource, field string, period 
 	}
 
 	// 如果数据不够，用当前数据填充
-	if len(result) < period {
+	if len(result) < limit {
 		klineData, exists := p.klines[dataSource]
 		if !exists {
 			return nil, fmt.Errorf("no kline data found for data source: %s", dataSource)
@@ -137,7 +144,7 @@ func (p *KlineProvider) getHistoricalDataArray(dataSource, field string, period 
 			return nil, fmt.Errorf("unknown field: %s", fieldName)
 		}
 
-		for len(result) < period {
+		for len(result) < limit {
 			result = append([]interface{}{currentValue}, result...)
 		}
 	}
@@ -146,7 +153,7 @@ func (p *KlineProvider) getHistoricalDataArray(dataSource, field string, period 
 }
 
 // generateMockHistoricalData 生成模拟历史数据
-func (p *KlineProvider) generateMockHistoricalData(dataSource, field string, period int) ([]interface{}, error) {
+func (p *KlineProvider) generateMockHistoricalData(dataSource, field string, limit int, interval string) ([]interface{}, error) {
 	// 获取当前数据作为基准
 	currentData, exists := p.klines[dataSource]
 	if !exists {
@@ -183,15 +190,69 @@ func (p *KlineProvider) generateMockHistoricalData(dataSource, field string, per
 		return nil, fmt.Errorf("unknown field: %s", fieldName)
 	}
 
-	// 生成模拟的历史数据
-	historicalData := make([]interface{}, period)
-	for i := 0; i < period; i++ {
-		// 模拟价格波动
-		variation := float64(i-period/2) * 2.0
-		historicalData[i] = baseValue + variation
+	// 根据时间间隔生成模拟的历史数据
+	historicalData := make([]interface{}, limit)
+	
+	for i := 0; i < limit; i++ {
+		// 根据时间间隔调整价格波动幅度
+		// 时间间隔越长，波动幅度越大
+		volatility := p.getVolatilityByInterval(interval)
+		variation := float64(i-limit/2) * volatility
+		
+		// 添加一些随机性，使数据更真实
+		randomFactor := float64((i*7)%10-5) * 0.1 // 简单的伪随机
+		historicalData[i] = baseValue + variation + randomFactor
 	}
 
 	return historicalData, nil
+}
+
+// parseInterval 解析时间间隔字符串，返回分钟数
+func (p *KlineProvider) parseInterval(interval string) int {
+	switch interval {
+	case "1m":
+		return 1
+	case "5m":
+		return 5
+	case "15m":
+		return 15
+	case "30m":
+		return 30
+	case "1h":
+		return 60
+	case "4h":
+		return 240
+	case "1d":
+		return 1440
+	case "1w":
+		return 10080
+	default:
+		return 1 // 默认1分钟
+	}
+}
+
+// getVolatilityByInterval 根据时间间隔获取波动率
+func (p *KlineProvider) getVolatilityByInterval(interval string) float64 {
+	switch interval {
+	case "1m":
+		return 0.5 // 1分钟波动较小
+	case "5m":
+		return 1.0
+	case "15m":
+		return 2.0
+	case "30m":
+		return 3.0
+	case "1h":
+		return 5.0
+	case "4h":
+		return 10.0
+	case "1d":
+		return 20.0
+	case "1w":
+		return 50.0
+	default:
+		return 2.0 // 默认波动率
+	}
 }
 
 // initMockData 初始化Mock数据
@@ -243,7 +304,13 @@ func (p *KlineProvider) GetFunctionParamMapping() map[string]FunctionParamInfo {
 			Params: []FunctionParam{
 				{
 					ParamIndex: 1, // 第二个参数（从0开始）
-					ParamName:  "period",
+					ParamName:  "interval",
+					ParamType:  ParamTypeString,
+					Required:   true,
+				},
+				{
+					ParamIndex: 2, // 第三个参数（从0开始）
+					ParamName:  "limit",
 					ParamType:  ParamTypeInt,
 					Required:   true,
 				},
@@ -254,7 +321,13 @@ func (p *KlineProvider) GetFunctionParamMapping() map[string]FunctionParamInfo {
 			Params: []FunctionParam{
 				{
 					ParamIndex: 1, // 第二个参数（从0开始）
-					ParamName:  "period",
+					ParamName:  "interval",
+					ParamType:  ParamTypeString,
+					Required:   true,
+				},
+				{
+					ParamIndex: 2, // 第三个参数（从0开始）
+					ParamName:  "limit",
 					ParamType:  ParamTypeInt,
 					Required:   true,
 				},
@@ -265,7 +338,13 @@ func (p *KlineProvider) GetFunctionParamMapping() map[string]FunctionParamInfo {
 			Params: []FunctionParam{
 				{
 					ParamIndex: 1, // 第二个参数（从0开始）
-					ParamName:  "period",
+					ParamName:  "interval",
+					ParamType:  ParamTypeString,
+					Required:   true,
+				},
+				{
+					ParamIndex: 2, // 第三个参数（从0开始）
+					ParamName:  "limit",
 					ParamType:  ParamTypeInt,
 					Required:   true,
 				},
@@ -276,7 +355,13 @@ func (p *KlineProvider) GetFunctionParamMapping() map[string]FunctionParamInfo {
 			Params: []FunctionParam{
 				{
 					ParamIndex: 1, // 第二个参数（从0开始）
-					ParamName:  "period",
+					ParamName:  "interval",
+					ParamType:  ParamTypeString,
+					Required:   true,
+				},
+				{
+					ParamIndex: 2, // 第三个参数（从0开始）
+					ParamName:  "limit",
 					ParamType:  ParamTypeInt,
 					Required:   true,
 				},
