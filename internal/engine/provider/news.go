@@ -5,37 +5,118 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/lemconn/foxflow/internal/news"
 )
 
 // NewsData 新闻数据
 type NewsData struct {
-	Source         string    `json:"source"`           // 新闻源，如 theblockbeats
-	Title          string    `json:"title"`            // 新闻标题
-	Content        string    `json:"content"`          // 新闻内容
-	UpdateTime     time.Time `json:"update_time"`      // 更新时间
-	LastTitle      string    `json:"last_title"`       // 最新标题
-	LastUpdateTime time.Time `json:"last_update_time"` // 最新更新时间
-	Keywords       []string  `json:"keywords"`         // 关键词
-	Sentiment      string    `json:"sentiment"`        // 情感分析：positive, negative, neutral
+	Title    string    `json:"title"`     // 新闻标题
+	Content  string    `json:"content"`   // 新闻内容
+	Datetime time.Time `json:"datetime"`  // 发布时间
 }
 
 // NewsProvider 新闻数据模块
 type NewsProvider struct {
 	*BaseProvider
-	news map[string]*NewsData
-	mu   sync.RWMutex
+	news     map[string]*NewsData
+	mu       sync.RWMutex
+	manager  *news.Manager
+	ctx      context.Context
+	cancel   context.CancelFunc
+	stopChan chan struct{}
 }
 
 // NewNewsProvider 创建新闻数据模块
 func NewNewsProvider() *NewsProvider {
+	ctx, cancel := context.WithCancel(context.Background())
+	
 	module := &NewsProvider{
 		BaseProvider: NewBaseProvider("news"),
 		news:         make(map[string]*NewsData),
+		manager:      news.NewManager(),
+		ctx:          ctx,
+		cancel:       cancel,
+		stopChan:     make(chan struct{}),
 	}
 
-	module.initMockData()
+	// 注册新闻源
+	module.registerNewsSources()
+	
+	// 启动协程定期更新新闻数据
+	go module.startNewsUpdater()
+	
 	return module
 }
+
+// registerNewsSources 注册所有可用的新闻源
+func (p *NewsProvider) registerNewsSources() {
+	// 注册 BlockBeats 新闻源
+	blockBeats := news.NewBlockBeats()
+	p.manager.RegisterSource(blockBeats)
+	
+	// 可以在这里添加更多新闻源
+	// 例如：coindesk, cointelegraph 等
+}
+
+// startNewsUpdater 启动新闻更新协程
+func (p *NewsProvider) startNewsUpdater() {
+	ticker := time.NewTicker(5 * time.Minute) // 每5分钟更新一次
+	defer ticker.Stop()
+	
+	// 立即执行一次更新
+	p.updateNewsData()
+	
+	for {
+		select {
+		case <-ticker.C:
+			p.updateNewsData()
+		case <-p.ctx.Done():
+			return
+		case <-p.stopChan:
+			return
+		}
+	}
+}
+
+// updateNewsData 更新新闻数据
+func (p *NewsProvider) updateNewsData() {
+	ctx, cancel := context.WithTimeout(p.ctx, 30*time.Second)
+	defer cancel()
+	
+	// 从所有新闻源获取最新新闻
+	allNews, err := p.manager.GetNewsFromAllSources(ctx, 1) // 每个源获取1条最新新闻
+	if err != nil {
+		fmt.Printf("获取新闻数据失败: %v\n", err)
+		return
+	}
+	
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	
+	// 更新每个新闻源的数据
+	for sourceName, newsItems := range allNews {
+		if len(newsItems) > 0 {
+			// 获取最新的一条新闻
+			latestNews := newsItems[0]
+			
+			// 转换为 NewsData 格式
+			newsData := p.convertToNewsData(sourceName, latestNews)
+			p.news[sourceName] = newsData
+		}
+	}
+}
+
+// convertToNewsData 将 news.NewsItem 转换为 NewsData
+func (p *NewsProvider) convertToNewsData(sourceName string, item news.NewsItem) *NewsData {
+	return &NewsData{
+		Title:    item.Title,
+		Content:  item.Content,
+		Datetime: item.PublishedAt,
+	}
+}
+
+
 
 // GetData 获取数据
 // NewsProvider 只支持单个数据值，不支持历史数据
@@ -53,77 +134,22 @@ func (p *NewsProvider) GetData(ctx context.Context, dataSource, field string, pa
 	// News 模块支持简单字段名，不需要多级字段
 	switch field {
 	case "title":
-		return newsData.LastTitle, nil
-	case "last_title":
-		return newsData.LastTitle, nil
-	case "last_update_time":
-		return newsData.LastUpdateTime, nil
-	case "sentiment":
-		return newsData.Sentiment, nil
-	case "keywords":
-		return newsData.Keywords, nil
+		return newsData.Title, nil
+	case "content":
+		return newsData.Content, nil
+	case "datetime":
+		return newsData.Datetime, nil
 	default:
 		return nil, fmt.Errorf("unknown field: %s", field)
 	}
 }
 
-// initMockData 初始化Mock数据
-func (p *NewsProvider) initMockData() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	// 初始化新闻数据 - 支持多个数据源
-	// CoinDesk 数据源
-	p.news["coindesk"] = &NewsData{
-		Source:         "coindesk",
-		Title:          "比特币ETF获批，市场反应积极",
-		Content:        "美国证券交易委员会批准了首个比特币ETF...",
-		UpdateTime:     time.Now().Add(-10 * time.Minute),
-		LastTitle:      "比特币ETF获批，市场反应积极",
-		LastUpdateTime: time.Now().Add(-10 * time.Minute),
-		Keywords:       []string{"比特币", "ETF", "获批", "市场"},
-		Sentiment:      "positive",
-	}
-
-	// CoinTelegraph 数据源
-	p.news["cointelegraph"] = &NewsData{
-		Source:         "cointelegraph",
-		Title:          "以太坊2.0升级进展顺利",
-		Content:        "以太坊网络升级进展顺利，交易费用显著降低...",
-		UpdateTime:     time.Now().Add(-15 * time.Minute),
-		LastTitle:      "以太坊2.0升级进展顺利",
-		LastUpdateTime: time.Now().Add(-15 * time.Minute),
-		Keywords:       []string{"以太坊", "升级", "交易费用", "网络"},
-		Sentiment:      "positive",
-	}
-
-	// TheBlockBeats 数据源
-	p.news["theblockbeats"] = &NewsData{
-		Source:         "theblockbeats",
-		Title:          "SOL突破新高，市值创新纪录",
-		Content:        "Solana代币SOL价格突破200美元大关，创下历史新高...",
-		UpdateTime:     time.Now().Add(-5 * time.Minute),
-		LastTitle:      "SOL突破新高，市值创新纪录",
-		LastUpdateTime: time.Now().Add(-5 * time.Minute),
-		Keywords:       []string{"SOL", "突破", "新高", "市值"},
-		Sentiment:      "positive",
-	}
+// Stop 停止新闻更新协程
+func (p *NewsProvider) Stop() {
+	p.cancel()
+	close(p.stopChan)
 }
 
-// UpdateNewsData 更新新闻数据（用于测试）
-func (p *NewsProvider) UpdateNewsData(source string, data *NewsData) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.news[source] = data
-}
-
-// GetNewsData 获取新闻数据（用于测试）
-func (p *NewsProvider) GetNewsData(source string) (*NewsData, bool) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	data, exists := p.news[source]
-	return data, exists
-}
 
 // GetFunctionParamMapping 获取函数参数映射
 func (p *NewsProvider) GetFunctionParamMapping() map[string]FunctionParamInfo {
