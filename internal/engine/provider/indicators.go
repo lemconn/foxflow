@@ -106,22 +106,6 @@ func (p *IndicatorsProvider) initMockData() {
 	}
 }
 
-// UpdateIndicatorsData 更新指标数据（用于测试）
-func (p *IndicatorsProvider) UpdateIndicatorsData(symbol, indicator string, data *IndicatorsData) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	key := fmt.Sprintf("%s-%s", symbol, indicator)
-	p.indicators[key] = data
-}
-
-// GetIndicatorsData 获取指标数据（用于测试）
-func (p *IndicatorsProvider) GetIndicatorsData(symbol, indicator string) (*IndicatorsData, bool) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	key := fmt.Sprintf("%s-%s", symbol, indicator)
-	data, exists := p.indicators[key]
-	return data, exists
-}
 
 // GetFunctionParamMapping 获取函数参数映射
 func (p *IndicatorsProvider) GetFunctionParamMapping() map[string]FunctionParamInfo {
