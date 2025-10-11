@@ -66,7 +66,7 @@ var argHints = map[string]map[string]map[string][]prompt.Suggest{
 		"users": {},
 		"symbols": {
 			"": {
-				{Text: "<symbol>", Description: "交易对名称，例如：BTC"},
+				{Text: "<symbol>", Description: "交易对名称，例如：BTC-USDT-SWAP"},
 			},
 		},
 	},

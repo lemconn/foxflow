@@ -50,3 +50,51 @@ func UpdateSymbol(symbol *models.FoxSymbol) error {
 	db := database.GetDB()
 	return db.Save(symbol).Error
 }
+
+// CreateSymbolContract 新增标的合约张面值换算
+func CreateSymbolContract(contract *models.FoxContractMultiplier) error {
+	db := database.GetDB()
+	return db.Create(contract).Error
+}
+
+// GetSymbolContract 获取标的合约张面值换算
+func GetSymbolContract(exchange, symbol string) (*models.FoxContractMultiplier, error) {
+	db := database.GetDB()
+	var contractInfo *models.FoxContractMultiplier
+	err := db.Where("exchange = ?", exchange).Where("symbol = ?", symbol).First(&contractInfo).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	return contractInfo, nil
+}
+
+// GetSymbolContractByExchange 根据交易所获取标的合约张面值换算列表
+func GetSymbolContractByExchange(exchange string) ([]*models.FoxContractMultiplier, error) {
+	db := database.GetDB()
+	var contractList []*models.FoxContractMultiplier
+	err := db.Where("exchange = ?", exchange).Find(&contractList).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	return contractList, nil
+}
+
+// GetSymbolContractByExchangeSymbols 根据交易所和指定标的获取标的合约张面值换算列表
+func GetSymbolContractByExchangeSymbols(exchange string, symbols []string) ([]*models.FoxContractMultiplier, error) {
+	db := database.GetDB()
+	var contractList []*models.FoxContractMultiplier
+	err := db.Where("exchange = ?", exchange).Where("symbol in ?", symbols).Find(&contractList).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	return contractList, nil
+}
+
+// UpdateSymbolContract 更新标的合约张面值换算
+func UpdateSymbolContract(contract *models.FoxContractMultiplier) error {
+	db := database.GetDB()
+	return db.Save(contract).Error
+}

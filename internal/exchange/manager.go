@@ -48,10 +48,6 @@ func (m *Manager) initExchanges() {
 		switch exchange.Name {
 		case "okx":
 			m.exchanges[exchange.Name] = NewOKXExchange(exchange.APIURL, exchange.ProxyURL)
-		case "binance":
-			m.exchanges[exchange.Name] = NewBinanceExchange(exchange.APIURL, exchange.ProxyURL)
-		case "gate":
-			m.exchanges[exchange.Name] = NewGateExchange(exchange.APIURL, exchange.ProxyURL)
 		}
 	}
 }
@@ -59,8 +55,8 @@ func (m *Manager) initExchanges() {
 // initDefaultExchanges 初始化默认交易所
 func (m *Manager) initDefaultExchanges() {
 	m.exchanges["okx"] = NewOKXExchange("https://www.okx.com", "http://127.0.0.1:7890")
-	m.exchanges["binance"] = NewBinanceExchange("https://api.binance.com", "http://127.0.0.1:7890")
-	m.exchanges["gate"] = NewGateExchange("https://api.gateio.ws", "http://127.0.0.1:7890")
+	//m.exchanges["binance"] = NewBinanceExchange("https://api.binance.com", "http://127.0.0.1:7890")
+	//m.exchanges["gate"] = NewGateExchange("https://api.gateio.ws", "http://127.0.0.1:7890")
 }
 
 // GetExchange 获取交易所实例

@@ -10,6 +10,7 @@ import (
 	"github.com/lemconn/foxflow/internal/cli/command"
 	cliRender "github.com/lemconn/foxflow/internal/cli/render"
 	"github.com/lemconn/foxflow/internal/exchange"
+	"github.com/lemconn/foxflow/internal/models"
 	"github.com/lemconn/foxflow/internal/news"
 	"github.com/lemconn/foxflow/internal/repository"
 	"github.com/lemconn/foxflow/internal/utils"
@@ -115,7 +116,39 @@ func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
 			return fmt.Errorf("failed to get symbols: %w", err)
 		}
 
-		fmt.Println(cliRender.RenderSymbols(symbolList))
+		// 获取当前交易所指定用户的标的张面值换算数据
+		symbols := make([]string, 0, len(symbolList))
+		for _, symbol := range symbolList {
+			symbols = append(symbols, symbol.Name)
+		}
+
+		exchangeName := ctx.GetExchangeInstance().Name
+		contractList, err := repository.GetSymbolContractByExchangeSymbols(exchangeName, symbols)
+		if err != nil {
+			return fmt.Errorf("get contract err: %w", err)
+		}
+
+		contractListMap := make(map[string]*models.FoxContractMultiplier)
+		for _, contract := range contractList {
+			contractListMap[contract.Symbol] = contract
+		}
+
+		symbolInfoList := make([]cliRender.RenderSymbolsInfo, 0)
+		for _, symbolInfo := range symbolList {
+			renderSymbolsInfo := cliRender.RenderSymbolsInfo{
+				Name:       symbolInfo.Name,
+				Exchange:   symbolInfo.Exchange,
+				Leverage:   symbolInfo.Leverage,
+				MarginType: symbolInfo.MarginType,
+			}
+			if contractInfo, ok := contractListMap[symbolInfo.Name]; ok {
+				renderSymbolsInfo.Multiplier = contractInfo.Multiplier
+			}
+
+			symbolInfoList = append(symbolInfoList, renderSymbolsInfo)
+		}
+
+		fmt.Println(cliRender.RenderSymbols(symbolInfoList))
 
 	case "ss":
 		if !ctx.IsReady() {

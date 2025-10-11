@@ -118,13 +118,16 @@ func (c *CreateCommand) createSymbol(ctx command.Context, args []string) error {
 		return fmt.Errorf("usage: create symbols <symbol> [--leverage=<num>] [--margin-type=<type>]")
 	}
 
-	exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeName())
+	symbolName := strings.ToUpper(args[0])
+	exchangeName := ctx.GetExchangeName()
+
+	exchangeClient, err := exchange.GetManager().GetExchange(exchangeName)
 	if err != nil {
 		return fmt.Errorf("get exchange client error: %w", err)
 	}
 
 	// 检测本地用户下是否已经有交易对
-	localSymbol, err := repository.GetSymbolByNameUser(args[0], ctx.GetUserInstance().ID)
+	localSymbol, err := repository.GetSymbolByNameUser(symbolName, ctx.GetUserInstance().ID)
 	if err != nil {
 		return fmt.Errorf("get local symbol err: %w", err)
 	}
@@ -133,15 +136,24 @@ func (c *CreateCommand) createSymbol(ctx command.Context, args []string) error {
 		return fmt.Errorf("symbol already exists")
 	}
 
-	symbols, err := exchangeClient.GetSymbols(ctx.GetContext(), args[0])
+	// 获取标的基本信息
+	symbols, err := exchangeClient.GetSymbols(ctx.GetContext(), symbolName)
 	if err != nil {
 		return fmt.Errorf("get symbol error: %w", err)
+	}
+
+	// 获取张币转换的兑换比例（张兑换币）
+	symbolConvert, err := exchangeClient.GetConvertContractCoin(ctx.GetContext(), &exchange.ConvertContractCoin{
+		Symbol: symbolName,
+	})
+	if err != nil {
+		return fmt.Errorf("get convert contract coin err: %w", err)
 	}
 
 	symbol := &models.FoxSymbol{
 		Name:       symbols.Name,
 		UserID:     ctx.GetUserInstance().ID,
-		Exchange:   ctx.GetExchangeName(),
+		Exchange:   exchangeName,
 		Leverage:   1,
 		MarginType: "isolated",
 	}
@@ -166,11 +178,37 @@ func (c *CreateCommand) createSymbol(ctx command.Context, args []string) error {
 		}
 	}
 
+	contractMultiplier := &models.FoxContractMultiplier{
+		Exchange:   exchangeName,
+		Symbol:     symbolName,
+		Multiplier: symbolConvert.Size,
+		Unit:       symbolConvert.Unit,
+	}
+
 	if err = repository.CreateSymbol(symbol); err != nil {
 		return fmt.Errorf("failed to create symbol: %w", err)
 	}
 
-	fmt.Println(utils.RenderSuccess(fmt.Sprintf("标的创建成功: %s", args[0])))
+	contractInfo, err := repository.GetSymbolContract(exchangeName, symbolName)
+	if err != nil {
+		return fmt.Errorf("get contract err: %w", err)
+	}
+
+	if contractInfo == nil || contractInfo.ID == 0 {
+		if err = repository.CreateSymbolContract(contractMultiplier); err != nil {
+			return fmt.Errorf("failed to create contract multiplier: %w", err)
+		}
+	} else {
+
+		contractInfo.Multiplier = symbolConvert.Size
+		contractInfo.Unit = symbolConvert.Unit
+
+		if err = repository.UpdateSymbolContract(contractInfo); err != nil {
+			return fmt.Errorf("failed to update contract multiplier: %w", err)
+		}
+	}
+
+	fmt.Println(utils.RenderSuccess(fmt.Sprintf("标的创建成功: %s", symbolName)))
 	return nil
 }
 
