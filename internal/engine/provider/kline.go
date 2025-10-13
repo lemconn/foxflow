@@ -10,7 +10,6 @@ import (
 
 // KlineData K线数据
 type KlineData struct {
-	Symbol    string    `json:"symbol"`
 	Open      float64   `json:"open"`
 	High      float64   `json:"high"`
 	Low       float64   `json:"low"`
@@ -19,21 +18,21 @@ type KlineData struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+// ExchangeData 交易所数据结构
+type ExchangeData map[string]map[string][]KlineData
+
 // KlineProvider K线数据提供者
 type KlineProvider struct {
 	*BaseProvider
-	klines map[string]*KlineData
-	// 历史数据存储，用于技术分析
-	historicalData map[string][]*KlineData
-	mu             sync.RWMutex
+	klines map[string]ExchangeData
+	mu     sync.RWMutex
 }
 
 // NewKlineProvider 创建K线数据提供者
 func NewKlineProvider() *KlineProvider {
 	provider := &KlineProvider{
-		BaseProvider:   NewBaseProvider("kline"),
-		klines:         make(map[string]*KlineData),
-		historicalData: make(map[string][]*KlineData),
+		BaseProvider: NewBaseProvider("kline"),
+		klines:       make(map[string]ExchangeData),
 	}
 
 	provider.initMockData()
@@ -78,12 +77,6 @@ func (p *KlineProvider) GetData(ctx context.Context, dataSource, field string, p
 
 // getHistoricalDataArray 获取历史数据数组
 func (p *KlineProvider) getHistoricalDataArray(dataSource, field string, limit int, interval string) ([]interface{}, error) {
-	historicalData, exists := p.historicalData[dataSource]
-	if !exists {
-		// 如果没有历史数据，生成模拟数据
-		return p.generateMockHistoricalData(dataSource, field, limit, interval)
-	}
-
 	// 解析字段 - 支持多级字段如 "BTC.close"
 	fieldParts := strings.Split(field, ".")
 	if len(fieldParts) < 2 {
@@ -93,27 +86,42 @@ func (p *KlineProvider) getHistoricalDataArray(dataSource, field string, limit i
 	symbol := fieldParts[0]
 	fieldName := fieldParts[1]
 
-	// 验证符号是否匹配
-	if historicalData[0].Symbol != symbol {
-		return nil, fmt.Errorf("symbol mismatch: expected %s, got %s", symbol, historicalData[0].Symbol)
+	// 获取交易所数据
+	exchangeData, exists := p.klines[dataSource]
+	if !exists {
+		return nil, fmt.Errorf("no exchange data found for data source: %s", dataSource)
+	}
+
+	// 获取币种数据
+	symbolData, exists := exchangeData[symbol]
+	if !exists {
+		return nil, fmt.Errorf("no symbol data found for symbol: %s", symbol)
+	}
+
+	// 获取时间间隔数据
+	intervalData, exists := symbolData[interval]
+	if !exists {
+		return nil, fmt.Errorf("no interval data found for interval: %s", interval)
 	}
 
 	// 获取指定字段的历史数据
 	result := make([]interface{}, 0, limit)
 	count := 0
-	for i := len(historicalData) - 1; i >= 0 && count < limit; i-- {
+	
+	// 从最新的数据开始取
+	for i := len(intervalData) - 1; i >= 0 && count < limit; i-- {
 		var value interface{}
 		switch fieldName {
 		case "open":
-			value = historicalData[i].Open
+			value = intervalData[i].Open
 		case "high":
-			value = historicalData[i].High
+			value = intervalData[i].High
 		case "low":
-			value = historicalData[i].Low
+			value = intervalData[i].Low
 		case "close":
-			value = historicalData[i].Close
+			value = intervalData[i].Close
 		case "volume":
-			value = historicalData[i].Volume
+			value = intervalData[i].Volume
 		default:
 			return nil, fmt.Errorf("unknown field: %s", fieldName)
 		}
@@ -121,25 +129,21 @@ func (p *KlineProvider) getHistoricalDataArray(dataSource, field string, limit i
 		count++
 	}
 
-	// 如果数据不够，用当前数据填充
-	if len(result) < limit {
-		klineData, exists := p.klines[dataSource]
-		if !exists {
-			return nil, fmt.Errorf("no kline data found for data source: %s", dataSource)
-		}
-
+	// 如果数据不够，用最新的数据填充
+	if len(result) < limit && len(intervalData) > 0 {
+		latestData := intervalData[len(intervalData)-1]
 		var currentValue interface{}
 		switch fieldName {
 		case "open":
-			currentValue = klineData.Open
+			currentValue = latestData.Open
 		case "high":
-			currentValue = klineData.High
+			currentValue = latestData.High
 		case "low":
-			currentValue = klineData.Low
+			currentValue = latestData.Low
 		case "close":
-			currentValue = klineData.Close
+			currentValue = latestData.Close
 		case "volume":
-			currentValue = klineData.Volume
+			currentValue = latestData.Volume
 		default:
 			return nil, fmt.Errorf("unknown field: %s", fieldName)
 		}
@@ -152,146 +156,105 @@ func (p *KlineProvider) getHistoricalDataArray(dataSource, field string, limit i
 	return result, nil
 }
 
-// generateMockHistoricalData 生成模拟历史数据
-func (p *KlineProvider) generateMockHistoricalData(dataSource, field string, limit int, interval string) ([]interface{}, error) {
-	// 获取当前数据作为基准
-	currentData, exists := p.klines[dataSource]
-	if !exists {
-		return nil, fmt.Errorf("no kline data found for data source: %s", dataSource)
-	}
-
-	// 解析字段
-	fieldParts := strings.Split(field, ".")
-	if len(fieldParts) < 2 {
-		return nil, fmt.Errorf("kline field must be in format 'SYMBOL.FIELD', got: %s", field)
-	}
-
-	symbol := fieldParts[0]
-	fieldName := fieldParts[1]
-
-	// 验证符号是否匹配
-	if currentData.Symbol != symbol {
-		return nil, fmt.Errorf("symbol mismatch: expected %s, got %s", symbol, currentData.Symbol)
-	}
-
-	var baseValue float64
-	switch fieldName {
-	case "open":
-		baseValue = currentData.Open
-	case "high":
-		baseValue = currentData.High
-	case "low":
-		baseValue = currentData.Low
-	case "close":
-		baseValue = currentData.Close
-	case "volume":
-		baseValue = currentData.Volume
-	default:
-		return nil, fmt.Errorf("unknown field: %s", fieldName)
-	}
-
-	// 根据时间间隔生成模拟的历史数据
-	historicalData := make([]interface{}, limit)
-	
-	for i := 0; i < limit; i++ {
-		// 根据时间间隔调整价格波动幅度
-		// 时间间隔越长，波动幅度越大
-		volatility := p.getVolatilityByInterval(interval)
-		variation := float64(i-limit/2) * volatility
-		
-		// 添加一些随机性，使数据更真实
-		randomFactor := float64((i*7)%10-5) * 0.1 // 简单的伪随机
-		historicalData[i] = baseValue + variation + randomFactor
-	}
-
-	return historicalData, nil
-}
-
-// parseInterval 解析时间间隔字符串，返回分钟数
-func (p *KlineProvider) parseInterval(interval string) int {
-	switch interval {
-	case "1m":
-		return 1
-	case "5m":
-		return 5
-	case "15m":
-		return 15
-	case "30m":
-		return 30
-	case "1h":
-		return 60
-	case "4h":
-		return 240
-	case "1d":
-		return 1440
-	case "1w":
-		return 10080
-	default:
-		return 1 // 默认1分钟
-	}
-}
-
-// getVolatilityByInterval 根据时间间隔获取波动率
-func (p *KlineProvider) getVolatilityByInterval(interval string) float64 {
-	switch interval {
-	case "1m":
-		return 0.5 // 1分钟波动较小
-	case "5m":
-		return 1.0
-	case "15m":
-		return 2.0
-	case "30m":
-		return 3.0
-	case "1h":
-		return 5.0
-	case "4h":
-		return 10.0
-	case "1d":
-		return 20.0
-	case "1w":
-		return 50.0
-	default:
-		return 2.0 // 默认波动率
-	}
-}
-
 // initMockData 初始化Mock数据
 func (p *KlineProvider) initMockData() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// 初始化K线数据 - 支持多个数据源
-	// OKX 数据源
-	p.klines["okx"] = &KlineData{
-		Symbol:    "BTC",
-		Open:      45000.0,
-		High:      46000.0,
-		Low:       44000.0,
-		Close:     45500.0,
-		Volume:    500.0,
-		Timestamp: time.Now(),
-	}
-
-	// Binance 数据源
-	p.klines["binance"] = &KlineData{
-		Symbol:    "BTC",
-		Open:      45100.0,
-		High:      46100.0,
-		Low:       44100.0,
-		Close:     45600.0,
-		Volume:    600.0,
-		Timestamp: time.Now(),
-	}
-
-	// Gate 数据源
-	p.klines["gate"] = &KlineData{
-		Symbol:    "BTC",
-		Open:      45200.0,
-		High:      46200.0,
-		Low:       44200.0,
-		Close:     45700.0,
-		Volume:    700.0,
-		Timestamp: time.Now(),
+	now := time.Now()
+	
+	// 初始化OKX交易所数据
+	p.klines["okx"] = ExchangeData{
+		"BTC": {
+			"1m": []KlineData{
+				{Open: 45000.0, High: 45050.0, Low: 44980.0, Close: 45020.0, Volume: 12.5, Timestamp: now.Add(-4 * time.Minute)},
+				{Open: 45020.0, High: 45080.0, Low: 45010.0, Close: 45060.0, Volume: 15.2, Timestamp: now.Add(-3 * time.Minute)},
+				{Open: 45060.0, High: 45100.0, Low: 45040.0, Close: 45080.0, Volume: 18.7, Timestamp: now.Add(-2 * time.Minute)},
+				{Open: 45080.0, High: 45120.0, Low: 45060.0, Close: 45100.0, Volume: 14.3, Timestamp: now.Add(-1 * time.Minute)},
+				{Open: 45100.0, High: 45150.0, Low: 45080.0, Close: 45130.0, Volume: 16.8, Timestamp: now},
+			},
+			"5m": []KlineData{
+				{Open: 44800.0, High: 45100.0, Low: 44750.0, Close: 45050.0, Volume: 120.5, Timestamp: now.Add(-20 * time.Minute)},
+				{Open: 45050.0, High: 45200.0, Low: 45000.0, Close: 45150.0, Volume: 95.3, Timestamp: now.Add(-15 * time.Minute)},
+				{Open: 45150.0, High: 45250.0, Low: 45100.0, Close: 45200.0, Volume: 110.7, Timestamp: now.Add(-10 * time.Minute)},
+				{Open: 45200.0, High: 45280.0, Low: 45150.0, Close: 45250.0, Volume: 88.2, Timestamp: now.Add(-5 * time.Minute)},
+				{Open: 45250.0, High: 45300.0, Low: 45200.0, Close: 45280.0, Volume: 102.1, Timestamp: now},
+			},
+			"15m": []KlineData{
+				{Open: 44500.0, High: 45000.0, Low: 44400.0, Close: 44800.0, Volume: 350.0, Timestamp: now.Add(-60 * time.Minute)},
+				{Open: 44800.0, High: 45200.0, Low: 44700.0, Close: 45000.0, Volume: 420.5, Timestamp: now.Add(-45 * time.Minute)},
+				{Open: 45000.0, High: 45300.0, Low: 44900.0, Close: 45150.0, Volume: 380.2, Timestamp: now.Add(-30 * time.Minute)},
+				{Open: 45150.0, High: 45400.0, Low: 45050.0, Close: 45300.0, Volume: 450.8, Timestamp: now.Add(-15 * time.Minute)},
+				{Open: 45300.0, High: 45450.0, Low: 45200.0, Close: 45350.0, Volume: 320.6, Timestamp: now},
+			},
+			"1h": []KlineData{
+				{Open: 44000.0, High: 45000.0, Low: 43800.0, Close: 44500.0, Volume: 1200.0, Timestamp: now.Add(-4 * time.Hour)},
+				{Open: 44500.0, High: 45500.0, Low: 44300.0, Close: 45000.0, Volume: 1350.5, Timestamp: now.Add(-3 * time.Hour)},
+				{Open: 45000.0, High: 45800.0, Low: 44800.0, Close: 45500.0, Volume: 1420.8, Timestamp: now.Add(-2 * time.Hour)},
+				{Open: 45500.0, High: 46000.0, Low: 45300.0, Close: 45700.0, Volume: 1280.3, Timestamp: now.Add(-1 * time.Hour)},
+				{Open: 45700.0, High: 46000.0, Low: 45500.0, Close: 45800.0, Volume: 1100.7, Timestamp: now},
+			},
+		},
+		"ETH": {
+			"1m": []KlineData{
+				{Open: 3200.0, High: 3210.0, Low: 3195.0, Close: 3205.0, Volume: 45.2, Timestamp: now.Add(-4 * time.Minute)},
+				{Open: 3205.0, High: 3220.0, Low: 3200.0, Close: 3215.0, Volume: 52.8, Timestamp: now.Add(-3 * time.Minute)},
+				{Open: 3215.0, High: 3230.0, Low: 3210.0, Close: 3225.0, Volume: 48.6, Timestamp: now.Add(-2 * time.Minute)},
+				{Open: 3225.0, High: 3240.0, Low: 3220.0, Close: 3235.0, Volume: 55.3, Timestamp: now.Add(-1 * time.Minute)},
+				{Open: 3235.0, High: 3250.0, Low: 3230.0, Close: 3245.0, Volume: 61.7, Timestamp: now},
+			},
+			"5m": []KlineData{
+				{Open: 3150.0, High: 3200.0, Low: 3140.0, Close: 3180.0, Volume: 280.5, Timestamp: now.Add(-20 * time.Minute)},
+				{Open: 3180.0, High: 3220.0, Low: 3170.0, Close: 3200.0, Volume: 320.8, Timestamp: now.Add(-15 * time.Minute)},
+				{Open: 3200.0, High: 3240.0, Low: 3190.0, Close: 3220.0, Volume: 350.2, Timestamp: now.Add(-10 * time.Minute)},
+				{Open: 3220.0, High: 3260.0, Low: 3210.0, Close: 3240.0, Volume: 380.6, Timestamp: now.Add(-5 * time.Minute)},
+				{Open: 3240.0, High: 3280.0, Low: 3230.0, Close: 3260.0, Volume: 420.3, Timestamp: now},
+			},
+			"15m": []KlineData{
+				{Open: 3100.0, High: 3200.0, Low: 3080.0, Close: 3150.0, Volume: 850.0, Timestamp: now.Add(-60 * time.Minute)},
+				{Open: 3150.0, High: 3250.0, Low: 3130.0, Close: 3200.0, Volume: 920.5, Timestamp: now.Add(-45 * time.Minute)},
+				{Open: 3200.0, High: 3300.0, Low: 3180.0, Close: 3250.0, Volume: 980.2, Timestamp: now.Add(-30 * time.Minute)},
+				{Open: 3250.0, High: 3350.0, Low: 3230.0, Close: 3300.0, Volume: 1050.8, Timestamp: now.Add(-15 * time.Minute)},
+				{Open: 3300.0, High: 3380.0, Low: 3280.0, Close: 3350.0, Volume: 1120.6, Timestamp: now},
+			},
+			"1h": []KlineData{
+				{Open: 3000.0, High: 3200.0, Low: 2980.0, Close: 3100.0, Volume: 3500.0, Timestamp: now.Add(-4 * time.Hour)},
+				{Open: 3100.0, High: 3300.0, Low: 3080.0, Close: 3200.0, Volume: 3800.5, Timestamp: now.Add(-3 * time.Hour)},
+				{Open: 3200.0, High: 3400.0, Low: 3180.0, Close: 3300.0, Volume: 4200.8, Timestamp: now.Add(-2 * time.Hour)},
+				{Open: 3300.0, High: 3500.0, Low: 3280.0, Close: 3400.0, Volume: 4500.3, Timestamp: now.Add(-1 * time.Hour)},
+				{Open: 3400.0, High: 3600.0, Low: 3380.0, Close: 3500.0, Volume: 4800.7, Timestamp: now},
+			},
+		},
+		"SOL": {
+			"1m": []KlineData{
+				{Open: 180.0, High: 182.0, Low: 179.5, Close: 181.0, Volume: 125.8, Timestamp: now.Add(-4 * time.Minute)},
+				{Open: 181.0, High: 183.5, Low: 180.5, Close: 182.5, Volume: 142.3, Timestamp: now.Add(-3 * time.Minute)},
+				{Open: 182.5, High: 184.0, Low: 182.0, Close: 183.5, Volume: 138.6, Timestamp: now.Add(-2 * time.Minute)},
+				{Open: 183.5, High: 185.0, Low: 183.0, Close: 184.5, Volume: 155.2, Timestamp: now.Add(-1 * time.Minute)},
+				{Open: 184.5, High: 186.0, Low: 184.0, Close: 185.5, Volume: 168.7, Timestamp: now},
+			},
+			"5m": []KlineData{
+				{Open: 175.0, High: 180.0, Low: 174.0, Close: 178.0, Volume: 680.5, Timestamp: now.Add(-20 * time.Minute)},
+				{Open: 178.0, High: 182.0, Low: 177.0, Close: 180.0, Volume: 720.8, Timestamp: now.Add(-15 * time.Minute)},
+				{Open: 180.0, High: 184.0, Low: 179.0, Close: 182.0, Volume: 750.2, Timestamp: now.Add(-10 * time.Minute)},
+				{Open: 182.0, High: 186.0, Low: 181.0, Close: 184.0, Volume: 780.6, Timestamp: now.Add(-5 * time.Minute)},
+				{Open: 184.0, High: 188.0, Low: 183.0, Close: 186.0, Volume: 820.3, Timestamp: now},
+			},
+			"15m": []KlineData{
+				{Open: 170.0, High: 180.0, Low: 168.0, Close: 175.0, Volume: 1850.0, Timestamp: now.Add(-60 * time.Minute)},
+				{Open: 175.0, High: 185.0, Low: 173.0, Close: 180.0, Volume: 1920.5, Timestamp: now.Add(-45 * time.Minute)},
+				{Open: 180.0, High: 190.0, Low: 178.0, Close: 185.0, Volume: 1980.2, Timestamp: now.Add(-30 * time.Minute)},
+				{Open: 185.0, High: 195.0, Low: 183.0, Close: 190.0, Volume: 2050.8, Timestamp: now.Add(-15 * time.Minute)},
+				{Open: 190.0, High: 200.0, Low: 188.0, Close: 195.0, Volume: 2120.6, Timestamp: now},
+			},
+			"1h": []KlineData{
+				{Open: 160.0, High: 180.0, Low: 158.0, Close: 170.0, Volume: 8500.0, Timestamp: now.Add(-4 * time.Hour)},
+				{Open: 170.0, High: 190.0, Low: 168.0, Close: 180.0, Volume: 8800.5, Timestamp: now.Add(-3 * time.Hour)},
+				{Open: 180.0, High: 200.0, Low: 178.0, Close: 190.0, Volume: 9200.8, Timestamp: now.Add(-2 * time.Hour)},
+				{Open: 190.0, High: 210.0, Low: 188.0, Close: 200.0, Volume: 9500.3, Timestamp: now.Add(-1 * time.Hour)},
+				{Open: 200.0, High: 220.0, Low: 198.0, Close: 210.0, Volume: 9800.7, Timestamp: now},
+			},
+		},
 	}
 }
 

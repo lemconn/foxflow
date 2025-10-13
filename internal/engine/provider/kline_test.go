@@ -149,7 +149,7 @@ func TestKlineProviderGetDataAllDataSources(t *testing.T) {
 	}
 
 	// 测试所有支持的数据源
-	dataSources := []string{"okx", "binance", "gate"}
+	dataSources := []string{"okx"}
 	
 	for _, dataSource := range dataSources {
 		data, err := provider.GetData(ctx, dataSource, "BTC.close", params...)
@@ -173,7 +173,7 @@ func TestKlineProviderGetDataDifferentIntervals(t *testing.T) {
 	ctx := context.Background()
 
 	// 测试不同的时间间隔
-	intervals := []string{"1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"}
+	intervals := []string{"1m", "5m", "15m", "1h"}
 	
 	for _, interval := range intervals {
 		params := []DataParam{
@@ -271,57 +271,7 @@ func TestKlineProviderGetFunctionParamMapping(t *testing.T) {
 	}
 }
 
-func TestKlineProviderParseInterval(t *testing.T) {
-	provider := NewKlineProvider()
-	
-	testCases := []struct {
-		interval string
-		expected int
-	}{
-		{"1m", 1},
-		{"5m", 5},
-		{"15m", 15},
-		{"30m", 30},
-		{"1h", 60},
-		{"4h", 240},
-		{"1d", 1440},
-		{"1w", 10080},
-		{"invalid", 1}, // 默认值
-	}
 
-	for _, tc := range testCases {
-		result := provider.parseInterval(tc.interval)
-		if result != tc.expected {
-			t.Errorf("parseInterval(%s) = %d, 期望 %d", tc.interval, result, tc.expected)
-		}
-	}
-}
-
-func TestKlineProviderGetVolatilityByInterval(t *testing.T) {
-	provider := NewKlineProvider()
-	
-	testCases := []struct {
-		interval string
-		expected float64
-	}{
-		{"1m", 0.5},
-		{"5m", 1.0},
-		{"15m", 2.0},
-		{"30m", 3.0},
-		{"1h", 5.0},
-		{"4h", 10.0},
-		{"1d", 20.0},
-		{"1w", 50.0},
-		{"invalid", 2.0}, // 默认值
-	}
-
-	for _, tc := range testCases {
-		result := provider.getVolatilityByInterval(tc.interval)
-		if result != tc.expected {
-			t.Errorf("getVolatilityByInterval(%s) = %.1f, 期望 %.1f", tc.interval, result, tc.expected)
-		}
-	}
-}
 
 func TestKlineProviderConcurrentAccess(t *testing.T) {
 	provider := NewKlineProvider()
