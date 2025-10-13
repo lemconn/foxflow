@@ -13,7 +13,7 @@ func TestDataManager(t *testing.T) {
 
 	// 测试列出所有模块
 	modules := manager.ListProviders()
-	expectedProviders := []string{"kline", "market", "news", "indicators"}
+	expectedProviders := []string{"kline", "market", "news"}
 
 	if len(modules) != len(expectedProviders) {
 		t.Errorf("期望 %d 个模块，但得到 %d 个", len(expectedProviders), len(modules))
@@ -127,22 +127,6 @@ func TestNewsProvider(t *testing.T) {
 	} else {
 		t.Errorf("新闻标题类型错误，期望 string，实际 %T", data)
 	}
-}
-
-func TestIndicatorsProvider(t *testing.T) {
-	manager := InitDefaultProviders()
-	ctx := context.Background()
-
-	// 测试获取指标数据
-	data, err := manager.GetData(ctx, "indicators", "okx", "rsi")
-	if err != nil {
-		t.Errorf("获取指标数据失败: %v", err)
-	}
-
-	if data == nil {
-		t.Errorf("指标数据为空")
-	}
-
 }
 
 func TestProviderNotFound(t *testing.T) {

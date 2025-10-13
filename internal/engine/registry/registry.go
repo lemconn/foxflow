@@ -104,7 +104,6 @@ func DefaultRegistry() *Registry {
 	registry.RegisterProvider(provider.NewKlineProvider())
 	registry.RegisterProvider(provider.NewMarketProvider())
 	registry.RegisterProvider(provider.NewNewsProvider())
-	registry.RegisterProvider(provider.NewIndicatorsProvider())
 
 	return registry
 }
