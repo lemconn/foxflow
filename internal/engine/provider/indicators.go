@@ -38,7 +38,7 @@ func NewIndicatorsProvider() *IndicatorsProvider {
 // IndicatorsProvider 只支持单个数据值，不支持历史数据
 // params 参数（可选）：
 // - 目前暂未使用，保留用于未来扩展
-func (p *IndicatorsProvider) GetData(ctx context.Context, dataSource, field string, params ...DataParam) (interface{}, error) {
+func (p *IndicatorsProvider) GetData(ctx context.Context, dataSource, field string, params ...interface{}) (interface{}, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
@@ -107,8 +107,3 @@ func (p *IndicatorsProvider) initMockData() {
 }
 
 
-// GetFunctionParamMapping 获取函数参数映射
-func (p *IndicatorsProvider) GetFunctionParamMapping() map[string]FunctionParamInfo {
-	// Indicators 模块目前不需要函数参数
-	return map[string]FunctionParamInfo{}
-}

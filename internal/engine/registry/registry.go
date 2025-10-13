@@ -79,7 +79,7 @@ func (r *Registry) ListProviders() []string {
 }
 
 // GetData 获取数据（统一接口）
-func (r *Registry) GetData(ctx context.Context, module, dataSource, field string, params ...provider.DataParam) (interface{}, error) {
+func (r *Registry) GetData(ctx context.Context, module, dataSource, field string, params ...interface{}) (interface{}, error) {
 	ds, exists := r.GetProvider(module)
 	if !exists {
 		return nil, fmt.Errorf("data source not found: %s", module)

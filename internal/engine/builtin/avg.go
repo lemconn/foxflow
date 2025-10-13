@@ -49,35 +49,19 @@ func (f *AvgBuiltin) Execute(ctx context.Context, args []interface{}, evaluator 
 		return nil, err
 	}
 
-	// 第一个参数应该是数据数组
+	// 第一个参数应该是数据数组（从数据源获取）
 	data, ok := args[0].([]interface{})
 	if !ok {
 		return nil, fmt.Errorf("first argument to avg must be a data array")
 	}
 
-	// 第二个参数应该是时间间隔（字符串）
-	_, ok = args[1].(string)
-	if !ok {
-		return nil, fmt.Errorf("second argument to avg must be a string (interval)")
-	}
-
-	// 第三个参数应该是数据点数量
-	limit, err := toFloat64(args[2])
-	if err != nil {
-		return nil, fmt.Errorf("third argument to avg must be a number: %w", err)
-	}
-
 	// 计算平均值
-	n := int(limit)
-	if len(data) < n {
-		n = len(data)
-	}
-	if n == 0 {
+	if len(data) == 0 {
 		return 0.0, nil
 	}
 
 	sum := 0.0
-	for _, v := range data[len(data)-n:] {
+	for _, v := range data {
 		if val, ok := v.(float64); ok {
 			sum += val
 		} else {
@@ -85,5 +69,5 @@ func (f *AvgBuiltin) Execute(ctx context.Context, args []interface{}, evaluator 
 		}
 	}
 
-	return sum / float64(n), nil
+	return sum / float64(len(data)), nil
 }

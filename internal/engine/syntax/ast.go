@@ -108,7 +108,22 @@ func (n *Node) Evaluate(ctx context.Context, evaluator *Evaluator) (interface{},
 			funcNode := n.getFunctionCallNode()
 			if funcNode != nil {
 				// 提取函数参数作为数据源参数
-				params := n.extractDataSourceParams(funcNode)
+				rawParams := n.extractDataSourceParams(funcNode)
+				// 求值所有参数
+				params := make([]interface{}, len(rawParams))
+				for i, param := range rawParams {
+					if node, ok := param.(*Node); ok {
+						// 如果是节点，求值它
+						if value, err := node.Evaluate(ctx, evaluator); err == nil {
+							params[i] = value
+						} else {
+							return nil, fmt.Errorf("failed to evaluate parameter %d: %w", i, err)
+						}
+					} else {
+						// 如果已经是值，直接使用
+						params[i] = param
+					}
+				}
 				return evaluator.GetFieldValueWithParams(ctx, n.Module, n.DataSource, n.Field, params...)
 			}
 		}
@@ -303,7 +318,23 @@ func (n *Node) getFunctionCallNode() *Node {
 
 // extractDataSourceParams 从函数调用中提取数据源参数
 func (n *Node) extractDataSourceParams(funcNode *Node) []interface{} {
-	// 这里不再硬编码函数名称，而是通过数据源模块的映射来获取参数
-	// 具体的参数提取逻辑将在 Evaluator 中实现
-	return []interface{}{funcNode}
+	// 提取除了第一个参数（数据源路径）之外的所有参数
+	// 第一个参数是数据源路径，后面的参数是传递给数据源的参数
+	if len(funcNode.Args) <= 1 {
+		return []interface{}{}
+	}
+	
+	// 提取从第二个参数开始的所有参数
+	params := make([]interface{}, len(funcNode.Args)-1)
+	for i := 1; i < len(funcNode.Args); i++ {
+		// 对于字面量节点，直接使用值
+		if funcNode.Args[i].Type == NodeLiteral {
+			params[i-1] = funcNode.Args[i].Value
+		} else {
+			// 对于其他类型的节点，返回节点本身，让调用方处理
+			params[i-1] = funcNode.Args[i]
+		}
+	}
+	
+	return params
 }

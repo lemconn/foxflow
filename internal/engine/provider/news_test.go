@@ -226,20 +226,3 @@ func TestNewsProviderConcurrentAccess(t *testing.T) {
 	t.Log("并发访问测试完成")
 }
 
-func TestNewsProviderGetFunctionParamMapping(t *testing.T) {
-	provider := NewNewsProvider()
-	defer provider.Stop()
-	
-	// 测试获取函数参数映射
-	mapping := provider.GetFunctionParamMapping()
-	
-	// 验证返回的映射不为 nil
-	if mapping == nil {
-		t.Error("函数参数映射不应为 nil")
-	}
-	
-	// 验证返回空映射（当前实现）
-	if len(mapping) != 0 {
-		t.Errorf("函数参数映射应该为空，实际长度: %d", len(mapping))
-	}
-}

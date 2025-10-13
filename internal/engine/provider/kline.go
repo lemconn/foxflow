@@ -42,33 +42,43 @@ func NewKlineProvider() *KlineProvider {
 // GetData 获取数据
 // KlineProvider 只支持历史数据数组，不支持单个数据值
 // params 支持的参数：
-// - limit: int - 历史数据周期数（必需）
-// - interval: string - 时间间隔（可选，如 "15m", "1h", "1d"）
-// - start_time: time.Time - 开始时间（可选）
-// - end_time: time.Time - 结束时间（可选）
-func (p *KlineProvider) GetData(ctx context.Context, dataSource, field string, params ...DataParam) (interface{}, error) {
+// - params[0]: string - 时间间隔（可选，如 "15m", "1h", "1d"）
+// - params[1]: int - 历史数据周期数（必需）
+// - params[2]: time.Time - 开始时间（可选）
+// - params[3]: time.Time - 结束时间（可选）
+func (p *KlineProvider) GetData(ctx context.Context, dataSource, field string, params ...interface{}) (interface{}, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	// 检查是否提供了参数
-	if len(params) == 0 {
-		return nil, fmt.Errorf("kline provider requires DataParam with 'limit' field")
+
+	// 获取可选参数 interval (params[0])
+	interval := "1m" // 默认1分钟
+	if len(params) > 0 {
+		if intervalParam, ok := params[0].(string); ok {
+			interval = intervalParam
+		}
 	}
 
-	// 获取必需参数 limit
-	limit, err := p.GetIntParam(params, "limit")
-	if err != nil {
-		return nil, fmt.Errorf("kline provider requires 'limit' parameter: %w", err)
+	// 检查是否提供了 limit 参数
+	if len(params) < 2 {
+		return nil, fmt.Errorf("kline provider requires limit parameter")
+	}
+
+	// 获取必需参数 limit (params[1])
+	var limit int
+	switch v := params[1].(type) {
+	case int:
+		limit = v
+	case float64:
+		limit = int(v)
+	case int64:
+		limit = int(v)
+	default:
+		return nil, fmt.Errorf("kline provider requires limit parameter to be int, got %T", params[1])
 	}
 
 	if limit <= 0 {
 		return nil, fmt.Errorf("limit must be greater than 0, got %d", limit)
-	}
-
-	// 获取可选参数 interval
-	interval := "1m" // 默认1分钟
-	if intervalParam, err := p.GetParam(params, "interval", "string"); err == nil {
-		interval = intervalParam.(string)
 	}
 
 	// 返回历史数据数组
@@ -259,76 +269,3 @@ func (p *KlineProvider) initMockData() {
 }
 
 
-// GetFunctionParamMapping 获取函数参数映射
-func (p *KlineProvider) GetFunctionParamMapping() map[string]FunctionParamInfo {
-	return map[string]FunctionParamInfo{
-		"avg": {
-			FunctionName: "avg",
-			Params: []FunctionParam{
-				{
-					ParamIndex: 1, // 第二个参数（从0开始）
-					ParamName:  "interval",
-					ParamType:  ParamTypeString,
-					Required:   true,
-				},
-				{
-					ParamIndex: 2, // 第三个参数（从0开始）
-					ParamName:  "limit",
-					ParamType:  ParamTypeInt,
-					Required:   true,
-				},
-			},
-		},
-		"max": {
-			FunctionName: "max",
-			Params: []FunctionParam{
-				{
-					ParamIndex: 1, // 第二个参数（从0开始）
-					ParamName:  "interval",
-					ParamType:  ParamTypeString,
-					Required:   true,
-				},
-				{
-					ParamIndex: 2, // 第三个参数（从0开始）
-					ParamName:  "limit",
-					ParamType:  ParamTypeInt,
-					Required:   true,
-				},
-			},
-		},
-		"min": {
-			FunctionName: "min",
-			Params: []FunctionParam{
-				{
-					ParamIndex: 1, // 第二个参数（从0开始）
-					ParamName:  "interval",
-					ParamType:  ParamTypeString,
-					Required:   true,
-				},
-				{
-					ParamIndex: 2, // 第三个参数（从0开始）
-					ParamName:  "limit",
-					ParamType:  ParamTypeInt,
-					Required:   true,
-				},
-			},
-		},
-		"sum": {
-			FunctionName: "sum",
-			Params: []FunctionParam{
-				{
-					ParamIndex: 1, // 第二个参数（从0开始）
-					ParamName:  "interval",
-					ParamType:  ParamTypeString,
-					Required:   true,
-				},
-				{
-					ParamIndex: 2, // 第三个参数（从0开始）
-					ParamName:  "limit",
-					ParamType:  ParamTypeInt,
-					Required:   true,
-				},
-			},
-		},
-	}
-}
