@@ -38,11 +38,7 @@ func TestKlineProvider(t *testing.T) {
 	ctx := context.Background()
 
 	// 测试获取K线数据（需要 limit 参数）
-	params := []DataParam{
-		NewParam("limit", 1),
-		NewParam("interval", "15m"),
-	}
-	data, err := manager.GetData(ctx, "kline", "okx", "BTC.close", params...)
+	data, err := manager.GetData(ctx, "kline", "okx", "BTC.close", "15m", 1)
 	if err != nil {
 		t.Errorf("获取K线数据失败: %v", err)
 	}
@@ -58,11 +54,7 @@ func TestKlineProvider(t *testing.T) {
 	}
 
 	// 使用新的 GetData 方法获取历史数据
-	historicalParams := []DataParam{
-		NewParam("limit", 5),
-		NewParam("interval", "1h"),
-	}
-	historicalData, err := klineProvider.GetData(ctx, "okx", "BTC.close", historicalParams...)
+	historicalData, err := klineProvider.GetData(ctx, "okx", "BTC.close", "1h", 5)
 	if err != nil {
 		t.Errorf("获取历史数据失败: %v", err)
 	}
@@ -202,7 +194,7 @@ func (p *CustomProvider) GetName() string {
 	return p.name
 }
 
-func (p *CustomProvider) GetData(ctx context.Context, dataSource, field string, params ...DataParam) (interface{}, error) {
+func (p *CustomProvider) GetData(ctx context.Context, dataSource, field string, params ...interface{}) (interface{}, error) {
 	entityData, exists := p.data[dataSource]
 	if !exists {
 		return nil, fmt.Errorf("data source not found: %s", dataSource)
@@ -220,23 +212,14 @@ func (p *CustomProvider) GetData(ctx context.Context, dataSource, field string, 
 
 	// 如果请求历史数据，返回重复的值数组
 	if len(params) > 0 {
-		for _, param := range params {
-			if param.Name == "period" {
-				if period, ok := param.Value.(int); ok && period > 0 {
-					result := make([]interface{}, period)
-					for i := 0; i < period; i++ {
-						result[i] = value
-					}
-					return result, nil
-				}
+		if period, ok := params[0].(int); ok && period > 0 {
+			result := make([]interface{}, period)
+			for i := 0; i < period; i++ {
+				result[i] = value
 			}
+			return result, nil
 		}
 	}
 
 	return value, nil
-}
-
-func (p *CustomProvider) GetFunctionParamMapping() map[string]FunctionParamInfo {
-	// Custom 模块不需要函数参数
-	return map[string]FunctionParamInfo{}
 }

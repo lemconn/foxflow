@@ -40,7 +40,7 @@ func NewMarketProvider() *MarketProvider {
 // MarketProvider 只支持单个数据值，不支持历史数据
 // params 参数（可选）：
 // - 目前暂未使用，保留用于未来扩展
-func (p *MarketProvider) GetData(ctx context.Context, dataSource, field string, params ...DataParam) (interface{}, error) {
+func (p *MarketProvider) GetData(ctx context.Context, dataSource, field string, params ...interface{}) (interface{}, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
@@ -117,8 +117,3 @@ func (p *MarketProvider) initMockData() {
 }
 
 
-// GetFunctionParamMapping 获取函数参数映射
-func (p *MarketProvider) GetFunctionParamMapping() map[string]FunctionParamInfo {
-	// Market 模块目前不需要函数参数
-	return map[string]FunctionParamInfo{}
-}

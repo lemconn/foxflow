@@ -117,9 +117,10 @@ func (p *NewsProvider) updateNewsData() {
 // NewsProvider 只支持单个数据值，不支持历史数据
 // params 参数（可选）：
 // - 目前暂未使用，保留用于未来扩展
-func (p *NewsProvider) GetData(ctx context.Context, dataSource, field string, params ...DataParam) (interface{}, error) {
+func (p *NewsProvider) GetData(ctx context.Context, dataSource, field string, params ...interface{}) (interface{}, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
+
 
 	newsData, exists := p.news[dataSource]
 	if !exists {
@@ -146,8 +147,3 @@ func (p *NewsProvider) Stop() {
 }
 
 
-// GetFunctionParamMapping 获取函数参数映射
-func (p *NewsProvider) GetFunctionParamMapping() map[string]FunctionParamInfo {
-	// News 模块目前不需要函数参数
-	return map[string]FunctionParamInfo{}
-}
