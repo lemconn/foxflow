@@ -6,7 +6,6 @@ import (
 	"sync"
 )
 
-
 // Provider 数据提供者接口
 type Provider interface {
 	// GetName 获取提供者名称
@@ -82,8 +81,6 @@ func InitDefaultProviders() *Manager {
 	manager.RegisterProvider(NewKlineProvider())
 	manager.RegisterProvider(NewMarketProvider())
 	manager.RegisterProvider(NewNewsProvider())
-	manager.RegisterProvider(NewIndicatorsProvider())
 
 	return manager
 }
-
