@@ -28,6 +28,8 @@ const (
 	okxUriUserPositions        = "/api/v5/account/positions"
 	okxUriUserTradeOrder       = "/api/v5/trade/order"
 	okxUriUserTradeCancelOrder = "/api/v5/trade/cancel-order"
+
+	okxUriMarkPriceCandles = "/api/v5/market/mark-price-candles"
 )
 
 const (
@@ -56,6 +58,16 @@ type okxAssetValuation struct {
 		Funding string `json:"funding"` // 资金账户
 		Trading string `json:"trading"` // 交易账户
 	} `json:"details"` // 各个账户的资产估值
+}
+
+// MarkPriceCandle 标记价格K线数据
+type MarkPriceCandle struct {
+	Ts      int64   `json:"ts"`      // 开始时间，Unix时间戳的毫秒数格式
+	Open    float64 `json:"open"`    // 开盘价格
+	High    float64 `json:"high"`    // 最高价格
+	Low     float64 `json:"low"`     // 最低价格
+	Close   float64 `json:"close"`   // 收盘价格
+	Confirm int     `json:"confirm"` // K线状态，0代表K线未完结，1代表K线已完结
 }
 
 // OKXExchange OKX交易所实现
@@ -963,4 +975,125 @@ func (e *OKXExchange) sendRequest(ctx context.Context, method, uri string, param
 	}
 
 	return &result, nil
+}
+
+// GetMarkPriceCandles 获取标记价格K线数据
+// instId: 产品ID，如 BTC-USDT-SWAP
+// bar: K线周期，如 1m, 3m, 5m, 15m, 30m, 1H, 2H, 4H, 6H, 12H, 1D, 1W, 1M, 3M, 6M, 1Y
+// limit: 返回的K线数据条数，最大为300
+func (e *OKXExchange) GetMarkPriceCandles(ctx context.Context, instId, bar string, limit int) ([]MarkPriceCandle, error) {
+	// 构建查询参数
+	params := url.Values{}
+	params.Set("instId", instId)
+	params.Set("bar", bar)
+	params.Set("limit", strconv.Itoa(limit))
+
+	// 构建完整URL
+	fullURL := fmt.Sprintf("%s?%s", okxUriMarkPriceCandles, params.Encode())
+
+	// 发送请求（公共接口，不需要认证）
+	result, err := e.sendRequest(ctx, "GET", fullURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get mark price candles for %s: %w", instId, err)
+	}
+
+	if result.Code != "0" {
+		return nil, fmt.Errorf("okx GetMarkPriceCandles error: %s, code: %s", result.Msg, result.Code)
+	}
+
+	// 解析返回数据
+	// API返回的数据格式是二维数组，需要转换为结构体
+	var rawData [][]interface{}
+	resultBytes, err := json.Marshal(result.Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result data: %w", err)
+	}
+
+	if err := json.Unmarshal(resultBytes, &rawData); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal raw data: %w", err)
+	}
+
+	// 转换数据格式
+	var candles []MarkPriceCandle
+	for _, item := range rawData {
+		if len(item) < 6 {
+			continue // 跳过数据不完整的项
+		}
+
+		candle := MarkPriceCandle{}
+		valid := true
+
+		// 解析时间戳
+		if tsStr, ok := item[0].(string); ok {
+			if ts, err := strconv.ParseInt(tsStr, 10, 64); err == nil {
+				candle.Ts = ts
+			} else {
+				valid = false
+			}
+		} else {
+			valid = false
+		}
+
+		// 解析开盘价
+		if openStr, ok := item[1].(string); ok {
+			if open, err := strconv.ParseFloat(openStr, 64); err == nil {
+				candle.Open = open
+			} else {
+				valid = false
+			}
+		} else {
+			valid = false
+		}
+
+		// 解析最高价
+		if highStr, ok := item[2].(string); ok {
+			if high, err := strconv.ParseFloat(highStr, 64); err == nil {
+				candle.High = high
+			} else {
+				valid = false
+			}
+		} else {
+			valid = false
+		}
+
+		// 解析最低价
+		if lowStr, ok := item[3].(string); ok {
+			if low, err := strconv.ParseFloat(lowStr, 64); err == nil {
+				candle.Low = low
+			} else {
+				valid = false
+			}
+		} else {
+			valid = false
+		}
+
+		// 解析收盘价
+		if closeStr, ok := item[4].(string); ok {
+			if close, err := strconv.ParseFloat(closeStr, 64); err == nil {
+				candle.Close = close
+			} else {
+				valid = false
+			}
+		} else {
+			valid = false
+		}
+
+		// 解析确认状态
+		if confirmStr, ok := item[5].(string); ok {
+			if confirm, err := strconv.Atoi(confirmStr); err == nil {
+				candle.Confirm = confirm
+			} else {
+				valid = false
+			}
+		} else {
+			valid = false
+		}
+
+		// 只有所有字段都解析成功才添加到结果中
+		if valid {
+			candles = append(candles, candle)
+		}
+	}
+
+	return candles, nil
 }
