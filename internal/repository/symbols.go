@@ -98,3 +98,16 @@ func UpdateSymbolContract(contract *models.FoxContractMultiplier) error {
 	db := database.GetDB()
 	return db.Save(contract).Error
 }
+
+// GetSymbolsByExchange 根据交易所查询所有标的
+func GetSymbolsByExchange(exchange string) ([]*models.FoxSymbol, error) {
+	var symbols []*models.FoxSymbol
+	
+	db := database.GetDB()
+	err := db.Where("exchange = ?", exchange).Find(&symbols).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+	
+	return symbols, nil
+}
