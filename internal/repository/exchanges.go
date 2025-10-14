@@ -44,3 +44,16 @@ func ActivateExchange(name string) error {
 	db := database.GetDB()
 	return db.Model(&models.FoxExchange{}).Where("name = ?", name).Update("is_active", true).Error
 }
+
+// GetAllExchanges 查询所有交易所
+func GetAllExchanges() ([]*models.FoxExchange, error) {
+	var exchanges []*models.FoxExchange
+	
+	db := database.GetDB()
+	err := db.Find(&exchanges).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+	
+	return exchanges, nil
+}
