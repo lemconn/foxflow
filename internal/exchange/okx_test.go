@@ -17,7 +17,7 @@ func checkNetworkConnectivity(host string, timeout time.Duration) bool {
 	return true
 }
 
-func TestOKXExchange_GetMarkPriceCandles_RealAPI(t *testing.T) {
+func TestOKXExchange_GetKlineData_RealAPI(t *testing.T) {
 	// 首先检查网络连接性
 	okxHost := "www.okx.com:443"
 	timeout := 5 * time.Second
@@ -46,7 +46,7 @@ func TestOKXExchange_GetMarkPriceCandles_RealAPI(t *testing.T) {
 	defer cancel()
 
 	// 执行测试 - 获取BTC-USDT-SWAP的15分钟K线数据，最多5条
-	candles, err := exchange.GetMarkPriceCandles(ctx, "BTC-USDT-SWAP", "15m", 5)
+	klineData, err := exchange.GetKlineData(ctx, "BTC-USDT-SWAP", "15m", 5)
 
 	// 如果是网络连接问题，跳过测试而不是失败
 	if err != nil {
@@ -62,86 +62,74 @@ func TestOKXExchange_GetMarkPriceCandles_RealAPI(t *testing.T) {
 		t.Fatalf("获取K线数据失败: %v", err)
 	}
 
-	if len(candles) == 0 {
+	if len(klineData) == 0 {
 		t.Fatal("未获取到任何K线数据")
 	}
 
-	t.Logf("成功获取到 %d 条K线数据", len(candles))
+	t.Logf("成功获取到 %d 条K线数据", len(klineData))
 
 	// 验证数据质量
-	for i, candle := range candles {
+	for i, kline := range klineData {
 		// 验证时间戳
-		if candle.Ts == 0 {
+		if kline.Timestamp.IsZero() {
 			t.Errorf("K线 %d 的时间戳无效", i)
 		}
 
 		// 验证价格数据
-		if candle.Open <= 0 {
-			t.Errorf("K线 %d 的开盘价无效: %f", i, candle.Open)
+		if kline.Open <= 0 {
+			t.Errorf("K线 %d 的开盘价无效: %f", i, kline.Open)
 		}
-		if candle.High <= 0 {
-			t.Errorf("K线 %d 的最高价无效: %f", i, candle.High)
+		if kline.High <= 0 {
+			t.Errorf("K线 %d 的最高价无效: %f", i, kline.High)
 		}
-		if candle.Low <= 0 {
-			t.Errorf("K线 %d 的最低价无效: %f", i, candle.Low)
+		if kline.Low <= 0 {
+			t.Errorf("K线 %d 的最低价无效: %f", i, kline.Low)
 		}
-		if candle.Close <= 0 {
-			t.Errorf("K线 %d 的收盘价无效: %f", i, candle.Close)
+		if kline.Close <= 0 {
+			t.Errorf("K线 %d 的收盘价无效: %f", i, kline.Close)
 		}
 
 		// 验证价格逻辑关系
-		if candle.High < candle.Low {
-			t.Errorf("K线 %d 的最高价低于最低价: H=%f, L=%f", i, candle.High, candle.Low)
+		if kline.High < kline.Low {
+			t.Errorf("K线 %d 的最高价低于最低价: H=%f, L=%f", i, kline.High, kline.Low)
 		}
-		if candle.High < candle.Open {
-			t.Errorf("K线 %d 的最高价低于开盘价: H=%f, O=%f", i, candle.High, candle.Open)
+		if kline.High < kline.Open {
+			t.Errorf("K线 %d 的最高价低于开盘价: H=%f, O=%f", i, kline.High, kline.Open)
 		}
-		if candle.High < candle.Close {
-			t.Errorf("K线 %d 的最高价低于收盘价: H=%f, C=%f", i, candle.High, candle.Close)
+		if kline.High < kline.Close {
+			t.Errorf("K线 %d 的最高价低于收盘价: H=%f, C=%f", i, kline.High, kline.Close)
 		}
-		if candle.Low > candle.Open {
-			t.Errorf("K线 %d 的最低价高于开盘价: L=%f, O=%f", i, candle.Low, candle.Open)
+		if kline.Low > kline.Open {
+			t.Errorf("K线 %d 的最低价高于开盘价: L=%f, O=%f", i, kline.Low, kline.Open)
 		}
-		if candle.Low > candle.Close {
-			t.Errorf("K线 %d 的最低价高于收盘价: L=%f, C=%f", i, candle.Low, candle.Close)
-		}
-
-		// 验证确认状态
-		if candle.Confirm != 0 && candle.Confirm != 1 {
-			t.Errorf("K线 %d 的确认状态无效: %d", i, candle.Confirm)
+		if kline.Low > kline.Close {
+			t.Errorf("K线 %d 的最低价高于收盘价: L=%f, C=%f", i, kline.Low, kline.Close)
 		}
 
 		// 打印第一条K线的详细信息用于验证
 		if i == 0 {
-			timestamp := time.Unix(candle.Ts/1000, (candle.Ts%1000)*1000000)
 			t.Logf("第一条K线数据:")
-			t.Logf("  时间: %s", timestamp.Format("2006-01-02 15:04:05"))
-			t.Logf("  开盘价: %.2f", candle.Open)
-			t.Logf("  最高价: %.2f", candle.High)
-			t.Logf("  最低价: %.2f", candle.Low)
-			t.Logf("  收盘价: %.2f", candle.Close)
-			t.Logf("  状态: %s", getConfirmStatus(candle.Confirm))
+			t.Logf("  时间: %s", kline.Timestamp.Format("2006-01-02 15:04:05"))
+			t.Logf("  开盘价: %.2f", kline.Open)
+			t.Logf("  最高价: %.2f", kline.High)
+			t.Logf("  最低价: %.2f", kline.Low)
+			t.Logf("  收盘价: %.2f", kline.Close)
+			t.Logf("  成交量: %.2f", kline.Volume)
 		}
 	}
 
 	// 验证时间顺序（如果有多条数据）
-	if len(candles) > 1 {
-		for i := 1; i < len(candles); i++ {
-			if candles[i].Ts >= candles[i-1].Ts {
-				t.Errorf("K线数据时间顺序错误: 第%d条时间戳(%d)应该小于第%d条时间戳(%d)",
-					i, candles[i].Ts, i-1, candles[i-1].Ts)
+	if len(klineData) > 1 {
+		for i := 1; i < len(klineData); i++ {
+			if klineData[i].Timestamp.After(klineData[i-1].Timestamp) {
+				t.Errorf("K线数据时间顺序错误: 第%d条时间戳(%s)应该早于第%d条时间戳(%s)",
+					i, klineData[i].Timestamp.Format("2006-01-02 15:04:05"), 
+					i-1, klineData[i-1].Timestamp.Format("2006-01-02 15:04:05"))
 			}
 		}
 	}
 }
 
-// getConfirmStatus 返回确认状态的中文描述
-func getConfirmStatus(confirm int) string {
-	if confirm == 0 {
-		return "未完结"
-	}
-	return "已完结"
-}
 
 // contains 检查字符串是否包含子字符串
 func contains(s, substr string) bool {

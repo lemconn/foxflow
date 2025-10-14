@@ -34,6 +34,12 @@ func GetManager() *Manager {
 // initExchanges 初始化交易所
 func (m *Manager) initExchanges() {
 	db := database.GetDB()
+	if db == nil {
+		// 如果数据库未初始化，使用默认配置
+		m.initDefaultExchanges()
+		return
+	}
+
 	var exchanges []models.FoxExchange
 
 	// 从数据库加载所有交易所配置
