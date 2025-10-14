@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"context"
+	"time"
 
 	"github.com/lemconn/foxflow/internal/models"
 )
@@ -78,6 +79,16 @@ type Ticker struct {
 	Low    float64 `json:"low"`
 }
 
+// KlineData K线数据
+type KlineData struct {
+	Open      float64   `json:"open"`
+	High      float64   `json:"high"`
+	Low       float64   `json:"low"`
+	Close     float64   `json:"close"`
+	Volume    float64   `json:"volume"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
 // Exchange 交易所接口
 type Exchange interface {
 	// 基础信息
@@ -114,4 +125,13 @@ type Exchange interface {
 	// 币种名称转换
 	ConvertToExchangeSymbol(userSymbol string) string
 	ConvertFromExchangeSymbol(exchangeSymbol string) string
+
+	// K线数据
+	GetKlineData(ctx context.Context, symbol, interval string, limit int) ([]KlineData, error)
+
+	// 币种名称转换
+	GetSwapSymbolByName(ctx context.Context, coinName string) string
+
+	// 时间间隔格式转换
+	ConvertIntervalFormat(interval string) string
 }
