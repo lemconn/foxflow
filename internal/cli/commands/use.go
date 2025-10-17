@@ -38,7 +38,7 @@ func (c *UseCommand) Execute(ctx command.Context, args []string) error {
 	}
 
 	switch args[0] {
-	case "exchanges":
+	case "exchange":
 		exchangeName := args[1]
 
 		// 将所有交易所设置为非激活状态
@@ -77,7 +77,7 @@ func (c *UseCommand) Execute(ctx command.Context, args []string) error {
 		ctx.SetUserInstance(&models.FoxUser{}) // 清楚当前用户信息
 		fmt.Println(utils.RenderSuccess(fmt.Sprintf("已激活交易所: %s", utils.MessageGreen(exchangeName))))
 
-	case "users":
+	case "account":
 		username := args[1]
 		user, err := repository.FindUserByUsername(username)
 		if err != nil {

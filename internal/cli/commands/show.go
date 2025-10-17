@@ -37,7 +37,7 @@ func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
 	}
 
 	switch args[0] {
-	case "exchanges":
+	case "exchange":
 		exchanges, err := repository.ListExchanges()
 		if err != nil {
 			return fmt.Errorf("failed to get exchanges: %w", err)
@@ -50,14 +50,14 @@ func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
 
 		fmt.Println(cliRender.RenderExchangesWithStatus(exchanges))
 
-	case "users":
+	case "account":
 		users, err := repository.ListUsers()
 		if err != nil {
 			return fmt.Errorf("failed to get users: %w", err)
 		}
 		fmt.Println(cliRender.RenderUsers(users))
 
-	case "assets":
+	case "balance":
 		if !ctx.IsReady() {
 			return errors.New("请先选择交易所和用户")
 		}
@@ -73,7 +73,7 @@ func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
 
 		fmt.Println(cliRender.RenderAssets(assets))
 
-	case "orders":
+	case "order":
 		if !ctx.IsReady() {
 			return errors.New("请先选择交易所和用户")
 		}
@@ -88,7 +88,7 @@ func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
 		}
 		fmt.Println(cliRender.RenderOrders(orders))
 
-	case "positions":
+	case "position":
 		if !ctx.IsReady() {
 			return errors.New("请先选择交易所和用户")
 		}
@@ -103,10 +103,10 @@ func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
 		}
 		fmt.Println(cliRender.RenderPositions(positions))
 
-	case "strategies":
+	case "strategy":
 		fmt.Println(cliRender.RenderStrategies())
 
-	case "symbols":
+	case "symbol":
 		if !ctx.IsReady() {
 			return errors.New("请先选择交易所和用户")
 		}

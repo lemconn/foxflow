@@ -30,6 +30,7 @@ func RenderBanner(version string) string {
 func RenderWelcomeHints() string {
 	lines := []string{
 		utils.RenderInfo("输入 'help' 查看可用命令"),
+		utils.RenderInfo("输入命令时按 Tab 键可查看自动补全和选项"),
 		utils.RenderInfo("输入 'exit' 或 'quit' 或 'Ctrl-D' 退出程序"),
 	}
 	return strings.Join(lines, "\n") + "\n\n"

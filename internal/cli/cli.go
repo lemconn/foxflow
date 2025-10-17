@@ -31,13 +31,15 @@ func NewCLI() (*CLI, error) {
 
 	// 注册命令
 	cmdMap := map[string]command.Command{
+		"help":   &cliCmds.HelpCommand{},
 		"show":   &cliCmds.ShowCommand{},
 		"use":    &cliCmds.UseCommand{},
 		"create": &cliCmds.CreateCommand{},
 		"update": &cliCmds.UpdateCommand{},
+		"open":   &cliCmds.OpenCommand{},
+		"close":  &cliCmds.CloseCommand{},
 		"cancel": &cliCmds.CancelCommand{},
 		"delete": &cliCmds.DeleteCommand{},
-		"help":   &cliCmds.HelpCommand{},
 		"exit":   &cliCmds.ExitCommand{},
 		"quit":   &cliCmds.ExitCommand{},
 	}
@@ -52,6 +54,14 @@ func NewCLI() (*CLI, error) {
 func (c *CLI) Run() error {
 	fmt.Print(render.RenderWelcomeHints())
 
+	// 显示操作指南
+	fmt.Println("快捷键说明:")
+	fmt.Println("  Tab     - 自动补全和显示选项")
+	fmt.Println("  ↑↓      - 浏览命令历史")
+	fmt.Println("  Ctrl+R  - 搜索历史记录")
+	fmt.Println("  Ctrl+C  - 显示状态信息")
+	fmt.Println()
+
 	// 设置默认交易所
 	c.setDefaultExchange()
 
@@ -62,6 +72,14 @@ func (c *CLI) Run() error {
 		prompt.OptionPrefix("> "),
 		prompt.OptionPrefixTextColor(prompt.Green),
 		prompt.OptionCompletionWordSeparator(" "),
+		prompt.OptionSuggestionTextColor(prompt.LightGray),         // 设置下拉文字为白色，简洁明亮
+		prompt.OptionSuggestionBGColor(prompt.DarkGray),            // 设置下拉背景为深灰
+		prompt.OptionSelectedSuggestionTextColor(prompt.DarkGray),  // 选中项文字为白色
+		prompt.OptionSelectedSuggestionBGColor(prompt.LightGray),   // 选中项背景为深灰色
+		prompt.OptionDescriptionTextColor(prompt.LightGray),        // 设置描述文字为深灰色
+		prompt.OptionDescriptionBGColor(prompt.DarkGray),           // 设置描述背景为浅灰色
+		prompt.OptionSelectedDescriptionTextColor(prompt.DarkGray), // 选中项描述文字为浅灰色
+		prompt.OptionSelectedDescriptionBGColor(prompt.LightGray),  // 选中项描述背景为浅灰色
 		prompt.OptionAddKeyBind(
 			prompt.KeyBind{
 				Key: prompt.ControlC,
@@ -118,10 +136,10 @@ func (c *CLI) executor(in string) {
 
 // executeCommand 执行命令
 func (c *CLI) executeCommand(args []string) error {
-	commandName := args[0]
+	commandName := strings.ToLower(args[0]) // 忽略大小写
 	command, exists := c.commands[commandName]
 	if !exists {
-		return fmt.Errorf("未知命令: %s", commandName)
+		return fmt.Errorf("未知命令: %s", args[0])
 	}
 
 	return command.Execute(c.ctx, args[1:])
@@ -192,7 +210,7 @@ func (c *CLI) setDefaultExchange() {
 
 	// 初始化设置默认交易所
 	useCommand := &cliCmds.UseCommand{}
-	err = useCommand.Execute(c.ctx, []string{"exchanges", exchangeName})
+	err = useCommand.Execute(c.ctx, []string{"exchange", exchangeName})
 	if err != nil {
 		log.Printf("set default exchange execute error: %v\n", err)
 	}

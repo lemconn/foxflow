@@ -27,7 +27,7 @@ func (c *CreateCommand) Execute(ctx command.Context, args []string) error {
 	}
 
 	switch args[0] {
-	case "users":
+	case "account":
 		return c.createUser(ctx, args[1:])
 	case "symbols":
 		return c.createSymbol(ctx, args[1:])
@@ -40,7 +40,7 @@ func (c *CreateCommand) Execute(ctx command.Context, args []string) error {
 
 func (c *CreateCommand) createUser(ctx command.Context, args []string) error {
 	if len(args) < 4 {
-		return fmt.Errorf("usage: create users <trade_type> --username=<name> --ak=<key> --sk=<secret> [--passphrase=<passphrase>]")
+		return fmt.Errorf("usage: create account <trade_type> --username=<name> --apiKey=<key> --secretKey=<secret> [--passphrase=<passphrase>]")
 	}
 
 	user := &models.FoxUser{}
@@ -49,10 +49,10 @@ func (c *CreateCommand) createUser(ctx command.Context, args []string) error {
 	for _, arg := range args {
 		if strings.HasPrefix(arg, "--username=") {
 			user.Username = strings.TrimPrefix(arg, "--username=")
-		} else if strings.HasPrefix(arg, "--ak=") {
-			user.AccessKey = strings.TrimPrefix(arg, "--ak=")
-		} else if strings.HasPrefix(arg, "--sk=") {
-			user.SecretKey = strings.TrimPrefix(arg, "--sk=")
+		} else if strings.HasPrefix(arg, "--apiKey=") {
+			user.AccessKey = strings.TrimPrefix(arg, "--apiKey=")
+		} else if strings.HasPrefix(arg, "--secretKey=") {
+			user.SecretKey = strings.TrimPrefix(arg, "--secretKey=")
 		} else if strings.HasPrefix(arg, "--passphrase=") {
 			user.Passphrase = strings.TrimPrefix(arg, "--passphrase=")
 		}

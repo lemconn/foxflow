@@ -12,6 +12,8 @@ const (
 	TopCommandUse    = "use"
 	TopCommandCreate = "create"
 	TopCommandUpdate = "update"
+	TopCommandOpen   = "open"
+	TopCommandClose  = "close"
 	TopCommandCancel = "cancel"
 	TopCommandDelete = "delete"
 	TopCommandExit   = "exit"
