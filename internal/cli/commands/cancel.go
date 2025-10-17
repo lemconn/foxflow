@@ -3,9 +3,11 @@ package commands
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/lemconn/foxflow/internal/cli/command"
 	"github.com/lemconn/foxflow/internal/exchange"
+	"github.com/lemconn/foxflow/internal/models"
 	"github.com/lemconn/foxflow/internal/repository"
 	"github.com/lemconn/foxflow/internal/utils"
 )
@@ -14,8 +16,8 @@ import (
 type CancelCommand struct{}
 
 func (c *CancelCommand) GetName() string        { return "cancel" }
-func (c *CancelCommand) GetDescription() string { return "取消策略订单" }
-func (c *CancelCommand) GetUsage() string       { return "cancel ss <id>" }
+func (c *CancelCommand) GetDescription() string { return "取消订单" }
+func (c *CancelCommand) GetUsage() string       { return "cancel order <symbol>:<direction>:<amount>" }
 
 func (c *CancelCommand) Execute(ctx command.Context, args []string) error {
 	if !ctx.IsReady() {
@@ -24,34 +26,59 @@ func (c *CancelCommand) Execute(ctx command.Context, args []string) error {
 	if len(args) < 2 {
 		return fmt.Errorf("usage: %s", c.GetUsage())
 	}
-	if args[0] != "ss" {
-		return fmt.Errorf("only support cancel ss")
+	if args[0] != "order" {
+		return fmt.Errorf("only support cancel order")
 	}
 
-	orderID, err := strconv.ParseUint(args[1], 10, 32)
+	// 解析订单标识：symbol:direction:amount
+	if len(args) < 2 {
+		return fmt.Errorf("usage: %s", c.GetUsage())
+	}
+
+	orderParts := strings.Split(args[1], ":")
+	if len(orderParts) != 3 {
+		return fmt.Errorf("invalid order format, expected: symbol:direction:amount")
+	}
+
+	symbol := strings.ToUpper(orderParts[0])
+	direction := orderParts[1]
+	amountStr := orderParts[2]
+
+	amount, err := strconv.ParseFloat(amountStr, 64)
 	if err != nil {
-		return fmt.Errorf("invalid order ID")
+		return fmt.Errorf("invalid amount: %s", amountStr)
 	}
 
-	order, err := repository.FindSSOrderByIDForUser(ctx.GetUserInstance().ID, orderID)
+	// 根据 symbol、direction、amount 查找订单
+	orders, err := repository.ListSSOrders(ctx.GetUserInstance().ID, nil)
 	if err != nil {
-		return fmt.Errorf("get order error: %s", err)
+		return fmt.Errorf("get orders error: %s", err)
 	}
 
-	if order == nil || order.ID == 0 {
-		return fmt.Errorf("ss order not found")
+	var targetOrder *models.FoxSS
+	for _, order := range orders {
+		if order.Symbol == symbol && order.Side == direction &&
+			fmt.Sprintf("%.4f", order.Sz) == fmt.Sprintf("%.4f", amount) &&
+			order.Status != "cancelled" && order.Status != "completed" {
+			targetOrder = order
+			break
+		}
+	}
+
+	if targetOrder == nil {
+		return fmt.Errorf("order not found: %s:%s:%s", symbol, direction, amountStr)
 	}
 
 	// 如果订单已提交到交易所，需要取消远程订单
-	if order.Status == "pending" && order.OrderID != "" {
+	if targetOrder.Status == "pending" && targetOrder.OrderID != "" {
 		exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeInstance().Name)
 		if err != nil {
 			return fmt.Errorf("failed to get exchange client: %w", err)
 		}
 
 		exchangeOrder := &exchange.Order{
-			ID:     order.OrderID,
-			Symbol: order.Symbol,
+			ID:     targetOrder.OrderID,
+			Symbol: targetOrder.Symbol,
 		}
 		if err := exchangeClient.CancelOrder(ctx.GetContext(), exchangeOrder); err != nil {
 			return fmt.Errorf("failed to cancel remote order: %w", err)
@@ -59,11 +86,11 @@ func (c *CancelCommand) Execute(ctx command.Context, args []string) error {
 	}
 
 	// 更新订单状态
-	order.Status = "cancelled"
-	if err := repository.SaveSSOrder(order); err != nil {
+	targetOrder.Status = "cancelled"
+	if err := repository.SaveSSOrder(targetOrder); err != nil {
 		return fmt.Errorf("failed to update order: %w", err)
 	}
 
-	fmt.Println(utils.RenderSuccess(fmt.Sprintf("订单已取消: ID=%d", order.ID)))
+	fmt.Println(utils.RenderSuccess(fmt.Sprintf("订单已取消: %s:%s:%.4f", targetOrder.Symbol, targetOrder.Side, targetOrder.Sz)))
 	return nil
 }
