@@ -118,6 +118,7 @@ type Exchange interface {
 
 	// 标的配置
 	GetSymbols(ctx context.Context, userSymbol string) (*Symbol, error)
+	GetAllSymbols(ctx context.Context, instType string) ([]Symbol, error)
 	SetLeverage(ctx context.Context, symbol string, leverage int, marginType string) error
 	SetMarginType(ctx context.Context, symbol string, marginType string) error
 	GetConvertContractCoin(ctx context.Context, convert *ConvertContractCoin) (*ConvertContractCoin, error)

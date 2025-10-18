@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/c-bata/go-prompt"
-	"github.com/lemconn/foxflow/internal/cli/command"
 	"github.com/lemconn/foxflow/internal/config"
 	"github.com/lemconn/foxflow/internal/repository"
 )
@@ -47,11 +46,6 @@ func handleSubcommandCompletion(d prompt.Document, w string, fields []string, fi
 
 // handleSpecialCommandCompletions 处理特殊命令的补全逻辑
 func handleSpecialCommandCompletions(ctx *Context, d prompt.Document, w string, fields []string, first, second string) []prompt.Suggest {
-	// create symbols 的前缀匹配增强
-	if result := handleCreateSymbolsCompletion(d, w, fields, first, second); result != nil {
-		return result
-	}
-
 	// use 命令的动态补全
 	if result := handleUseCommandCompletion(d, w, fields, first, second); result != nil {
 		return result
@@ -72,44 +66,6 @@ func handleSpecialCommandCompletions(ctx *Context, d prompt.Document, w string, 
 		return result
 	}
 
-	return nil
-}
-
-// handleCreateSymbolsCompletion 处理 create symbols 命令的补全
-func handleCreateSymbolsCompletion(d prompt.Document, w string, fields []string, first, second string) []prompt.Suggest {
-	if first != "create" || second != "symbols" || !strings.HasSuffix(w, " ") {
-		return nil
-	}
-
-	prefix := d.GetWordBeforeCursor()
-	if len(fields) >= 3 {
-		extra := fields[2:]
-		// 正在输入第一个参数 <symbol>
-		if len(extra) == 1 {
-			return prompt.FilterHasPrefix([]prompt.Suggest{
-				{Text: "<symbol>", Description: "交易对名称，例如：BTC"},
-			}, prefix, true)
-		}
-
-		// 输入了 --leverage 且最后一个token是 --margin-type= 前缀时，做前缀过滤
-		hasLeverage := false
-		for i, t := range extra {
-			if i == 0 { // 跳过第一个必填 symbol
-				continue
-			}
-			if strings.HasPrefix(t, "--leverage=") {
-				hasLeverage = true
-			}
-		}
-		last := extra[len(extra)-1]
-		if hasLeverage && strings.HasPrefix(last, "--margin-type=") {
-			opts := []prompt.Suggest{
-				{Text: "--margin-type=isolated", Description: "保证金模式：逐仓"},
-				{Text: "--margin-type=cross", Description: "保证金模式：全仓"},
-			}
-			return prompt.FilterHasPrefix(opts, prefix, true)
-		}
-	}
 	return nil
 }
 
@@ -577,7 +533,7 @@ func getCreateSymbolsArgSuggestions(fields []string) []prompt.Suggest {
 }
 
 // getCompleter 获取命令补全器（go-prompt）
-func getCompleter(ctx *Context, commands map[string]command.Command) prompt.Completer {
+func getCompleter(ctx *Context) prompt.Completer {
 	return func(d prompt.Document) []prompt.Suggest {
 		w := d.TextBeforeCursor()
 		fields := parseCommandInput(w)
@@ -635,12 +591,12 @@ func getTopLevelHelpSuggestions() []prompt.Suggest {
 	return []prompt.Suggest{
 		{Text: "help", Description: "显示帮助信息 - 查看所有命令说明"},
 		{Text: "show", Description: "查看数据列表 - 支持子命令：exchange(交易所)、account(账户)、balance(资产)、position(持仓)、symbol(交易对)、strategy(策略)、order(订单)、news(新闻)"},
-		{Text: "use", Description: "激活上下文 - 支持子命令：exchange(激活交易所)、account(激活账户)"},
+		{Text: "use", Description: "激活上下文 - 支持子命令：exchange(交易所)、account(交易账户)"},
 		{Text: "create", Description: "创建资源 - 支持子命令：account(交易账户)"},
-		{Text: "update", Description: "更新配置 - 支持子命令：leverage(杠杆)"},
+		{Text: "update", Description: "更新配置 - 支持子命令：symbol(交易对)、account(交易账户)"},
 		{Text: "open", Description: "开仓/下单 - 执行交易开仓操作"},
 		{Text: "close", Description: "平仓 - 执行交易平仓操作"},
-		{Text: "cancel", Description: "取消订单 - 支持子命令：ss(策略订单)"},
+		{Text: "cancel", Description: "取消订单 - 支持子命令：order(策略订单)"},
 		{Text: "delete", Description: "删除资源 - 支持子命令：account(交易账户)"},
 		{Text: "exit", Description: "退出系统"},
 		{Text: "quit", Description: "退出系统"},
