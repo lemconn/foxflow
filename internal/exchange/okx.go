@@ -29,7 +29,7 @@ const (
 	okxUriUserTradeOrder       = "/api/v5/trade/order"
 	okxUriUserTradeCancelOrder = "/api/v5/trade/cancel-order"
 
-	okxUriMarkPriceCandles = "/api/v5/market/mark-price-candles"
+	okxUriMarkPriceCandles = "/priapi/v5/market/candles"
 )
 
 const (
@@ -59,7 +59,6 @@ type okxAssetValuation struct {
 		Trading string `json:"trading"` // 交易账户
 	} `json:"details"` // 各个账户的资产估值
 }
-
 
 // OKXExchange OKX交易所实现
 type OKXExchange struct {
@@ -699,6 +698,44 @@ func (e *OKXExchange) GetSymbols(ctx context.Context, userSymbol string) (*Symbo
 	return symbol, nil
 }
 
+// GetAllSymbols 获取所有交易对信息
+func (e *OKXExchange) GetAllSymbols(ctx context.Context, instType string) ([]Symbol, error) {
+	// 使用OKX公共接口获取所有交易对信息
+	params := url.Values{}
+	params.Set("instType", instType)
+
+	result, err := e.sendRequest(ctx, "GET", fmt.Sprintf("%s?%s", okxPublicUriInstruments, params.Encode()), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all instruments [%s] err: %w", instType, err)
+	}
+
+	if result.Code != "0" {
+		return nil, fmt.Errorf("okx GetAllInstruments [%s] error: %s", instType, result.Msg)
+	}
+
+	okxSymbolInfos := make([]okxSymbol, 0)
+	resultBytes, _ := json.Marshal(result.Data)
+	err = json.Unmarshal(resultBytes, &okxSymbolInfos)
+	if err != nil {
+		return nil, fmt.Errorf("instruments [%s] json.Decode err: %w", instType, err)
+	}
+
+	var symbols []Symbol
+	for _, okxSymbolInfo := range okxSymbolInfos {
+		symbol := Symbol{
+			Type:     okxSymbolInfo.InstType,
+			Name:     okxSymbolInfo.InstId,
+			Base:     okxSymbolInfo.BaseCcy,
+			Quote:    okxSymbolInfo.QuoteCcy,
+			MaxLever: okxSymbolInfo.Lever,
+			MinSize:  okxSymbolInfo.MinSz,
+		}
+		symbols = append(symbols, symbol)
+	}
+
+	return symbols, nil
+}
+
 var marginTypeMap = map[string]string{
 	"isolated": "isolated",
 	"cross":    "cross",
@@ -1007,7 +1044,7 @@ func (e *OKXExchange) GetKlineData(ctx context.Context, symbol, interval string,
 	// 转换数据格式
 	var klineData []KlineData
 	for _, item := range rawData {
-		if len(item) < 6 {
+		if len(item) < 7 {
 			continue // 跳过数据不完整的项
 		}
 
@@ -1070,7 +1107,15 @@ func (e *OKXExchange) GetKlineData(ctx context.Context, symbol, interval string,
 		}
 
 		// OKX 标记价格K线数据不包含成交量，设置为0
-		kline.Volume = 0
+		if volumeStr, ok := item[6].(string); ok {
+			if volume, err := strconv.ParseFloat(volumeStr, 64); err == nil {
+				kline.Volume = volume
+			} else {
+				valid = false
+			}
+		} else {
+			valid = false
+		}
 
 		// 只有所有字段都解析成功才添加到结果中
 		if valid {
@@ -1097,7 +1142,7 @@ func (e *OKXExchange) ConvertIntervalFormat(interval string) string {
 	// OKX 需要大写的时间单位
 	intervalMap := map[string]string{
 		"1m":  "1m",
-		"3m":  "3m", 
+		"3m":  "3m",
 		"5m":  "5m",
 		"15m": "15m",
 		"30m": "30m",
@@ -1113,11 +1158,11 @@ func (e *OKXExchange) ConvertIntervalFormat(interval string) string {
 		"6M":  "6M",
 		"1Y":  "1Y",
 	}
-	
+
 	if converted, exists := intervalMap[interval]; exists {
 		return converted
 	}
-	
+
 	// 如果没有找到匹配的格式，返回原格式
 	return interval
 }

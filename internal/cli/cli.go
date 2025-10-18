@@ -56,10 +56,7 @@ func (c *CLI) Run() error {
 
 	// 显示操作指南
 	fmt.Println("快捷键说明:")
-	fmt.Println("  Tab     - 自动补全和显示选项")
-	fmt.Println("  ↑↓      - 浏览命令历史")
-	fmt.Println("  Ctrl+R  - 搜索历史记录")
-	fmt.Println("  Ctrl+C  - 显示状态信息")
+	fmt.Println("  Tab     - 自动补全和显示选项并选择")
 	fmt.Println()
 
 	// 设置默认交易所
@@ -67,7 +64,7 @@ func (c *CLI) Run() error {
 
 	p := prompt.New(
 		c.executor,
-		getCompleter(c.ctx, c.commands),
+		getCompleter(c.ctx),
 		prompt.OptionTitle("foxflow"),
 		prompt.OptionPrefix("> "),
 		prompt.OptionPrefixTextColor(prompt.Green),
