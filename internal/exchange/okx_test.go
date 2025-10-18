@@ -123,13 +123,106 @@ func TestOKXExchange_GetKlineData_RealAPI(t *testing.T) {
 		for i := 1; i < len(klineData); i++ {
 			if klineData[i].Timestamp.After(klineData[i-1].Timestamp) {
 				t.Errorf("K线数据时间顺序错误: 第%d条时间戳(%s)应该早于第%d条时间戳(%s)",
-					i, klineData[i].Timestamp.Format("2006-01-02 15:04:05"), 
+					i, klineData[i].Timestamp.Format("2006-01-02 15:04:05"),
 					i-1, klineData[i-1].Timestamp.Format("2006-01-02 15:04:05"))
 			}
 		}
 	}
 }
 
+func TestOKXExchange_GetTicker_RealAPI(t *testing.T) {
+	// 首先检查网络连接性
+	okxHost := "www.okx.com:443"
+	timeout := 5 * time.Second
+
+	// 检查是否能直接连接OKX
+	canConnectDirectly := checkNetworkConnectivity(okxHost, timeout)
+
+	var exchange *OKXExchange
+	var apiURL string
+
+	if canConnectDirectly {
+		// 可以直接连接，使用官方API
+		apiURL = "https://www.okx.com"
+		exchange = NewOKXExchange(apiURL, "")
+		t.Log("使用直接连接测试OKX API")
+	} else {
+		// 无法直接连接，尝试使用代理
+		proxyURL := "http://127.0.0.1:7890"
+		apiURL = "https://www.okx.com"
+		exchange = NewOKXExchange(apiURL, proxyURL)
+		t.Log("使用代理连接测试OKX API")
+	}
+
+	// 创建上下文，设置较短的超时时间
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// 执行测试 - 获取BTC-USDT-SWAP的行情数据
+	ticker, err := exchange.GetTicker(ctx, "BTC-USDT-SWAP")
+
+	// 如果是网络连接问题，跳过测试而不是失败
+	if err != nil {
+		errorMsg := err.Error()
+		if contains(errorMsg, "no route to host") ||
+			contains(errorMsg, "connection refused") ||
+			contains(errorMsg, "timeout") ||
+			contains(errorMsg, "network is unreachable") ||
+			contains(errorMsg, "i/o timeout") ||
+			contains(errorMsg, "connection reset by peer") {
+			t.Skipf("网络连接问题，跳过测试: %v", err)
+		}
+		t.Fatalf("获取行情数据失败: %v", err)
+	}
+
+	if ticker == nil {
+		t.Fatal("未获取到任何行情数据")
+	}
+
+	t.Logf("成功获取到行情数据")
+
+	// 验证数据质量
+	if ticker.Symbol == "" {
+		t.Error("交易对符号为空")
+	}
+
+	if ticker.Price <= 0 {
+		t.Errorf("价格无效: %f", ticker.Price)
+	}
+
+	if ticker.High <= 0 {
+		t.Errorf("24小时最高价无效: %f", ticker.High)
+	}
+
+	if ticker.Low <= 0 {
+		t.Errorf("24小时最低价无效: %f", ticker.Low)
+	}
+
+	if ticker.Volume < 0 {
+		t.Errorf("24小时成交量无效: %f", ticker.Volume)
+	}
+
+	// 验证价格逻辑关系
+	if ticker.High < ticker.Low {
+		t.Errorf("24小时最高价低于最低价: H=%f, L=%f", ticker.High, ticker.Low)
+	}
+
+	if ticker.Price > ticker.High {
+		t.Errorf("当前价格高于24小时最高价: P=%f, H=%f", ticker.Price, ticker.High)
+	}
+
+	if ticker.Price < ticker.Low {
+		t.Errorf("当前价格低于24小时最低价: P=%f, L=%f", ticker.Price, ticker.Low)
+	}
+
+	// 打印行情数据详细信息用于验证
+	t.Logf("行情数据:")
+	t.Logf("  交易对: %s", ticker.Symbol)
+	t.Logf("  当前价格: %.2f", ticker.Price)
+	t.Logf("  24小时最高价: %.2f", ticker.High)
+	t.Logf("  24小时最低价: %.2f", ticker.Low)
+	t.Logf("  24小时成交量: %.2f", ticker.Volume)
+}
 
 // contains 检查字符串是否包含子字符串
 func contains(s, substr string) bool {

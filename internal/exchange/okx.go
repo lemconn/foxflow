@@ -30,6 +30,7 @@ const (
 	okxUriUserTradeCancelOrder = "/api/v5/trade/cancel-order"
 
 	okxUriMarkPriceCandles = "/priapi/v5/market/candles"
+	okxUriMarketTicker     = "/api/v5/market/ticker"
 )
 
 const (
@@ -58,6 +59,26 @@ type okxAssetValuation struct {
 		Funding string `json:"funding"` // 资金账户
 		Trading string `json:"trading"` // 交易账户
 	} `json:"details"` // 各个账户的资产估值
+}
+
+// okxTickerData OKX单个产品行情数据结构
+type okxTickerData struct {
+	InstType  string `json:"instType"`  // 产品类型
+	InstId    string `json:"instId"`    // 产品ID
+	Last      string `json:"last"`      // 最新成交价
+	LastSz    string `json:"lastSz"`    // 最新成交的数量，0 代表没有成交量
+	AskPx     string `json:"askPx"`     // 卖一价
+	AskSz     string `json:"askSz"`     // 卖一价对应的数量
+	BidPx     string `json:"bidPx"`     // 买一价
+	BidSz     string `json:"bidSz"`     // 买一价对应的数量
+	Open24h   string `json:"open24h"`   // 24小时开盘价
+	High24h   string `json:"high24h"`   // 24小时最高价
+	Low24h    string `json:"low24h"`    // 24小时最低价
+	VolCcy24h string `json:"volCcy24h"` // 24小时成交量，以币为单位
+	Vol24h    string `json:"vol24h"`    // 24小时成交量，以张为单位
+	Ts        string `json:"ts"`        // ticker数据产生时间，Unix时间戳的毫秒数格式
+	SodUtc0   string `json:"sodUtc0"`   // UTC+0 时开盘价
+	SodUtc8   string `json:"sodUtc8"`   // UTC+8 时开盘价
 }
 
 // OKXExchange OKX交易所实现
@@ -614,8 +635,64 @@ func (e *OKXExchange) CancelOrder(ctx context.Context, order *Order) error {
 }
 
 func (e *OKXExchange) GetTicker(ctx context.Context, symbol string) (*Ticker, error) {
+	// 构建查询参数
+	params := url.Values{}
+	params.Set("instId", symbol)
 
-	return nil, fmt.Errorf("no ticker data found")
+	// 构建完整URL
+	fullURL := fmt.Sprintf("%s?%s", okxUriMarketTicker, params.Encode())
+
+	// 发送请求（公共接口，不需要认证）
+	result, err := e.sendRequest(ctx, "GET", fullURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ticker data for %s: %w", symbol, err)
+	}
+
+	if result.Code != "0" {
+		return nil, fmt.Errorf("okx GetTicker error: %s, code: %s", result.Msg, result.Code)
+	}
+
+	// 解析返回数据
+	var tickerData []okxTickerData
+	resultBytes, err := json.Marshal(result.Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result data: %w", err)
+	}
+
+	if err := json.Unmarshal(resultBytes, &tickerData); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal ticker data: %w", err)
+	}
+
+	if len(tickerData) == 0 {
+		return nil, fmt.Errorf("no ticker data found for symbol: %s", symbol)
+	}
+
+	// 转换数据格式
+	ticker := &Ticker{
+		Symbol: tickerData[0].InstId,
+	}
+
+	// 解析价格数据
+	if last, err := strconv.ParseFloat(tickerData[0].Last, 64); err == nil {
+		ticker.Price = last
+	}
+
+	// 解析24小时最高价
+	if high, err := strconv.ParseFloat(tickerData[0].High24h, 64); err == nil {
+		ticker.High = high
+	}
+
+	// 解析24小时最低价
+	if low, err := strconv.ParseFloat(tickerData[0].Low24h, 64); err == nil {
+		ticker.Low = low
+	}
+
+	// 解析24小时成交量（以币为单位）
+	if volume, err := strconv.ParseFloat(tickerData[0].VolCcy24h, 64); err == nil {
+		ticker.Volume = volume
+	}
+
+	return ticker, nil
 }
 
 func (e *OKXExchange) GetTickers(ctx context.Context) ([]Ticker, error) {
