@@ -29,6 +29,9 @@ type CLI struct {
 func NewCLI() (*CLI, error) {
 	ctx := NewContext(context.Background())
 
+	// 初始化交易所交易对数据
+	InitExchangeSymbols()
+
 	// 注册命令
 	cmdMap := map[string]command.Command{
 		"help":   &cliCmds.HelpCommand{},

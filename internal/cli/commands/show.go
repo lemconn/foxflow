@@ -9,8 +9,8 @@ import (
 
 	"github.com/lemconn/foxflow/internal/cli/command"
 	cliRender "github.com/lemconn/foxflow/internal/cli/render"
+	"github.com/lemconn/foxflow/internal/config"
 	"github.com/lemconn/foxflow/internal/exchange"
-	"github.com/lemconn/foxflow/internal/models"
 	"github.com/lemconn/foxflow/internal/news"
 	"github.com/lemconn/foxflow/internal/repository"
 	"github.com/lemconn/foxflow/internal/utils"
@@ -28,7 +28,7 @@ func (c *ShowCommand) GetDescription() string {
 }
 
 func (c *ShowCommand) GetUsage() string {
-	return "show <type> [options]\n  types: exchanges, users, assets, orders, positions, strategies, symbols, ss, news\n  news: show news [count] - 显示最新新闻，count 为可选参数，默认为 10"
+	return "show <type> [options]\n  types: exchange, account, balance, order, position, strategy, symbol, order, news\n  news: show news [count] - 显示最新新闻，count 为可选参数，默认为 10"
 }
 
 func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
@@ -38,136 +38,136 @@ func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
 
 	switch args[0] {
 	case "exchange":
-		exchanges, err := repository.ListExchanges()
-		if err != nil {
-			return fmt.Errorf("failed to get exchanges: %w", err)
-		}
-
-		if exchanges == nil || len(exchanges) == 0 {
-			fmt.Println(utils.RenderWarning("No exchanges found"))
-			return nil
-		}
-
-		fmt.Println(cliRender.RenderExchangesWithStatus(exchanges))
-
+		return c.handleExchangeCommand()
 	case "account":
-		users, err := repository.ListUsers()
-		if err != nil {
-			return fmt.Errorf("failed to get users: %w", err)
-		}
-		fmt.Println(cliRender.RenderUsers(users))
-
+		return c.handleAccountCommand()
 	case "balance":
-		if !ctx.IsReady() {
-			return errors.New("请先选择交易所和用户")
-		}
-
-		exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeInstance().Name)
-		if err != nil {
-			return fmt.Errorf("failed to get exchange client: %w", err)
-		}
-		assets, err := exchangeClient.GetBalance(ctx.GetContext())
-		if err != nil {
-			return fmt.Errorf("failed to get assets: %w", err)
-		}
-
-		fmt.Println(cliRender.RenderAssets(assets))
-
+		return c.handleBalanceCommand(ctx)
 	case "order":
-		if !ctx.IsReady() {
-			return errors.New("请先选择交易所和用户")
-		}
-
-		exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeInstance().Name)
-		if err != nil {
-			return fmt.Errorf("failed to get exchange client: %w", err)
-		}
-		orders, err := exchangeClient.GetOrders(ctx.GetContext(), "", "pending")
-		if err != nil {
-			return fmt.Errorf("failed to get orders: %w", err)
-		}
-		fmt.Println(cliRender.RenderOrders(orders))
-
+		return c.handleOrderCommand(ctx)
 	case "position":
-		if !ctx.IsReady() {
-			return errors.New("请先选择交易所和用户")
-		}
-
-		exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeInstance().Name)
-		if err != nil {
-			return fmt.Errorf("failed to get exchange client: %w", err)
-		}
-		positions, err := exchangeClient.GetPositions(ctx.GetContext())
-		if err != nil {
-			return fmt.Errorf("failed to get positions: %w", err)
-		}
-		fmt.Println(cliRender.RenderPositions(positions))
-
+		return c.handlePositionCommand(ctx)
 	case "strategy":
 		fmt.Println(cliRender.RenderStrategies())
-
 	case "symbol":
-		if !ctx.IsReady() {
-			return errors.New("请先选择交易所和用户")
-		}
-
-		symbolList, err := repository.GetSymbolByUser(ctx.GetUserInstance().ID)
-		if err != nil {
-			return fmt.Errorf("failed to get symbols: %w", err)
-		}
-
-		// 获取当前交易所指定用户的标的张面值换算数据
-		symbols := make([]string, 0, len(symbolList))
-		for _, symbol := range symbolList {
-			symbols = append(symbols, symbol.Name)
-		}
-
-		exchangeName := ctx.GetExchangeInstance().Name
-		contractList, err := repository.GetSymbolContractByExchangeSymbols(exchangeName, symbols)
-		if err != nil {
-			return fmt.Errorf("get contract err: %w", err)
-		}
-
-		contractListMap := make(map[string]*models.FoxContractMultiplier)
-		for _, contract := range contractList {
-			contractListMap[contract.Symbol] = contract
-		}
-
-		symbolInfoList := make([]cliRender.RenderSymbolsInfo, 0)
-		for _, symbolInfo := range symbolList {
-			renderSymbolsInfo := cliRender.RenderSymbolsInfo{
-				Name:       symbolInfo.Name,
-				Exchange:   symbolInfo.Exchange,
-				Leverage:   symbolInfo.Leverage,
-				MarginType: symbolInfo.MarginType,
-			}
-			if contractInfo, ok := contractListMap[symbolInfo.Name]; ok {
-				renderSymbolsInfo.Multiplier = contractInfo.Multiplier
-			}
-
-			symbolInfoList = append(symbolInfoList, renderSymbolsInfo)
-		}
-
-		fmt.Println(cliRender.RenderSymbols(symbolInfoList))
-
-	case "ss":
-		if !ctx.IsReady() {
-			return errors.New("请先选择交易所和用户")
-		}
-
-		ss, err := repository.ListSSOrders(ctx.GetUserInstance().ID, []string{"waiting", "pending"})
-		if err != nil {
-			return fmt.Errorf("failed to get strategy orders: %w", err)
-		}
-		fmt.Println(cliRender.RenderStrategyOrders(ss))
-
+		return c.handleSymbolCommand(ctx)
 	case "news":
 		return c.handleNewsCommand(ctx, args[1:])
-
 	default:
 		return fmt.Errorf("unknown show type: %s", args[0])
 	}
 
+	return nil
+}
+
+func (c *ShowCommand) handleSymbolCommand(ctx command.Context) error {
+	if ctx.GetExchangeName() == "" {
+		return errors.New("请先选择交易所")
+	}
+	exchangeName := ctx.GetExchangeInstance().Name
+	symbolList, exists := config.ExchangeSymbolList[exchangeName]
+	if !exists {
+		return fmt.Errorf("exchange %s not found", exchangeName)
+	}
+
+	// 获取当前交易所指定用户的标的张面值换算数据
+	symbols := make([]string, 0, len(symbolList))
+	for _, symbol := range symbolList {
+		symbols = append(symbols, symbol.Name)
+	}
+
+	symbolInfoList := make([]cliRender.RenderSymbolsInfo, 0)
+	for _, symbolInfo := range symbolList {
+		renderSymbolsInfo := cliRender.RenderSymbolsInfo{
+			Exchange:    exchangeName,
+			Type:        symbolInfo.Type,
+			Name:        symbolInfo.Name,
+			Base:        symbolInfo.Base,
+			Quote:       symbolInfo.Quote,
+			MaxLeverage: symbolInfo.MaxLever,
+			MinSize:     symbolInfo.MinSize,
+		}
+
+		symbolInfoList = append(symbolInfoList, renderSymbolsInfo)
+	}
+
+	fmt.Println(cliRender.RenderSymbols(symbolInfoList))
+	return nil
+}
+
+func (c *ShowCommand) handlePositionCommand(ctx command.Context) error {
+	if !ctx.IsReady() {
+		return errors.New("请先选择交易所和用户")
+	}
+
+	exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeInstance().Name)
+	if err != nil {
+		return fmt.Errorf("failed to get exchange client: %w", err)
+	}
+
+	positions, err := exchangeClient.GetPositions(ctx.GetContext())
+	if err != nil {
+		return fmt.Errorf("failed to get positions: %w", err)
+	}
+
+	fmt.Println(cliRender.RenderPositions(positions))
+	return nil
+}
+
+func (c *ShowCommand) handleOrderCommand(ctx command.Context) error {
+	if !ctx.IsReady() {
+		return errors.New("请先选择交易所和用户")
+	}
+
+	ss, err := repository.ListSSOrders(ctx.GetUserInstance().ID, []string{"waiting", "pending"})
+	if err != nil {
+		return fmt.Errorf("failed to get strategy orders: %w", err)
+	}
+
+	fmt.Println(cliRender.RenderStrategyOrders(ss))
+	return nil
+}
+
+func (c *ShowCommand) handleBalanceCommand(ctx command.Context) error {
+	if !ctx.IsReady() {
+		return errors.New("请先选择交易所和用户")
+	}
+
+	exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeInstance().Name)
+	if err != nil {
+		return fmt.Errorf("failed to get exchange client: %w", err)
+	}
+	assets, err := exchangeClient.GetBalance(ctx.GetContext())
+	if err != nil {
+		return fmt.Errorf("failed to get assets: %w", err)
+	}
+
+	fmt.Println(cliRender.RenderAssets(assets))
+	return nil
+}
+
+func (c *ShowCommand) handleAccountCommand() error {
+	users, err := repository.ListUsers()
+	if err != nil {
+		return fmt.Errorf("failed to get users: %w", err)
+	}
+
+	fmt.Println(cliRender.RenderUsers(users))
+	return nil
+}
+
+func (c *ShowCommand) handleExchangeCommand() error {
+	exchanges, err := repository.ListExchanges()
+	if err != nil {
+		return fmt.Errorf("failed to get exchanges: %w", err)
+	}
+
+	if exchanges == nil || len(exchanges) == 0 {
+		fmt.Println(utils.RenderWarning("No exchanges found"))
+		return nil
+	}
+
+	fmt.Println(cliRender.RenderExchangesWithStatus(exchanges))
 	return nil
 }
 

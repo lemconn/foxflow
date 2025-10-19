@@ -28,6 +28,7 @@ const (
 	okxUriUserPositions        = "/api/v5/account/positions"
 	okxUriUserTradeOrder       = "/api/v5/trade/order"
 	okxUriUserTradeCancelOrder = "/api/v5/trade/cancel-order"
+	okxUriUserClosePositions   = "/api/v5/trade/close-position"
 
 	okxUriMarkPriceCandles = "/priapi/v5/market/candles"
 	okxUriMarketTicker     = "/api/v5/market/ticker"
@@ -437,6 +438,67 @@ func (e *OKXExchange) GetPositions(ctx context.Context) ([]Position, error) {
 	}
 
 	return res, nil
+}
+
+type oxkClosePositionsRequest struct {
+	InstId  string `json:"instId"`            // 产品ID，如 BTC-USDT-SWAP
+	PosSide string `json:"posSide,omitempty"` // 持仓方向: long, short, net
+	MgnMode string `json:"mgnMode"`           // 保证金模式: cross, isolated
+	Ccy     string `json:"ccy,omitempty"`     // 保证金币种，仅适用于逐仓杠杆订单
+	AutoCxl bool   `json:"autoCxl,omitempty"` // 是否自动撤销订单 true 或 false，默认false
+	ClOrdId string `json:"clOrdId,omitempty"` // 客户自定义订单ID (1-32位)
+	Tag     string `json:"tag,omitempty"`     // 订单标签 (1-16位)
+}
+
+type okxClosePositionsResponse struct {
+	InstId  string `json:"instId"`            // 产品ID
+	PosSide string `json:"posSide"`           // 持仓方向
+	ClOrdId string `json:"clOrdId,omitempty"` // 客户自定义订单ID
+	Tag     string `json:"tag,omitempty"`     // 订单标签
+}
+
+func (e *OKXExchange) ClosePositions(ctx context.Context, symbol, posSide, mgnMode, ccy string) error {
+	if e.user == nil || e.user.AccessKey == "" || e.user.SecretKey == "" || e.user.Passphrase == "" {
+		return fmt.Errorf("user information is missing, user: %+v ", e.user)
+	}
+
+	reqBody := oxkClosePositionsRequest{
+		InstId:  symbol,
+		PosSide: posSide,
+		MgnMode: mgnMode,
+	}
+	if len(ccy) > 0 {
+		reqBody.Ccy = ccy
+	}
+
+	reqBodyByte, err := json.Marshal(reqBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal close positions request: %w", err)
+	}
+
+	body := make(map[string]interface{})
+	err = json.Unmarshal(reqBodyByte, &body)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal close positions request: %w", err)
+	}
+
+	result, err := e.sendRequest(ctx, "POST", okxUriUserClosePositions, body)
+	if err != nil {
+		return fmt.Errorf("okx close positions err: %w", err)
+	}
+	if result.Code != "0" {
+		return fmt.Errorf("okx close positions error: %s, code:%s", result.Msg, result.Code)
+	}
+
+	// 解析响应数据
+	closePositionsResp := make([]okxClosePositionsResponse, 0)
+	resultByte, _ := json.Marshal(result.Data)
+	err = json.Unmarshal(resultByte, &closePositionsResp)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal close positions response: %w", err)
+	}
+
+	return nil
 }
 
 type okxConvertContractCoinResp struct {

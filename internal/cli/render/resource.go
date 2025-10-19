@@ -184,27 +184,29 @@ func RenderStrategies() string {
 }
 
 type RenderSymbolsInfo struct {
-	Name       string  `json:"name"`
-	Exchange   string  `json:"exchange"`
-	Leverage   int     `json:"leverage"`
-	MarginType string  `json:"margin_type"`
-	Multiplier float64 `json:"multiplier"`
+	Exchange    string `json:"exchange"`
+	Type        string `json:"type"`
+	Name        string `json:"name"`
+	Base        string `json:"base"`
+	Quote       string `json:"quote"`
+	MaxLeverage string `json:"max_leverage"`
+	MinSize     string `json:"min_size"`
 }
 
 // RenderSymbols 渲染交易对列表
 func RenderSymbols(symbols []RenderSymbolsInfo) string {
 	pt := utils.NewPrettyTable()
 	pt.SetTitle("💱 交易对列表")
-	pt.SetHeaders([]interface{}{"#", "交易对", "交易所", "杠杆倍数", "保证金模式", "交易对/张"})
+	pt.SetHeaders([]interface{}{"#", "产品类型", "交易所", "交易对", "最大杠杆倍数", "最小下单数量"})
 
 	for i, symbol := range symbols {
 		pt.AddRow([]interface{}{
 			i + 1,
-			symbol.Name,
+			symbol.Type,
 			symbol.Exchange,
-			symbol.Leverage,
-			symbol.MarginType,
-			symbol.Multiplier,
+			symbol.Name,
+			symbol.MaxLeverage,
+			symbol.MinSize,
 		})
 	}
 
