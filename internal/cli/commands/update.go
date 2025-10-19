@@ -16,9 +16,14 @@ type UpdateCommand struct{}
 
 func (c *UpdateCommand) GetName() string        { return "update" }
 func (c *UpdateCommand) GetDescription() string { return "设置杠杆或保证金模式" }
-func (c *UpdateCommand) GetUsage() string       { return "update <symbol> <type> <value>" }
+func (c *UpdateCommand) GetUsage() string {
+	return "show <type> [options]\n  types: symbol（更新交易对杠杆倍数和交易金模式）, account（更新账户信息）\n "
+}
 
 func (c *UpdateCommand) Execute(ctx command.Context, args []string) error {
+
+	fmt.Printf("---------[%+v]--------\n", args)
+
 	if !ctx.IsReady() {
 		return fmt.Errorf("请先选择交易所和用户")
 	}

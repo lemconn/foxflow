@@ -938,6 +938,7 @@ func handleCancelCommandCompletion(ctx *Context, d prompt.Document, w string, fi
 
 // getCancelOrderList 获取可取消的订单列表（暂时使用mock数据）
 func getCancelOrderList(ctx *Context) []prompt.Suggest {
+	
 	// 暂时使用mock数据，确保有数据显示
 	mockOrders := []struct {
 		symbol   string
@@ -982,30 +983,19 @@ func getCancelOrderList(ctx *Context) []prompt.Suggest {
 
 // getOpenSymbolList 获取open命令的symbol列表（暂时使用mock数据）
 func getOpenSymbolList(ctx *Context) []prompt.Suggest {
-	// 暂时使用mock数据，实际应该从数据库或API动态获取
-	mockSymbols := []struct {
-		name       string
-		leverage   int
-		marginType string
-		minAmount  string
-		maxAmount  string
-		priceUnit  string
-	}{
-		{"BTC-USDT", 10, "isolated", "0.001", "100", "USDT"},
-		{"ETH-USDT", 5, "cross", "0.01", "1000", "USDT"},
-		{"ADA-USDT", 3, "isolated", "1", "50000", "USDT"},
-		{"SOL-USDT", 8, "cross", "0.1", "2000", "USDT"},
-		{"DOGE-USDT", 2, "isolated", "10", "100000", "USDT"},
+	exchangeName := ctx.GetExchangeName()
+	symbolList, exist := config.ExchangeSymbolList[exchangeName]
+	if !exist {
+		return []prompt.Suggest{}
 	}
 
 	var suggestions []prompt.Suggest
-	for _, symbol := range mockSymbols {
+	for _, symbol := range symbolList {
 		suggestions = append(suggestions, prompt.Suggest{
-			Text: symbol.name,
-			Description: fmt.Sprintf("杠杆:%dx 保证金:%s | 最小:%s%s 最大:%s%s",
-				symbol.leverage, symbol.marginType,
-				symbol.minAmount, symbol.priceUnit,
-				symbol.maxAmount, symbol.priceUnit),
+			Text: symbol.Name,
+			Description: fmt.Sprintf("最大杠杆:%sx 最小购买量:%s",
+				symbol.MaxLever,
+				symbol.MinSize),
 		})
 	}
 

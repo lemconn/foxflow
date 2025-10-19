@@ -28,9 +28,7 @@ func (c *CreateCommand) Execute(ctx command.Context, args []string) error {
 
 	switch args[0] {
 	case "account":
-		return c.createUser(ctx, args[1:])
-	case "symbols":
-		return c.createSymbol(ctx, args[1:])
+		return c.createAccount(ctx, args[1:])
 	case "ss":
 		return c.createStrategyOrder(ctx, args[1:])
 	default:
@@ -38,23 +36,23 @@ func (c *CreateCommand) Execute(ctx command.Context, args []string) error {
 	}
 }
 
-func (c *CreateCommand) createUser(ctx command.Context, args []string) error {
+func (c *CreateCommand) createAccount(ctx command.Context, args []string) error {
 	if len(args) < 4 {
-		return fmt.Errorf("usage: create account <trade_type> --username=<name> --apiKey=<key> --secretKey=<secret> [--passphrase=<passphrase>]")
+		return fmt.Errorf("usage: create account <trade_type> username=<name> apiKey=<key> secretKey=<secret> [passphrase=<passphrase>]")
 	}
 
 	user := &models.FoxUser{}
 
 	user.TradeType = args[0]
 	for _, arg := range args {
-		if strings.HasPrefix(arg, "--username=") {
-			user.Username = strings.TrimPrefix(arg, "--username=")
-		} else if strings.HasPrefix(arg, "--apiKey=") {
-			user.AccessKey = strings.TrimPrefix(arg, "--apiKey=")
-		} else if strings.HasPrefix(arg, "--secretKey=") {
-			user.SecretKey = strings.TrimPrefix(arg, "--secretKey=")
-		} else if strings.HasPrefix(arg, "--passphrase=") {
-			user.Passphrase = strings.TrimPrefix(arg, "--passphrase=")
+		if strings.HasPrefix(arg, "username=") {
+			user.Username = strings.TrimPrefix(arg, "username=")
+		} else if strings.HasPrefix(arg, "apiKey=") {
+			user.AccessKey = strings.TrimPrefix(arg, "apiKey=")
+		} else if strings.HasPrefix(arg, "secretKey=") {
+			user.SecretKey = strings.TrimPrefix(arg, "secretKey=")
+		} else if strings.HasPrefix(arg, "passphrase=") {
+			user.Passphrase = strings.TrimPrefix(arg, "passphrase=")
 		}
 	}
 
@@ -106,109 +104,6 @@ func (c *CreateCommand) createUser(ctx command.Context, args []string) error {
 	}
 
 	fmt.Println(utils.RenderSuccess(fmt.Sprintf("用户创建成功: %s", user.Username)))
-	return nil
-}
-
-func (c *CreateCommand) createSymbol(ctx command.Context, args []string) error {
-	if !ctx.IsReady() {
-		return fmt.Errorf("请先选择交易所和用户")
-	}
-
-	if len(args) < 1 {
-		return fmt.Errorf("usage: create symbols <symbol> [--leverage=<num>] [--margin-type=<type>]")
-	}
-
-	symbolName := strings.ToUpper(args[0])
-	exchangeName := ctx.GetExchangeName()
-
-	exchangeClient, err := exchange.GetManager().GetExchange(exchangeName)
-	if err != nil {
-		return fmt.Errorf("get exchange client error: %w", err)
-	}
-
-	// 检测本地用户下是否已经有交易对
-	localSymbol, err := repository.GetSymbolByNameUser(symbolName, ctx.GetUserInstance().ID)
-	if err != nil {
-		return fmt.Errorf("get local symbol err: %w", err)
-	}
-
-	if localSymbol != nil && localSymbol.ID != 0 {
-		return fmt.Errorf("symbol already exists")
-	}
-
-	// 获取标的基本信息
-	symbols, err := exchangeClient.GetSymbols(ctx.GetContext(), symbolName)
-	if err != nil {
-		return fmt.Errorf("get symbol error: %w", err)
-	}
-
-	// 获取张币转换的兑换比例（张兑换币）
-	symbolConvert, err := exchangeClient.GetConvertContractCoin(ctx.GetContext(), &exchange.ConvertContractCoin{
-		Symbol: symbolName,
-	})
-	if err != nil {
-		return fmt.Errorf("get convert contract coin err: %w", err)
-	}
-
-	symbol := &models.FoxSymbol{
-		Name:       symbols.Name,
-		UserID:     ctx.GetUserInstance().ID,
-		Exchange:   exchangeName,
-		Leverage:   1,
-		MarginType: "isolated",
-	}
-
-	// 解析可选参数
-	if len(args[1:]) > 0 {
-		for _, arg := range args[1:] {
-			if strings.HasPrefix(arg, "--leverage=") {
-				leverage, err := strconv.Atoi(strings.TrimPrefix(arg, "--leverage="))
-				if err != nil {
-					return fmt.Errorf("invalid leverage value")
-				}
-				symbol.Leverage = leverage
-			} else if strings.HasPrefix(arg, "--margin-type=") {
-				symbol.MarginType = strings.TrimPrefix(arg, "--margin-type=")
-			}
-		}
-
-		setLeverageErr := exchangeClient.SetLeverage(ctx.GetContext(), symbol.Name, symbol.Leverage, symbol.MarginType)
-		if setLeverageErr != nil {
-			return fmt.Errorf("set leverage error: %w", setLeverageErr)
-		}
-	}
-
-	contractMultiplier := &models.FoxContractMultiplier{
-		Exchange:   exchangeName,
-		Symbol:     symbolName,
-		Multiplier: symbolConvert.Size,
-		Unit:       symbolConvert.Unit,
-	}
-
-	if err = repository.CreateSymbol(symbol); err != nil {
-		return fmt.Errorf("failed to create symbol: %w", err)
-	}
-
-	contractInfo, err := repository.GetSymbolContract(exchangeName, symbolName)
-	if err != nil {
-		return fmt.Errorf("get contract err: %w", err)
-	}
-
-	if contractInfo == nil || contractInfo.ID == 0 {
-		if err = repository.CreateSymbolContract(contractMultiplier); err != nil {
-			return fmt.Errorf("failed to create contract multiplier: %w", err)
-		}
-	} else {
-
-		contractInfo.Multiplier = symbolConvert.Size
-		contractInfo.Unit = symbolConvert.Unit
-
-		if err = repository.UpdateSymbolContract(contractInfo); err != nil {
-			return fmt.Errorf("failed to update contract multiplier: %w", err)
-		}
-	}
-
-	fmt.Println(utils.RenderSuccess(fmt.Sprintf("标的创建成功: %s", symbolName)))
 	return nil
 }
 

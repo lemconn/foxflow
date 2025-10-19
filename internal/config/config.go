@@ -15,6 +15,18 @@ const (
 
 const DateFormat = "2006-01-02 15:04:05"
 
+type SymbolInfo struct {
+	Type     string `json:"type"`
+	Name     string `json:"name"`
+	Base     string `json:"base"`
+	Quote    string `json:"quote"`
+	MaxLever string `json:"max_lever"`
+	MinSize  string `json:"min_size"` // 最小下单（合约：张，现货：交易货币）
+}
+
+// ExchangeSymbolList 各个交易所交易对数据（内存存储）
+var ExchangeSymbolList map[string][]SymbolInfo
+
 type Config struct {
 	DBPath   string
 	ProxyURL string
@@ -67,4 +79,8 @@ func GetDBPath() string {
 		return ".foxflow.db"
 	}
 	return filepath.Join(GlobalConfig.WorkDir, GlobalConfig.DBPath)
+}
+
+func SetConfigExchangeSymbolList(config map[string][]SymbolInfo) {
+	ExchangeSymbolList = config
 }
