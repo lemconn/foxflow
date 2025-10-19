@@ -75,7 +75,7 @@ func TestMarketProvider(t *testing.T) {
 	ctx := context.Background()
 
 	// 测试获取行情数据
-	data, err := manager.GetData(ctx, "market", "okx", "BTC.last_px")
+	data, err := manager.GetData(ctx, "market", "okx", "BTC.price")
 	if err != nil {
 		t.Errorf("获取行情数据失败: %v", err)
 	}
@@ -91,12 +91,12 @@ func TestMarketProvider(t *testing.T) {
 	}
 
 	// 测试行情数据获取
-	lastPx, err := marketProvider.GetData(ctx, "okx", "BTC.last_px")
+	price, err := marketProvider.GetData(ctx, "okx", "BTC.price")
 	if err != nil {
 		t.Errorf("获取行情价格失败: %v", err)
 	}
 
-	if lastPx == nil {
+	if price == nil {
 		t.Errorf("行情价格不应为空")
 	}
 }

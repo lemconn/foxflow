@@ -4,52 +4,35 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
-	"time"
+
+	"github.com/lemconn/foxflow/internal/exchange"
 )
 
-// MarketData 行情数据
-type MarketData struct {
-	Symbol     string    `json:"symbol"`
-	LastPx     float64   `json:"last_px"`     // 最新价格
-	LastVolume float64   `json:"last_volume"` // 最新成交量
-	Bid        float64   `json:"bid"`         // 买一价
-	Ask        float64   `json:"ask"`         // 卖一价
-	Timestamp  time.Time `json:"timestamp"`
-}
+// 使用 exchange 包中的 Ticker 类型
+type MarketData = exchange.Ticker
 
 // MarketProvider 行情数据模块
 type MarketProvider struct {
 	*BaseProvider
-	market map[string]*MarketData
-	mu     sync.RWMutex
+	exchangeMgr *exchange.Manager
 }
 
 // NewMarketProvider 创建行情数据模块
 func NewMarketProvider() *MarketProvider {
 	module := &MarketProvider{
 		BaseProvider: NewBaseProvider("market"),
-		market:       make(map[string]*MarketData),
+		exchangeMgr:  exchange.GetManager(),
 	}
 
-	module.initMockData()
 	return module
 }
 
 // GetData 获取数据
-// MarketProvider 只支持单个数据值，不支持历史数据
+// MarketProvider 通过 exchange 实时获取行情数据
 // params 参数（可选）：
 // - 目前暂未使用，保留用于未来扩展
 func (p *MarketProvider) GetData(ctx context.Context, dataSource, field string, params ...interface{}) (interface{}, error) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
-	marketData, exists := p.market[dataSource]
-	if !exists {
-		return nil, fmt.Errorf("no market data found for data source: %s", dataSource)
-	}
-
-	// 解析字段 - 支持多级字段如 "BTC.last_px"
+	// 解析字段 - 支持多级字段如 "BTC.price"
 	fieldParts := strings.Split(field, ".")
 	if len(fieldParts) < 2 {
 		return nil, fmt.Errorf("market field must be in format 'SYMBOL.FIELD', got: %s", field)
@@ -58,62 +41,37 @@ func (p *MarketProvider) GetData(ctx context.Context, dataSource, field string, 
 	symbol := fieldParts[0]
 	fieldName := fieldParts[1]
 
-	// 验证符号是否匹配
-	if marketData.Symbol != symbol {
-		return nil, fmt.Errorf("symbol mismatch: expected %s, got %s", symbol, marketData.Symbol)
+	// 获取交易所实例
+	exchangeInstance, err := p.exchangeMgr.GetExchange(dataSource)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get exchange %s: %w", dataSource, err)
 	}
 
+	// 使用 GetSwapSymbolByName 转换 symbol 参数
+	exchangeSymbol := exchangeInstance.GetSwapSymbolByName(ctx, symbol)
+
+	// 通过 exchange 实时获取行情数据
+	ticker, err := exchangeInstance.GetTicker(ctx, exchangeSymbol)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ticker data for %s %s: %w", dataSource, exchangeSymbol, err)
+	}
+
+	// 验证符号是否匹配
+	if ticker.Symbol != exchangeSymbol {
+		return nil, fmt.Errorf("symbol mismatch: expected %s, got %s", exchangeSymbol, ticker.Symbol)
+	}
+
+	// 提取指定字段
 	switch fieldName {
-	case "last_px":
-		return marketData.LastPx, nil
-	case "last_volume":
-		return marketData.LastVolume, nil
-	case "bid":
-		return marketData.Bid, nil
-	case "ask":
-		return marketData.Ask, nil
-	case "timestamp":
-		return marketData.Timestamp, nil
+	case "price":
+		return ticker.Price, nil
+	case "volume":
+		return ticker.Volume, nil
+	case "high":
+		return ticker.High, nil
+	case "low":
+		return ticker.Low, nil
 	default:
 		return nil, fmt.Errorf("unknown field: %s", fieldName)
 	}
 }
-
-// initMockData 初始化Mock数据
-func (p *MarketProvider) initMockData() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	// 初始化行情数据 - 支持多个数据源
-	// OKX 数据源
-	p.market["okx"] = &MarketData{
-		Symbol:     "BTC",
-		LastPx:     45500.0,
-		LastVolume: 500.0,
-		Bid:        45480.0,
-		Ask:        45520.0,
-		Timestamp:  time.Now(),
-	}
-
-	// Binance 数据源
-	p.market["binance"] = &MarketData{
-		Symbol:     "BTC",
-		LastPx:     45600.0,
-		LastVolume: 600.0,
-		Bid:        45580.0,
-		Ask:        45620.0,
-		Timestamp:  time.Now(),
-	}
-
-	// Gate 数据源
-	p.market["gate"] = &MarketData{
-		Symbol:     "BTC",
-		LastPx:     45700.0,
-		LastVolume: 700.0,
-		Bid:        45680.0,
-		Ask:        45720.0,
-		Timestamp:  time.Now(),
-	}
-}
-
-
