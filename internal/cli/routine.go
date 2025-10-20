@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"log"
+	"strings"
 
 	"github.com/lemconn/foxflow/internal/config"
 	"github.com/lemconn/foxflow/internal/exchange"
@@ -38,6 +39,12 @@ func InitExchangeSymbols() {
 				// 存储到全局变量中
 				symbolList := make([]config.SymbolInfo, 0)
 				for _, symbol := range symbols {
+
+					// 非 `-USDT-SWAP` 结尾的直接过滤掉
+					if !strings.HasSuffix(symbol.Name, "-USDT-SWAP") {
+						continue
+					}
+
 					symbolList = append(symbolList, config.SymbolInfo{
 						Type:     symbol.Type,
 						Name:     symbol.Name,
@@ -45,6 +52,7 @@ func InitExchangeSymbols() {
 						Quote:    symbol.Quote,
 						MaxLever: symbol.MaxLever,
 						MinSize:  symbol.MinSize,
+						Contract: symbol.ContractValue,
 					})
 				}
 

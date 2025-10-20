@@ -501,6 +501,15 @@ func (e *OKXExchange) ClosePositions(ctx context.Context, symbol, posSide, mgnMo
 	return nil
 }
 
+func (e *OKXExchange) GetSizeByQuote(ctx context.Context, symbol string, amount float64) (float64, error) { // 根据报价数量获取可买张数
+
+	return 0, nil
+}
+func (e *OKXExchange) GetSizeByBase(ctx context.Context, symbol string, amount float64) (float64, error) { // 根据标的数量获取可买张数
+
+	return 0, nil
+}
+
 type okxConvertContractCoinResp struct {
 	Type   string `json:"type"`   // 转换类型: 1-币转张, 2-张转币
 	InstId string `json:"instId"` // 标的
@@ -862,12 +871,13 @@ func (e *OKXExchange) GetAllSymbols(ctx context.Context, instType string) ([]Sym
 	var symbols []Symbol
 	for _, okxSymbolInfo := range okxSymbolInfos {
 		symbol := Symbol{
-			Type:     okxSymbolInfo.InstType,
-			Name:     okxSymbolInfo.InstId,
-			Base:     okxSymbolInfo.BaseCcy,
-			Quote:    okxSymbolInfo.QuoteCcy,
-			MaxLever: okxSymbolInfo.Lever,
-			MinSize:  okxSymbolInfo.MinSz,
+			Type:          okxSymbolInfo.InstType,
+			Name:          okxSymbolInfo.InstId,
+			Base:          okxSymbolInfo.BaseCcy,
+			Quote:         okxSymbolInfo.QuoteCcy,
+			MaxLever:      okxSymbolInfo.Lever,
+			MinSize:       okxSymbolInfo.MinSz,
+			ContractValue: okxSymbolInfo.CtVal,
 		}
 		symbols = append(symbols, symbol)
 	}
@@ -951,9 +961,17 @@ func (e *OKXExchange) SetMarginType(ctx context.Context, symbol string, marginTy
 	return nil
 }
 
-func (e *OKXExchange) GetLeverageMarginType(ctx context.Context, symbol string) (string, error) {
+type okxLeverageMarginTypeInfo struct {
+	InstId  string `json:"instId"`  // 	产品ID
+	Ccy     string `json:"ccy"`     // 币种，用于币种维度的杠杆。 仅适用于现货模式/跨币种保证金模式/组合保证金模式的全仓币币杠杆。
+	MgnMode string `json:"mgnMode"` // 保证金模式
+	PosSide string `json:"posSide"` // 持仓方向 long：开平仓模式开多 short：开平仓模式开空 net：买卖模式 开平仓模式下会返回两个方向的杠杆倍数
+	Lever   string `json:"lever"`   // 杠杆倍数
+}
+
+func (e *OKXExchange) GetLeverageMarginType(ctx context.Context, symbol string) ([]SymbolLeverageMarginType, error) {
 	if e.user == nil || e.user.AccessKey == "" || e.user.SecretKey == "" || e.user.Passphrase == "" {
-		return "", fmt.Errorf("user information is missing, user: %+v ", e.user)
+		return nil, fmt.Errorf("user information is missing, user: %+v ", e.user)
 	}
 
 	// 使用结构体组装查询参数
@@ -969,11 +987,11 @@ func (e *OKXExchange) GetLeverageMarginType(ctx context.Context, symbol string) 
 	// 结构体 -> map，用于拼装查询字符串
 	jsonBytes, err := json.Marshal(reqParams)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	var paramsMap map[string]interface{}
 	if err = json.Unmarshal(jsonBytes, &paramsMap); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// 构建查询参数
@@ -996,10 +1014,10 @@ func (e *OKXExchange) GetLeverageMarginType(ctx context.Context, symbol string) 
 
 	result, err := e.sendRequest(ctx, "GET", endpoint, nil)
 	if err != nil {
-		return "", fmt.Errorf("failed to get leverage info [%s] err: %w", endpoint, err)
+		return nil, fmt.Errorf("failed to get leverage info [%s] err: %w", endpoint, err)
 	}
 	if result.Code != "0" {
-		return "", fmt.Errorf("okx GetLeverageMarginType [%s] error: %s", endpoint, result.Msg)
+		return nil, fmt.Errorf("okx GetLeverageMarginType [%s] error: %s", endpoint, result.Msg)
 	}
 
 	// 解析返回数据
@@ -1012,13 +1030,13 @@ func (e *OKXExchange) GetLeverageMarginType(ctx context.Context, symbol string) 
 	var infos []okxLeverageInfo
 	resultBytes, _ := json.Marshal(result.Data)
 	if err := json.Unmarshal(resultBytes, &infos); err != nil {
-		return "", fmt.Errorf("okx GetLeverageMarginType jsonDecode result err: %w", err)
+		return nil, fmt.Errorf("okx GetLeverageMarginType jsonDecode result err: %w", err)
 	}
 	if len(infos) == 0 {
-		return "", fmt.Errorf("okx GetLeverageMarginType empty data")
+		return nil, fmt.Errorf("okx GetLeverageMarginType empty data")
 	}
 
-	return infos[0].MgnMode, nil
+	return nil, nil
 }
 
 // ConvertToExchangeSymbol 将用户输入的币种名称转换为OKX交易所格式
