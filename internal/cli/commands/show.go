@@ -86,6 +86,7 @@ func (c *ShowCommand) handleSymbolCommand(ctx command.Context) error {
 			Quote:       symbolInfo.Quote,
 			MaxLeverage: symbolInfo.MaxLever,
 			MinSize:     symbolInfo.MinSize,
+			Contract:    symbolInfo.Contract,
 		}
 
 		symbolInfoList = append(symbolInfoList, renderSymbolsInfo)

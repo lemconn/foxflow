@@ -22,6 +22,7 @@ type SymbolInfo struct {
 	Quote    string `json:"quote"`
 	MaxLever string `json:"max_lever"`
 	MinSize  string `json:"min_size"` // 最小下单（合约：张，现货：交易货币）
+	Contract string `json:"contract"` // 张数
 }
 
 // ExchangeSymbolList 各个交易所交易对数据（内存存储）

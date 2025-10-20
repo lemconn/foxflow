@@ -62,12 +62,13 @@ type Asset struct {
 }
 
 type Symbol struct {
-	Type     string `json:"type"`
-	Name     string `json:"name"`
-	Base     string `json:"base"`
-	Quote    string `json:"quote"`
-	MaxLever string `json:"max_lever"`
-	MinSize  string `json:"min_size"` // 最小下单（合约：张，现货：交易货币）
+	Type          string `json:"type"`
+	Name          string `json:"name"`
+	Base          string `json:"base"`
+	Quote         string `json:"quote"`
+	MaxLever      string `json:"max_lever"`
+	MinSize       string `json:"min_size"`       // 最小下单（合约：张，现货：交易货币）
+	ContractValue string `json:"contract_value"` // 张/标的的换算单位（1张=0.01个BTC，这里是0.01）
 }
 
 // Ticker 行情信息
@@ -87,6 +88,13 @@ type KlineData struct {
 	Close     float64   `json:"close"`
 	Volume    float64   `json:"volume"`
 	Timestamp time.Time `json:"timestamp"`
+}
+
+type SymbolLeverageMarginType struct {
+	Symbol  string  `json:"symbol"`
+	PosSide string  `json:"posSide"`
+	Lever   float64 `json:"lever"`
+	Margin  string  `json:"margin"`
 }
 
 // Exchange 交易所接口
@@ -122,6 +130,9 @@ type Exchange interface {
 	SetLeverage(ctx context.Context, symbol string, leverage int, marginType string) error
 	SetMarginType(ctx context.Context, symbol string, marginType string) error
 	GetConvertContractCoin(ctx context.Context, convert *ConvertContractCoin) (*ConvertContractCoin, error)
+	GetLeverageMarginType(ctx context.Context, symbol string) ([]SymbolLeverageMarginType, error)
+	GetSizeByQuote(ctx context.Context, symbol string, amount float64) (float64, error) // 根据报价数量获取可买张数
+	GetSizeByBase(ctx context.Context, symbol string, amount float64) (float64, error)  // 根据标的数量获取可买张数
 
 	// 币种名称转换
 	ConvertToExchangeSymbol(userSymbol string) string

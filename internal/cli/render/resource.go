@@ -2,6 +2,8 @@ package render
 
 import (
 	"fmt"
+	"log"
+	"strconv"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
@@ -191,15 +193,29 @@ type RenderSymbolsInfo struct {
 	Quote       string `json:"quote"`
 	MaxLeverage string `json:"max_leverage"`
 	MinSize     string `json:"min_size"`
+	Contract    string `json:"contract"`
 }
 
 // RenderSymbols 渲染交易对列表
 func RenderSymbols(symbols []RenderSymbolsInfo) string {
 	pt := utils.NewPrettyTable()
 	pt.SetTitle("💱 交易对列表")
-	pt.SetHeaders([]interface{}{"#", "产品类型", "交易所", "交易对", "最大杠杆倍数", "最小下单数量"})
+	pt.SetHeaders([]interface{}{"#", "产品类型", "交易所", "交易对", "最大杠杆倍数", "最小下单张数", "最小下单标的数量"})
 
 	for i, symbol := range symbols {
+
+		// 解析ContractValue为float64
+		contractValue, err := strconv.ParseFloat(symbol.Contract, 64)
+		if err != nil {
+			log.Printf("解析合约面值失败: %v", err)
+			continue
+		}
+		minSize, err := strconv.ParseFloat(symbol.MinSize, 64)
+		if err != nil {
+			log.Printf("解析最小下单量失败: %v", err)
+			continue
+		}
+
 		pt.AddRow([]interface{}{
 			i + 1,
 			symbol.Type,
@@ -207,6 +223,7 @@ func RenderSymbols(symbols []RenderSymbolsInfo) string {
 			symbol.Name,
 			symbol.MaxLeverage,
 			symbol.MinSize,
+			contractValue * minSize,
 		})
 	}
 

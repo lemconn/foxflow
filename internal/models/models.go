@@ -61,6 +61,7 @@ type FoxSS struct {
 	PosSide   string  `gorm:"not null;default:'';check:pos_side IN ('long', 'short')" json:"pos_side"`
 	Px        float64 `gorm:"not null;default:0" json:"px"`
 	Sz        float64 `gorm:"not null;default:0" json:"sz"`
+	SzType    string  `gorm:"not null;default:0" json:"sz_type"` // 用户购买的单位，U表示sz是购买金额，而不是标的数量。空表示sz是标的数量
 	OrderType string  `gorm:"not null;default:'limit';check:order_type IN ('limit', 'market')" json:"order_type"`
 	Strategy  string  `gorm:"not null;default:''" json:"strategy"`
 	OrderID   string  `gorm:"not null;default:''" json:"order_id"`
