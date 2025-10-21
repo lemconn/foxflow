@@ -361,6 +361,27 @@ func handleArgumentHints(ctx *Context, d prompt.Document, w string, fields []str
 		}
 	}
 
+	// 对于 show symbol，在输入子命令后显示标的补全，支持自定义输入
+	if first == "show" && second == "symbol" {
+		// 如果刚输入 "show symbol "（后面有空格），显示所有可用标的作为建议
+		if len(fields) == 2 && strings.HasSuffix(w, " ") {
+			return getDynamicSymbolList(ctx)
+		}
+
+		// 如果正在输入第三个参数（标的名称），支持模糊匹配，同时允许自定义输入
+		if len(fields) == 3 && !strings.HasSuffix(w, " ") {
+			prefix := strings.ToLower(d.GetWordBeforeCursor())
+			symbols := getDynamicSymbolList(ctx)
+			var filtered []prompt.Suggest
+			for _, symbol := range symbols {
+				if strings.Contains(strings.ToLower(symbol.Text), prefix) {
+					filtered = append(filtered, symbol)
+				}
+			}
+			return filtered
+		}
+	}
+
 	// 对于 create account，在选择完类型后显示参数
 	if first == "create" && second == "account" && len(fields) >= 3 {
 		// 获取所有可用参数
@@ -689,20 +710,19 @@ func updateAccountTradeTypeList() []prompt.Suggest {
 
 // getDynamicSymbolList 获取动态symbol列表
 func getDynamicSymbolList(ctx *Context) []prompt.Suggest {
-	if ctx.GetUserInstance() == nil {
+	if ctx.GetExchangeName() == "" {
 		return []prompt.Suggest{}
 	}
 
-	symbols, err := repository.GetSymbolByUser(ctx.GetUserInstance().ID)
-	if err != nil {
+	symbols, exist := config.ExchangeSymbolList[ctx.GetExchangeName()]
+	if !exist {
 		return []prompt.Suggest{}
 	}
 
 	var suggestions []prompt.Suggest
 	for _, symbol := range symbols {
 		suggestions = append(suggestions, prompt.Suggest{
-			Text:        symbol.Name,
-			Description: fmt.Sprintf("杠杆:%d 保证金:%s", symbol.Leverage, symbol.MarginType),
+			Text: symbol.Name,
 		})
 	}
 
@@ -938,7 +958,7 @@ func handleCancelCommandCompletion(ctx *Context, d prompt.Document, w string, fi
 
 // getCancelOrderList 获取可取消的订单列表（暂时使用mock数据）
 func getCancelOrderList(ctx *Context) []prompt.Suggest {
-	
+
 	// 暂时使用mock数据，确保有数据显示
 	mockOrders := []struct {
 		symbol   string

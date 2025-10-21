@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -501,60 +502,89 @@ func (e *OKXExchange) ClosePositions(ctx context.Context, symbol, posSide, mgnMo
 	return nil
 }
 
-func (e *OKXExchange) GetSizeByQuote(ctx context.Context, symbol string, amount float64) (float64, error) { // 根据报价数量获取可买张数
+// GetSizeByQuote 根据报价数量获取可买张数
+func (e *OKXExchange) GetSizeByQuote(ctx context.Context, symbol string, amount float64) (float64, error) {
+	// 获取当前币的价格
+	tickerInfo, err := e.GetTicker(ctx, symbol)
+	if err != nil {
+		return 0, err
+	}
 
-	return 0, nil
+	// 根据币的价格和金额计算出币数量,同时舍弃小数位（这里不做购买最小单位小数位保留）
+	symbolAmount := math.Trunc(amount / tickerInfo.Price)
+
+	// 根据标的数量获取可买张数
+	return e.GetSizeByBase(ctx, symbol, symbolAmount)
 }
-func (e *OKXExchange) GetSizeByBase(ctx context.Context, symbol string, amount float64) (float64, error) { // 根据标的数量获取可买张数
 
-	return 0, nil
+// GetSizeByBase 根据标的数量获取可买张数
+func (e *OKXExchange) GetSizeByBase(ctx context.Context, symbol string, amount float64) (float64, error) {
+
+	req := &okxConvertContractCoinReq{
+		okxConvertContractCoin: okxConvertContractCoin{
+			Type:   ConvertTypeCoin2Contract,
+			InstId: symbol,
+			Sz:     strconv.FormatFloat(amount, 'f', -1, 64),
+		},
+	}
+
+	// 获取指定标的指定数量的张数
+	res, err := e.getConvertContractCoin(ctx, req)
+	if err != nil {
+		return 0, err
+	}
+
+	// 将张数转换为float64
+	resAmount, err := strconv.ParseFloat(res.Sz, 64)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse amount: %w", err)
+	}
+
+	return resAmount, nil
 }
 
-type okxConvertContractCoinResp struct {
+type okxConvertContractCoinReq struct {
+	okxConvertContractCoin
+	OpType string `json:"opType"` // 将要下单的类型 open：开仓时将sz舍位 close：平仓时将sz四舍五入 默认值为close 适用于交割/永续
+}
+
+type okxConvertContractCoin struct {
 	Type   string `json:"type"`   // 转换类型: 1-币转张, 2-张转币
 	InstId string `json:"instId"` // 标的
-	Px     string `json:"px"`     // 委托价格
+	Px     string `json:"px"`     // 委托价格 币本位合约的张币转换时必填 U本位合约，usdt 与张的转换时，必填；coin 与张的转换时，可不填 期权的张币转换时，可不填。
 	Sz     string `json:"sz"`     // 数量: 张转币时为币的数量, 币转张时为张的数量
-	Unit   string `json:"unit"`   // 币的单位: coin-币, usds-usdt/usdc
+	Unit   string `json:"unit"`   // 币的单位: coin-币, usds-usdt/usdc 默认为 coin，仅适用于交割/永续的U本位合约
 }
 
-func (e *OKXExchange) GetConvertContractCoin(ctx context.Context, convert *ConvertContractCoin) (*ConvertContractCoin, error) {
+func (e *OKXExchange) getConvertContractCoin(ctx context.Context, req *okxConvertContractCoinReq) (*okxConvertContractCoin, error) {
 
 	// 使用OKX公共接口获取交易对信息
 	params := url.Values{}
-	params.Set("type", ConvertTypeContract2Coin) // 所有的默认为 张转币（币转张会出现“0”的情况）
-	params.Set("instId", convert.Symbol)
-	params.Set("sz", "1") // 获取当前币兑换价值，仅获取一张能兑换的币数量（用户存储固定比例）
-	if convert.Price > 0 {
+	params.Set("type", req.Type) // 所有的默认为 张转币（币转张会出现“0”的情况）
+	params.Set("instId", req.InstId)
+	params.Set("sz", req.Sz) // 获取当前币兑换价值，仅获取一张能兑换的币数量（用户存储固定比例）
+	if req.Px != "" {
 		// 币本位合约的张币转换时必填, U本位合约USDT与张的转换时
-		params.Set("px", strconv.FormatFloat(convert.Price, 'f', -1, 64))
+		params.Set("px", req.Px)
 	}
 
-	result, err := e.sendRequest(ctx, "GET", fmt.Sprintf("%s?%s", okxPublicUriConvertContractCoin, params.Encode()), nil)
+	result, err := e.sendRequest(ctx, "GET", fmt.Sprintf("%s?%s", "/api/v5/public/convert-contract-coin", params.Encode()), nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get req [%+v] err: %w", convert, err)
+		return nil, fmt.Errorf("failed to get req [%+v] err: %w", req, err)
 	}
 
 	if result.Code != "0" {
-		return nil, fmt.Errorf("okx GetConvertContractCoin [%+v] error: %s", convert, result.Msg)
+		return nil, fmt.Errorf("okx GetConvertContractCoin [%+v] error: %s", req, result.Msg)
 	}
 
-	okxConvertInfos := make([]okxConvertContractCoinResp, 0)
+	okxConvertInfos := make([]okxConvertContractCoin, 0)
 	resultBytes, _ := json.Marshal(result.Data)
 	err = json.Unmarshal(resultBytes, &okxConvertInfos)
 	if err != nil {
-		return nil, fmt.Errorf("convert [%+v] json.Decode err: %w", convert, err)
+		return nil, fmt.Errorf("convert [%+v] json.Decode err: %w", req, err)
 	}
 
-	resp := &ConvertContractCoin{
-		Type:   okxConvertInfos[0].Type,
-		Symbol: okxConvertInfos[0].InstId,
-		Unit:   okxConvertInfos[0].Unit,
-	}
-	resp.Size, _ = strconv.ParseFloat(okxConvertInfos[0].Sz, 64)
-	resp.Price, _ = strconv.ParseFloat(okxConvertInfos[0].Px, 64)
-
-	return resp, nil
+	return &okxConvertInfos[0], nil
 }
 
 func (e *OKXExchange) GetOrders(ctx context.Context, symbol string, status string) ([]Order, error) {
