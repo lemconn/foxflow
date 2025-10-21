@@ -7,15 +7,6 @@ import (
 	"github.com/lemconn/foxflow/internal/models"
 )
 
-type ConvertContractCoin struct {
-	Type   string  `json:"type"`   // 转换类型: 1-币转张, 2-张转币
-	Symbol string  `json:"symbol"` // 标的
-	Size   float64 `json:"size"`   // 数量
-	Price  float64 `json:"price,omitempty"`
-	Unit   string  `json:"unit,omitempty"`
-	OpType string  `json:"opType,omitempty"`
-}
-
 // Order 订单信息
 type Order struct {
 	ID             string           `json:"id"`
@@ -129,7 +120,6 @@ type Exchange interface {
 	GetAllSymbols(ctx context.Context, instType string) ([]Symbol, error)
 	SetLeverage(ctx context.Context, symbol string, leverage int, marginType string) error
 	SetMarginType(ctx context.Context, symbol string, marginType string) error
-	GetConvertContractCoin(ctx context.Context, convert *ConvertContractCoin) (*ConvertContractCoin, error)
 	GetLeverageMarginType(ctx context.Context, symbol string) ([]SymbolLeverageMarginType, error)
 	GetSizeByQuote(ctx context.Context, symbol string, amount float64) (float64, error) // 根据报价数量获取可买张数
 	GetSizeByBase(ctx context.Context, symbol string, amount float64) (float64, error)  // 根据标的数量获取可买张数

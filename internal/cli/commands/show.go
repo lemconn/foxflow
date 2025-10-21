@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/lemconn/foxflow/internal/cli/command"
@@ -50,7 +51,7 @@ func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
 	case "strategy":
 		fmt.Println(cliRender.RenderStrategies())
 	case "symbol":
-		return c.handleSymbolCommand(ctx)
+		return c.handleSymbolCommand(ctx, args[1:])
 	case "news":
 		return c.handleNewsCommand(ctx, args[1:])
 	default:
@@ -60,7 +61,7 @@ func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
 	return nil
 }
 
-func (c *ShowCommand) handleSymbolCommand(ctx command.Context) error {
+func (c *ShowCommand) handleSymbolCommand(ctx command.Context, args []string) error {
 	if ctx.GetExchangeName() == "" {
 		return errors.New("请先选择交易所")
 	}
@@ -70,14 +71,14 @@ func (c *ShowCommand) handleSymbolCommand(ctx command.Context) error {
 		return fmt.Errorf("exchange %s not found", exchangeName)
 	}
 
-	// 获取当前交易所指定用户的标的张面值换算数据
-	symbols := make([]string, 0, len(symbolList))
-	for _, symbol := range symbolList {
-		symbols = append(symbols, symbol.Name)
-	}
-
 	symbolInfoList := make([]cliRender.RenderSymbolsInfo, 0)
 	for _, symbolInfo := range symbolList {
+
+		// 如果存在参数，并且参数不为空，并且symbolInfo.Name字段中不包含参数，则跳过
+		if args[0] != "" && !strings.Contains(symbolInfo.Name, strings.ToUpper(args[0])) {
+			continue
+		}
+
 		renderSymbolsInfo := cliRender.RenderSymbolsInfo{
 			Exchange:    exchangeName,
 			Type:        symbolInfo.Type,
