@@ -91,18 +91,18 @@ func (m *Manager) GetAvailableExchanges() []string {
 	return exchanges
 }
 
-// ConnectUser 连接用户到指定交易所
-func (m *Manager) ConnectUser(ctx context.Context, exchangeName string, user *models.FoxUser) error {
+// ConnectAccount 连接用户到指定交易所
+func (m *Manager) ConnectAccount(ctx context.Context, exchangeName string, account *models.FoxAccount) error {
 	exchange, err := m.GetExchange(exchangeName)
 	if err != nil {
 		return err
 	}
 
-	return exchange.Connect(ctx, user)
+	return exchange.Connect(ctx, account)
 }
 
-// DisconnectUser 断开用户连接
-func (m *Manager) DisconnectUser(exchangeName string) error {
+// DisconnectAccount 断开用户连接
+func (m *Manager) DisconnectAccount(exchangeName string) error {
 	exchange, err := m.GetExchange(exchangeName)
 	if err != nil {
 		return err

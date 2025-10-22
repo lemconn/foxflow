@@ -8,21 +8,36 @@ import (
 	"gorm.io/gorm"
 )
 
-// ListUsers 列出所有用户
-func ListUsers() ([]models.FoxUser, error) {
+// ListAccount 列出所有用户
+func ListAccount() ([]models.FoxAccount, error) {
 	db := database.GetDB()
-	var users []models.FoxUser
-	if err := db.Find(&users).Error; err != nil {
+	var users []models.FoxAccount
+
+	err := db.Find(&users).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
+
 	return users, nil
 }
 
-// FindUserByUsername 根据用户名查找用户
-func FindUserByUsername(username string) (*models.FoxUser, error) {
-	var user models.FoxUser
+func ExchangeAccountList(exchangeName string) ([]models.FoxAccount, error) {
+	db := database.GetDB()
+	var users []models.FoxAccount
 
-	err := database.GetDB().Where("username = ?", username).Find(&user).Error
+	err := db.Where("exchange = ?", exchangeName).Find(&users).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	return users, nil
+}
+
+// FindAccountByName 根据用户名查找用户
+func FindAccountByName(name string) (*models.FoxAccount, error) {
+	var user models.FoxAccount
+
+	err := database.GetDB().Where("name = ?", name).Find(&user).Error
 	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
@@ -30,24 +45,42 @@ func FindUserByUsername(username string) (*models.FoxUser, error) {
 	return &user, nil
 }
 
-// CreateUser 创建用户
-func CreateUser(user *models.FoxUser) error {
+// FindAccountByExchangeName 根据交易所+用户名查找用户
+func FindAccountByExchangeName(exchange, name string) (*models.FoxAccount, error) {
+	var user models.FoxAccount
+
+	err := database.GetDB().Where("exchange = ?", exchange).Where("name = ?", name).Find(&user).Error
+	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+// CreateAccount 创建用户
+func CreateAccount(user *models.FoxAccount) error {
 	return database.GetDB().Create(user).Error
 }
 
-// DeleteUserByUsername 删除用户
-func DeleteUserByUsername(username string) error {
-	return database.GetDB().Where("username = ?", username).Delete(&models.FoxUser{}).Error
+// DeleteAccountByName 删除用户
+func DeleteAccountByName(name string) error {
+	return database.GetDB().Where("name = ?", name).Delete(&models.FoxAccount{}).Error
 }
 
-// SetAllUsersInactive 将所有用户置为未激活
-func SetAllUsersInactive() error {
+// SetAllAccountInactive 将所有用户置为未激活
+func SetAllAccountInactive() error {
 	db := database.GetDB()
-	return db.Model(&models.FoxUser{}).Where("1 = 1").Update("is_active", false).Error
+	return db.Model(&models.FoxAccount{}).Where("1 = 1").Update("is_active", false).Error
 }
 
-// ActivateUserByUsername 激活指定用户
-func ActivateUserByUsername(username string) error {
+// ActivateAccountByName 激活指定用户
+func ActivateAccountByName(name string) error {
 	db := database.GetDB()
-	return db.Model(&models.FoxUser{}).Where("username = ?", username).Update("is_active", true).Error
+	return db.Model(&models.FoxAccount{}).Where("name = ?", name).Update("is_active", true).Error
+}
+
+// UpdateAccount 更行账户
+func UpdateAccount(account *models.FoxAccount) error {
+	db := database.GetDB()
+	return db.Save(account).Error
 }

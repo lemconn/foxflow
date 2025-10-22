@@ -135,7 +135,7 @@ func (e *Engine) processUserOrders(userID uint, orders []models.FoxSS) error {
 
 	// 获取用户信息
 	db := database.GetDB()
-	var user models.FoxUser
+	var user models.FoxAccount
 	if err := db.Where("id = ?", userID).First(&user).Error; err != nil {
 		return fmt.Errorf("failed to get user: %w", err)
 	}

@@ -2,8 +2,6 @@ package render
 
 import (
 	"fmt"
-	"log"
-	"strconv"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
@@ -35,27 +33,27 @@ func RenderExchangesWithStatus(exchanges []*models.FoxExchange) string {
 	return pt.Render()
 }
 
-// RenderUsers 渲染用户列表
-func RenderUsers(users []models.FoxUser) string {
+// RenderAccounts 渲染用户列表
+func RenderAccounts(accounts []models.FoxAccount) string {
 	pt := utils.NewPrettyTable()
 	pt.SetTitle("👥 用户列表")
 	pt.SetHeaders([]interface{}{"ID", "用户名", "交易所", "交易类型", "状态"})
 
-	for _, user := range users {
+	for _, account := range accounts {
 		status := "❌ 非活跃"
-		if user.IsActive {
+		if account.IsActive {
 			status = "✅ 激活"
 		}
 
 		tradeType := "🎯 模拟"
-		if user.TradeType == "real" {
+		if account.TradeType == "real" {
 			tradeType = "💰 实盘"
 		}
 
 		pt.AddRow([]interface{}{
-			user.ID,
-			user.Username,
-			user.Exchange,
+			account.ID,
+			account.Name,
+			account.Exchange,
 			tradeType,
 			status,
 		})
@@ -186,14 +184,14 @@ func RenderStrategies() string {
 }
 
 type RenderSymbolsInfo struct {
-	Exchange    string `json:"exchange"`
-	Type        string `json:"type"`
-	Name        string `json:"name"`
-	Base        string `json:"base"`
-	Quote       string `json:"quote"`
-	MaxLeverage string `json:"max_leverage"`
-	MinSize     string `json:"min_size"`
-	Contract    string `json:"contract"`
+	Exchange    string  `json:"exchange"`
+	Type        string  `json:"type"`
+	Name        string  `json:"name"`
+	Base        string  `json:"base"`
+	Quote       string  `json:"quote"`
+	MaxLeverage float64 `json:"max_leverage"`
+	MinSize     float64 `json:"min_size"`
+	Contract    float64 `json:"contract"`
 }
 
 // RenderSymbols 渲染交易对列表
@@ -203,19 +201,6 @@ func RenderSymbols(symbols []RenderSymbolsInfo) string {
 	pt.SetHeaders([]interface{}{"#", "产品类型", "交易所", "交易对", "最大杠杆倍数", "最小下单张数", "最小下单标的数量"})
 
 	for i, symbol := range symbols {
-
-		// 解析ContractValue为float64
-		contractValue, err := strconv.ParseFloat(symbol.Contract, 64)
-		if err != nil {
-			log.Printf("解析合约面值失败: %v", err)
-			continue
-		}
-		minSize, err := strconv.ParseFloat(symbol.MinSize, 64)
-		if err != nil {
-			log.Printf("解析最小下单量失败: %v", err)
-			continue
-		}
-
 		pt.AddRow([]interface{}{
 			i + 1,
 			symbol.Type,
@@ -223,7 +208,7 @@ func RenderSymbols(symbols []RenderSymbolsInfo) string {
 			symbol.Name,
 			symbol.MaxLeverage,
 			symbol.MinSize,
-			contractValue * minSize,
+			symbol.Contract * symbol.MinSize,
 		})
 	}
 

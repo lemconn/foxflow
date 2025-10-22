@@ -40,28 +40,28 @@ func (c *UseCommand) Execute(ctx command.Context, args []string) error {
 
 	switch strings.ToLower(args[0]) {
 	case "exchange":
-		return c.handleExchangeCommand(ctx, strings.ToLower(args[1]))
+		return c.HandleExchangeCommand(ctx, args[1])
 	case "account":
-		return c.handleAccountCommand(ctx, strings.ToLower(args[1]))
+		return c.HandleAccountCommand(ctx, args[1])
 	default:
 		return fmt.Errorf("unknown use type: %s", args[0])
 	}
 }
 
-func (c *UseCommand) handleExchangeCommand(ctx command.Context, exchangeName string) error {
+func (c *UseCommand) HandleExchangeCommand(ctx command.Context, exchangeName string) error {
 	// 将所有交易所设置为非激活状态
 	if err := repository.SetAllExchangesInactive(); err != nil {
 		return fmt.Errorf("failed to deactivate exchanges: %w", err)
 	}
 
 	// 将所有用户设置为非激活状态
-	if err := repository.SetAllUsersInactive(); err != nil {
-		return fmt.Errorf("failed to deactivate users: %w", err)
+	if err := repository.SetAllAccountInactive(); err != nil {
+		return fmt.Errorf("failed to deactivate accounts: %w", err)
 	}
 
 	// 断开当前交易所连接
 	if ctx.GetExchangeName() != "" {
-		exchange.GetManager().DisconnectUser(ctx.GetExchangeName())
+		exchange.GetManager().DisconnectAccount(ctx.GetExchangeName())
 	}
 
 	// 获取交易所信息
@@ -81,73 +81,78 @@ func (c *UseCommand) handleExchangeCommand(ctx command.Context, exchangeName str
 	// 设置新的交易所
 	ctx.SetExchangeName(exchangeName)
 	ctx.SetExchangeInstance(exchangeInfo)
-	ctx.SetUserName("")                    // 清除当前用户
-	ctx.SetUserInstance(&models.FoxUser{}) // 清楚当前用户信息
+	ctx.SetAccountName("")                       // 清除当前用户
+	ctx.SetAccountInstance(&models.FoxAccount{}) // 清楚当前用户信息
 	fmt.Println(utils.RenderSuccess(fmt.Sprintf("已激活交易所: %s", utils.MessageGreen(exchangeName))))
 
 	return nil
 }
 
-func (c *UseCommand) handleAccountCommand(ctx command.Context, username string) error {
-	user, err := repository.FindUserByUsername(username)
+func (c *UseCommand) HandleAccountCommand(ctx command.Context, name string) error {
+	account, err := repository.FindAccountByName(name)
 	if err != nil {
-		return fmt.Errorf("failed to get user: %w", err)
+		return fmt.Errorf("failed to get account: %w", err)
 	}
 
-	if user == nil || user.ID == 0 {
-		return fmt.Errorf("user `%s` not found", username)
+	if account == nil || account.ID == 0 {
+		return fmt.Errorf("account `%s` not found", name)
 	}
 
 	// 将所有用户设置为非激活状态
-	if err = repository.SetAllUsersInactive(); err != nil {
-		return fmt.Errorf("failed to deactivate users: %w", err)
+	if err = repository.SetAllAccountInactive(); err != nil {
+		return fmt.Errorf("failed to deactivate accounts: %w", err)
 	}
 
 	// 如果用户属于不同的交易所，需要切换交易所
-	if ctx.GetExchangeName() != "" && ctx.GetExchangeName() != user.Exchange {
+	if ctx.GetExchangeName() != "" && ctx.GetExchangeName() != account.Exchange {
 		// 将所有交易所设置为非激活状态
 		if err = repository.SetAllExchangesInactive(); err != nil {
 			return fmt.Errorf("failed to deactivate exchanges: %w", err)
 		}
 
 		// 断开当前交易所连接
-		exchange.GetManager().DisconnectUser(ctx.GetExchangeName())
+		exchange.GetManager().DisconnectAccount(ctx.GetExchangeName())
 
 		// 切换到用户所属的交易所
 		var ex *models.FoxExchange
-		ex, err = repository.GetExchange(user.Exchange)
+		ex, err = repository.GetExchange(account.Exchange)
 		if err != nil {
 			return fmt.Errorf("failed to get exchange: %w", err)
 		}
 
 		if ex == nil || ex.ID == 0 {
-			return fmt.Errorf("exchange `%s` not found", user.Exchange)
+			return fmt.Errorf("exchange `%s` not found", account.Exchange)
 		}
 
 		// 激活用户所属的交易所
-		if err = repository.ActivateExchange(user.Exchange); err != nil {
+		if err = repository.ActivateExchange(account.Exchange); err != nil {
 			return fmt.Errorf("failed to activate exchange: %w", err)
 		}
 
-		ctx.SetExchangeName(user.Exchange)
+		ctx.SetExchangeName(account.Exchange)
 		ctx.SetExchangeInstance(ex)
 	}
 
 	// 激活选中的用户
-	if err = repository.ActivateUserByUsername(username); err != nil {
-		return fmt.Errorf("failed to activate user: %w", err)
+	if err = repository.ActivateAccountByName(name); err != nil {
+		return fmt.Errorf("failed to activate account: %w", err)
 	}
 
 	// 连接用户到交易所
 	if ctx.GetExchangeName() != "" {
-		if err = exchange.GetManager().ConnectUser(ctx.GetContext(), ctx.GetExchangeName(), user); err != nil {
-			return fmt.Errorf("failed to connect user: %w", err)
+		exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeName())
+		if err != nil {
+			return fmt.Errorf("failed to get exchange client: %w", err)
+		}
+
+		if err = exchangeClient.SetAccount(ctx.GetContext(), account); err != nil {
+			return fmt.Errorf("failed to connect account: %w", err)
 		}
 	}
 
-	ctx.SetUserName(user.Username)
-	ctx.SetUserInstance(user)
-	fmt.Println(utils.RenderSuccess(fmt.Sprintf("已激活用户: %s", utils.MessageGreen(username))))
+	ctx.SetAccountName(account.Name)
+	ctx.SetAccountInstance(account)
+	fmt.Println(utils.RenderSuccess(fmt.Sprintf("已激活用户: %s", utils.MessageGreen(name))))
 
 	return nil
 }

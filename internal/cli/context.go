@@ -13,8 +13,8 @@ import (
 type Context struct {
 	ctx              context.Context
 	currentExchange  string
-	currentUser      string
-	userInstance     *models.FoxUser
+	currentAccount   string
+	accountInstance  *models.FoxAccount
 	exchange         exchange.Exchange
 	exchangeInstance *models.FoxExchange
 }
@@ -47,12 +47,12 @@ func (c *Context) restoreActiveState() {
 		}
 
 		// 查找激活的用户
-		var activeUser models.FoxUser
-		if err := db.Where("is_active = ? AND exchange = ?", true, activeExchange.Name).First(&activeUser).Error; err == nil {
-			c.currentUser = activeUser.Username
+		var activeAccount models.FoxAccount
+		if err := db.Where("is_active = ? AND exchange = ?", true, activeExchange.Name).First(&activeAccount).Error; err == nil {
+			c.currentAccount = activeAccount.Name
 
 			// 连接用户到交易所
-			if err := exchangeManager.ConnectUser(c.ctx, activeExchange.Name, &activeUser); err == nil {
+			if err := exchangeManager.ConnectAccount(c.ctx, activeExchange.Name, &activeAccount); err == nil {
 				// 连接成功，更新交易所实例
 				if ex, err := exchangeManager.GetExchange(activeExchange.Name); err == nil {
 					c.exchange = ex
@@ -72,14 +72,14 @@ func (c *Context) GetExchangeName() string {
 	return c.currentExchange
 }
 
-// SetUserName 设置当前用户
-func (c *Context) SetUserName(userName string) {
-	c.currentUser = strings.TrimSpace(userName)
+// SetAccountName 设置当前用户
+func (c *Context) SetAccountName(accountName string) {
+	c.currentAccount = strings.TrimSpace(accountName)
 }
 
-// GetUserName 获取当前用户
-func (c *Context) GetUserName() string {
-	return c.currentUser
+// GetAccountName 获取当前用户
+func (c *Context) GetAccountName() string {
+	return c.currentAccount
 }
 
 // SetExchangeInstance 设置交易所实例
@@ -92,19 +92,19 @@ func (c *Context) GetExchangeInstance() *models.FoxExchange {
 	return c.exchangeInstance
 }
 
-// SetUserInstance 设置当前用户
-func (c *Context) SetUserInstance(user *models.FoxUser) {
-	c.userInstance = user
+// SetAccountInstance 设置当前用户
+func (c *Context) SetAccountInstance(account *models.FoxAccount) {
+	c.accountInstance = account
 }
 
-// GetUserInstance 获取当前用户
-func (c *Context) GetUserInstance() *models.FoxUser {
-	return c.userInstance
+// GetAccountInstance 获取当前用户
+func (c *Context) GetAccountInstance() *models.FoxAccount {
+	return c.accountInstance
 }
 
 // IsReady 检查是否已选择交易所和用户
 func (c *Context) IsReady() bool {
-	return c.currentExchange != "" && c.currentUser != ""
+	return c.currentExchange != "" && c.currentAccount != ""
 }
 
 // GetContext 获取底层context

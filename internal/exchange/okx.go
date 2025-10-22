@@ -89,7 +89,7 @@ type OKXExchange struct {
 	apiURL   string
 	proxyURL string
 	client   *http.Client
-	user     *models.FoxUser
+	account  *models.FoxAccount
 }
 
 // NewOKXExchange 创建OKX交易所实例
@@ -128,8 +128,8 @@ func (e *OKXExchange) GetProxyURL() string {
 	return e.proxyURL
 }
 
-func (e *OKXExchange) Connect(ctx context.Context, user *models.FoxUser) error {
-	e.user = user
+func (e *OKXExchange) Connect(ctx context.Context, account *models.FoxAccount) error {
+	e.account = account
 
 	// 这里可以添加连接测试逻辑（获取当前用户的资产估值数据）
 	_, err := e.getAssetValuation(ctx)
@@ -141,19 +141,27 @@ func (e *OKXExchange) Connect(ctx context.Context, user *models.FoxUser) error {
 }
 
 func (e *OKXExchange) Disconnect() error {
-	e.user = nil
+	e.account = nil
 	return nil
 }
 
-func (e *OKXExchange) SetUSer(ctx context.Context, user *models.FoxUser) error {
-	e.user = user
+func (e *OKXExchange) SetAccount(ctx context.Context, account *models.FoxAccount) error {
+	e.account = account
 	return nil
+}
+
+func (e *OKXExchange) GetAccount(ctx context.Context) (*models.FoxAccount, error) {
+	if e.account == nil {
+		return nil, nil
+	}
+
+	return e.account, nil
 }
 
 // getAssetValuation 获取用户的资产估值（可以作为试探连接使用）
 func (e *OKXExchange) getAssetValuation(ctx context.Context) (float64, error) {
-	if e.user == nil || e.user.AccessKey == "" || e.user.SecretKey == "" || e.user.Passphrase == "" {
-		return 0, fmt.Errorf("user information is missing, user: %+v ", e.user)
+	if e.account == nil || e.account.AccessKey == "" || e.account.SecretKey == "" || e.account.Passphrase == "" {
+		return 0, fmt.Errorf("account information is missing, account: %+v ", e.account)
 	}
 
 	result, err := e.sendRequest(ctx, "GET", okxUriUserAssetValuation, nil)
@@ -256,8 +264,8 @@ type okxAccountBalanceResp struct {
 }
 
 func (e *OKXExchange) GetBalance(ctx context.Context) ([]Asset, error) {
-	if e.user == nil || e.user.AccessKey == "" || e.user.SecretKey == "" || e.user.Passphrase == "" {
-		return nil, fmt.Errorf("user information is missing, user: %+v ", e.user)
+	if e.account == nil || e.account.AccessKey == "" || e.account.SecretKey == "" || e.account.Passphrase == "" {
+		return nil, fmt.Errorf("account information is missing, account: %+v ", e.account)
 	}
 
 	result, err := e.sendRequest(ctx, "GET", okxUriUserBalance, nil)
@@ -373,8 +381,8 @@ type CloseOrderAlgo struct {
 }
 
 func (e *OKXExchange) GetPositions(ctx context.Context) ([]Position, error) {
-	if e.user == nil || e.user.AccessKey == "" || e.user.SecretKey == "" || e.user.Passphrase == "" {
-		return nil, fmt.Errorf("user information is missing, user: %+v ", e.user)
+	if e.account == nil || e.account.AccessKey == "" || e.account.SecretKey == "" || e.account.Passphrase == "" {
+		return nil, fmt.Errorf("account information is missing, account: %+v ", e.account)
 	}
 
 	reqBody := okxPositionsRequest{
@@ -459,8 +467,8 @@ type okxClosePositionsResponse struct {
 }
 
 func (e *OKXExchange) ClosePositions(ctx context.Context, symbol, posSide, mgnMode, ccy string) error {
-	if e.user == nil || e.user.AccessKey == "" || e.user.SecretKey == "" || e.user.Passphrase == "" {
-		return fmt.Errorf("user information is missing, user: %+v ", e.user)
+	if e.account == nil || e.account.AccessKey == "" || e.account.SecretKey == "" || e.account.Passphrase == "" {
+		return fmt.Errorf("account information is missing, account: %+v ", e.account)
 	}
 
 	reqBody := oxkClosePositionsRequest{
@@ -588,8 +596,8 @@ func (e *OKXExchange) getConvertContractCoin(ctx context.Context, req *okxConver
 }
 
 func (e *OKXExchange) GetOrders(ctx context.Context, symbol string, status string) ([]Order, error) {
-	if e.user == nil {
-		return nil, fmt.Errorf("user not connected")
+	if e.account == nil {
+		return nil, fmt.Errorf("account not connected")
 	}
 
 	return nil, nil
@@ -633,8 +641,8 @@ type oxkAttachAlgoOrd struct {
 }
 
 func (e *OKXExchange) CreateOrder(ctx context.Context, order *Order) (*Order, error) {
-	if e.user == nil || e.user.AccessKey == "" || e.user.SecretKey == "" || e.user.Passphrase == "" {
-		return nil, fmt.Errorf("user information is missing, user: %+v ", e.user)
+	if e.account == nil || e.account.AccessKey == "" || e.account.SecretKey == "" || e.account.Passphrase == "" {
+		return nil, fmt.Errorf("account information is missing, account: %+v ", e.account)
 	}
 
 	reqBody := oxkOrderRequest{
@@ -704,8 +712,8 @@ type okxCancelOrderResponse struct {
 }
 
 func (e *OKXExchange) CancelOrder(ctx context.Context, order *Order) error {
-	if e.user == nil || e.user.AccessKey == "" || e.user.SecretKey == "" || e.user.Passphrase == "" {
-		return fmt.Errorf("user information is missing, user: %+v ", e.user)
+	if e.account == nil || e.account.AccessKey == "" || e.account.SecretKey == "" || e.account.Passphrase == "" {
+		return fmt.Errorf("account information is missing, account: %+v ", e.account)
 	}
 
 	reqBody := oxkCancelOrderRequest{
@@ -841,30 +849,30 @@ type okxSymbol struct {
 	InstIdCode        int64    `json:"instIdCode,omitempty"`        // 产品唯一标识代码
 }
 
-func (e *OKXExchange) GetSymbols(ctx context.Context, userSymbol string) (*Symbol, error) {
+func (e *OKXExchange) GetSymbols(ctx context.Context, symbol string) (*Symbol, error) {
 
 	// 使用OKX公共接口获取交易对信息
 	params := url.Values{}
 	params.Set("instType", "SWAP")
-	params.Set("instId", userSymbol)
+	params.Set("instId", symbol)
 
 	result, err := e.sendRequest(ctx, "GET", fmt.Sprintf("%s?%s", okxPublicUriInstruments, params.Encode()), nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get instruments [%s] err: %w", userSymbol, err)
+		return nil, fmt.Errorf("failed to get instruments [%s] err: %w", symbol, err)
 	}
 
 	if result.Code != "0" {
-		return nil, fmt.Errorf("okx GetSymbols [%s] error: %s", userSymbol, result.Msg)
+		return nil, fmt.Errorf("okx GetSymbols [%s] error: %s", symbol, result.Msg)
 	}
 
 	okxSymbolInfos := make([]okxSymbol, 0)
 	resultBytes, _ := json.Marshal(result.Data)
 	err = json.Unmarshal(resultBytes, &okxSymbolInfos)
 	if err != nil {
-		return nil, fmt.Errorf("symbols [%s] json.Decode err: %w", userSymbol, err)
+		return nil, fmt.Errorf("symbols [%s] json.Decode err: %w", symbol, err)
 	}
 
-	symbol := &Symbol{
+	symbolInfo := &Symbol{
 		Type:     okxSymbolInfos[0].InstType,
 		Name:     okxSymbolInfos[0].InstId,
 		Base:     okxSymbolInfos[0].BaseCcy,
@@ -873,7 +881,7 @@ func (e *OKXExchange) GetSymbols(ctx context.Context, userSymbol string) (*Symbo
 		MinSize:  okxSymbolInfos[0].MinSz,
 	}
 
-	return symbol, nil
+	return symbolInfo, nil
 }
 
 // GetAllSymbols 获取所有交易对信息
@@ -929,8 +937,8 @@ type okxSetLeverageBody struct {
 }
 
 func (e *OKXExchange) SetLeverage(ctx context.Context, symbol string, leverage int, marginType string) error {
-	if e.user == nil || e.user.AccessKey == "" || e.user.SecretKey == "" || e.user.Passphrase == "" {
-		return fmt.Errorf("user information is missing, user: %+v ", e.user)
+	if e.account == nil || e.account.AccessKey == "" || e.account.SecretKey == "" || e.account.Passphrase == "" {
+		return fmt.Errorf("account information is missing, account: %+v ", e.account)
 	}
 
 	reqBody := okxSetLeverageBody{
@@ -973,8 +981,8 @@ func (e *OKXExchange) SetLeverage(ctx context.Context, symbol string, leverage i
 }
 
 func (e *OKXExchange) SetMarginType(ctx context.Context, symbol string, marginType string) error {
-	if e.user == nil {
-		return fmt.Errorf("user not connected")
+	if e.account == nil {
+		return fmt.Errorf("account not connected")
 	}
 
 	path := "/api/v5/account/set-margin-mode"
@@ -991,7 +999,14 @@ func (e *OKXExchange) SetMarginType(ctx context.Context, symbol string, marginTy
 	return nil
 }
 
-type okxLeverageMarginTypeInfo struct {
+// 使用结构体组装查询参数
+type okxLeverageMarginTypeReq struct {
+	MgnMode string `json:"mgnMode"`
+	InstId  string `json:"instId"`
+	Ccy     string `json:"ccy"`
+}
+
+type okxLeverageMarginTypeResp struct {
 	InstId  string `json:"instId"`  // 	产品ID
 	Ccy     string `json:"ccy"`     // 币种，用于币种维度的杠杆。 仅适用于现货模式/跨币种保证金模式/组合保证金模式的全仓币币杠杆。
 	MgnMode string `json:"mgnMode"` // 保证金模式
@@ -999,81 +1014,62 @@ type okxLeverageMarginTypeInfo struct {
 	Lever   string `json:"lever"`   // 杠杆倍数
 }
 
-func (e *OKXExchange) GetLeverageMarginType(ctx context.Context, symbol string) ([]SymbolLeverageMarginType, error) {
-	if e.user == nil || e.user.AccessKey == "" || e.user.SecretKey == "" || e.user.Passphrase == "" {
-		return nil, fmt.Errorf("user information is missing, user: %+v ", e.user)
+func (e *OKXExchange) GetLeverageMarginType(ctx context.Context, margin, symbols string) ([]SymbolLeverageMarginType, error) {
+	if e.account == nil || e.account.AccessKey == "" || e.account.SecretKey == "" || e.account.Passphrase == "" {
+		return nil, fmt.Errorf("account information is missing, account: %+v ", e.account)
 	}
 
-	// 使用结构体组装查询参数
-	type okxGetLeverageInfoParams struct {
-		InstId  string `json:"instId"`
-		MgnMode string `json:"mgnMode,omitempty"`
+	if margin != MarginTypeCross && margin != MarginTypeIsolated {
+		return nil, fmt.Errorf("invalid margin type, margin: %s", margin)
 	}
 
-	reqParams := okxGetLeverageInfoParams{
-		InstId: symbol,
-	}
+	params := url.Values{}
+	params.Set("mgnMode", margin)
+	params.Set("instId", symbols)
 
-	// 结构体 -> map，用于拼装查询字符串
-	jsonBytes, err := json.Marshal(reqParams)
+	result, err := e.sendRequest(ctx, "GET", fmt.Sprintf("%s?%s", okxUriGetLeverageInfo, params.Encode()), nil)
 	if err != nil {
-		return nil, err
-	}
-	var paramsMap map[string]interface{}
-	if err = json.Unmarshal(jsonBytes, &paramsMap); err != nil {
-		return nil, err
-	}
-
-	// 构建查询参数
-	values := url.Values{}
-	for k, v := range paramsMap {
-		if v == nil {
-			continue
-		}
-		// 仅接受字符串参数
-		if s, ok := v.(string); ok && s != "" {
-			values.Set(k, s)
-		}
-	}
-
-	// 发送请求（GET 使用查询字符串，body 为空）
-	endpoint := okxUriGetLeverageInfo
-	if encoded := values.Encode(); encoded != "" {
-		endpoint = fmt.Sprintf("%s?%s", endpoint, encoded)
-	}
-
-	result, err := e.sendRequest(ctx, "GET", endpoint, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get leverage info [%s] err: %w", endpoint, err)
+		return nil, fmt.Errorf("failed to get leverage info err: %w", err)
 	}
 	if result.Code != "0" {
-		return nil, fmt.Errorf("okx GetLeverageMarginType [%s] error: %s", endpoint, result.Msg)
+		return nil, fmt.Errorf("okx GetLeverageMarginType error: %s", result.Msg)
 	}
 
-	// 解析返回数据
-	type okxLeverageInfo struct {
-		InstId  string `json:"instId"`
-		Lever   string `json:"lever"`
-		MgnMode string `json:"mgnMode"`
-	}
-
-	var infos []okxLeverageInfo
+	var infos []okxLeverageMarginTypeResp
 	resultBytes, _ := json.Marshal(result.Data)
 	if err := json.Unmarshal(resultBytes, &infos); err != nil {
 		return nil, fmt.Errorf("okx GetLeverageMarginType jsonDecode result err: %w", err)
 	}
+
 	if len(infos) == 0 {
 		return nil, fmt.Errorf("okx GetLeverageMarginType empty data")
 	}
 
-	return nil, nil
+	resultData := make([]SymbolLeverageMarginType, 0)
+	for _, info := range infos {
+		res := SymbolLeverageMarginType{
+			Symbol:  info.InstId,
+			PosSide: info.PosSide,
+			Margin:  info.MgnMode,
+		}
+
+		// 将info.Lever转换为float64
+		lever, err := strconv.ParseFloat(info.Lever, 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse lever: %w", err)
+		}
+		res.Lever = lever
+		resultData = append(resultData, res)
+	}
+
+	return resultData, nil
 }
 
 // ConvertToExchangeSymbol 将用户输入的币种名称转换为OKX交易所格式
 // 例如：BTC -> BTC-USDT-SWAP
-func (e *OKXExchange) ConvertToExchangeSymbol(userSymbol string) string {
+func (e *OKXExchange) ConvertToExchangeSymbol(accountSymbol string) string {
 	// OKX期货使用币种-USDT-SWAP的格式
-	return userSymbol + "-USDT-SWAP"
+	return accountSymbol + "-USDT-SWAP"
 }
 
 // ConvertFromExchangeSymbol 将OKX交易所格式的币种名称转换为用户格式
@@ -1097,7 +1093,7 @@ func (e *OKXExchange) ConvertFromExchangeSymbol(exchangeSymbol string) string {
 
 // 辅助方法：构建请求头
 func (e *OKXExchange) buildHeaders(method, uri, body string) map[string]string {
-	if e.user == nil {
+	if e.account == nil {
 		return map[string]string{
 			"Content-Type":        "application/json",
 			"x-simulated-trading": "0",
@@ -1108,22 +1104,22 @@ func (e *OKXExchange) buildHeaders(method, uri, body string) map[string]string {
 		"Content-Type": "application/json",
 	}
 
-	if e.user.TradeType == UserTradeTypeMock {
+	if e.account.TradeType == UserTradeTypeMock {
 		headers["x-simulated-trading"] = "1"
 	} else { // 默认为实盘
 		headers["x-simulated-trading"] = "0"
 	}
 
 	// 用户的信息中未设置ak/sk 表示为公共接口
-	if e.user.AccessKey == "" || e.user.SecretKey == "" {
+	if e.account.AccessKey == "" || e.account.SecretKey == "" {
 		return headers
 	}
 
-	if e.user.AccessKey != "" {
-		headers["OK-ACCESS-KEY"] = e.user.AccessKey
+	if e.account.AccessKey != "" {
+		headers["OK-ACCESS-KEY"] = e.account.AccessKey
 	}
-	if e.user.Passphrase != "" {
-		headers["OK-ACCESS-PASSPHRASE"] = e.user.Passphrase
+	if e.account.Passphrase != "" {
+		headers["OK-ACCESS-PASSPHRASE"] = e.account.Passphrase
 	}
 
 	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
@@ -1138,7 +1134,7 @@ func (e *OKXExchange) buildHeaders(method, uri, body string) map[string]string {
 
 // 辅助方法：构建OKX签名
 func (e *OKXExchange) buildSignature(message string) string {
-	h := hmac.New(sha256.New, []byte(e.user.SecretKey))
+	h := hmac.New(sha256.New, []byte(e.account.SecretKey))
 	h.Write([]byte(message))
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }

@@ -7,6 +7,12 @@ import (
 	"github.com/lemconn/foxflow/internal/models"
 )
 
+const (
+	// 保证金模式
+	MarginTypeCross    = "cross"    // 全仓
+	MarginTypeIsolated = "isolated" // 逐仓
+)
+
 // Order 订单信息
 type Order struct {
 	ID             string           `json:"id"`
@@ -96,11 +102,12 @@ type Exchange interface {
 	GetProxyURL() string
 
 	// 连接管理
-	Connect(ctx context.Context, user *models.FoxUser) error
+	Connect(ctx context.Context, account *models.FoxAccount) error
 	Disconnect() error
 
 	// 设置用户信息
-	SetUSer(ctx context.Context, user *models.FoxUser) error
+	SetAccount(ctx context.Context, account *models.FoxAccount) error
+	GetAccount(ctx context.Context) (*models.FoxAccount, error)
 
 	// 账户信息
 	GetBalance(ctx context.Context) ([]Asset, error)
@@ -116,16 +123,16 @@ type Exchange interface {
 	GetTickers(ctx context.Context) ([]Ticker, error)
 
 	// 标的配置
-	GetSymbols(ctx context.Context, userSymbol string) (*Symbol, error)
+	GetSymbols(ctx context.Context, symbol string) (*Symbol, error)
 	GetAllSymbols(ctx context.Context, instType string) ([]Symbol, error)
 	SetLeverage(ctx context.Context, symbol string, leverage int, marginType string) error
 	SetMarginType(ctx context.Context, symbol string, marginType string) error
-	GetLeverageMarginType(ctx context.Context, symbol string) ([]SymbolLeverageMarginType, error)
+	GetLeverageMarginType(ctx context.Context, margin, symbol string) ([]SymbolLeverageMarginType, error)
 	GetSizeByQuote(ctx context.Context, symbol string, amount float64) (float64, error) // 根据报价数量获取可买张数
 	GetSizeByBase(ctx context.Context, symbol string, amount float64) (float64, error)  // 根据标的数量获取可买张数
 
 	// 币种名称转换
-	ConvertToExchangeSymbol(userSymbol string) string
+	ConvertToExchangeSymbol(accountSymbol string) string
 	ConvertFromExchangeSymbol(exchangeSymbol string) string
 
 	// K线数据

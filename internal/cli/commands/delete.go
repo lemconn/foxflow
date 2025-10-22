@@ -21,24 +21,28 @@ func (c *DeleteCommand) Execute(ctx command.Context, args []string) error {
 	}
 
 	switch args[0] {
-	case "users":
-		username := args[1]
-		if err := repository.DeleteUserByUsername(username); err != nil {
-			return fmt.Errorf("failed to delete user: %w", err)
-		}
-		fmt.Println(utils.RenderSuccess(fmt.Sprintf("用户已删除: %s", username)))
-	case "symbols":
-		if !ctx.IsReady() {
-			return fmt.Errorf("请先选择交易所和用户")
-		}
-		symbolName := args[1]
-		if err := repository.DeleteSymbolByNameForUser(ctx.GetUserInstance().ID, symbolName); err != nil {
-			return fmt.Errorf("failed to delete symbol: %w", err)
-		}
-		fmt.Println(utils.RenderSuccess(fmt.Sprintf("标的已删除: %s", symbolName)))
+	case "account":
+		return c.handleAccountCommand(ctx, args[1])
 	default:
 		return fmt.Errorf("unknown delete type: %s", args[0])
 	}
+}
+
+func (c *DeleteCommand) handleAccountCommand(ctx command.Context, name string) error {
+	userInfo, err := repository.FindAccountByName(name)
+	if err != nil {
+		return fmt.Errorf("failed to find account: %w", err)
+	}
+
+	if userInfo == nil || userInfo.ID == 0 {
+		return fmt.Errorf("account %s not found", name)
+	}
+
+	if err := repository.DeleteAccountByName(name); err != nil {
+		return fmt.Errorf("failed to delete account: %w", err)
+	}
+
+	fmt.Println(utils.RenderSuccess(fmt.Sprintf("用户已删除: %s", name)))
 
 	return nil
 }

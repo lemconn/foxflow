@@ -31,14 +31,14 @@ type Context interface {
 	GetExchangeName() string
 	SetExchangeName(exchangeName string)
 
-	GetUserName() string
-	SetUserName(user string)
+	GetAccountName() string
+	SetAccountName(user string)
 
 	GetExchangeInstance() *models.FoxExchange
 	SetExchangeInstance(ex *models.FoxExchange)
 
-	GetUserInstance() *models.FoxUser
-	SetUserInstance(user *models.FoxUser)
+	GetAccountInstance() *models.FoxAccount
+	SetAccountInstance(user *models.FoxAccount)
 }
 
 // Command 命令接口（供各业务命令实现）

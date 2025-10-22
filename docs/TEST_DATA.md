@@ -83,8 +83,8 @@ SELECT strategy, COUNT(*) FROM fox_ss GROUP BY strategy;
 ### 使用 Go 代码验证
 ```go
 // 获取所有用户
-var users []models.FoxUser
-db.Find(&users)
+var accounts []models.FoxAccount
+db.Find(&accounts)
 
 // 获取所有订单
 var orders []models.FoxSS

@@ -50,7 +50,7 @@ func (c *CancelCommand) Execute(ctx command.Context, args []string) error {
 	}
 
 	// 根据 symbol、direction、amount 查找订单
-	orders, err := repository.ListSSOrders(ctx.GetUserInstance().ID, nil)
+	orders, err := repository.ListSSOrders(ctx.GetAccountInstance().ID, nil)
 	if err != nil {
 		return fmt.Errorf("get orders error: %s", err)
 	}

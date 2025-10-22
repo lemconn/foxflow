@@ -4,10 +4,10 @@ import (
 	"gorm.io/gorm"
 )
 
-// FoxUser 用户表
-type FoxUser struct {
+// FoxAccount 用户表
+type FoxAccount struct {
 	ID         uint   `gorm:"primaryKey" json:"id"`
-	Username   string `gorm:"not null;default:''" json:"username"`
+	Name       string `gorm:"not null;default:''" json:"name"`
 	Exchange   string `gorm:"not null;default:'okx';check:exchange IN ('okx', 'binance', 'gate')" json:"exchange"`
 	AccessKey  string `gorm:"not null;default:''" json:"access_key"`
 	SecretKey  string `gorm:"not null;default:''" json:"secret_key"`
@@ -18,25 +18,25 @@ type FoxUser struct {
 	UpdatedAt  string `gorm:"not null;default:''" json:"updated_at"`
 }
 
-func (FoxUser) TableName() string {
-	return "fox_users"
+func (FoxAccount) TableName() string {
+	return "fox_accounts"
 }
 
-// FoxSymbol 标的表
-type FoxSymbol struct {
-	ID         uint   `gorm:"primaryKey" json:"id"`
-	Name       string `gorm:"not null;default:''" json:"name"`
-	UserID     uint   `gorm:"not null;default:0" json:"user_id"`
-	Exchange   string `gorm:"not null;default:'okx';check:exchange IN ('okx', 'binance', 'gate')" json:"exchange"`
-	Leverage   int    `gorm:"not null;default:1" json:"leverage"`
-	MarginType string `gorm:"not null;default:'isolated';check:margin_type IN ('isolated', 'cross')" json:"margin_type"`
-	CreatedAt  string `gorm:"not null;default:''" json:"created_at"`
-	UpdatedAt  string `gorm:"not null;default:''" json:"updated_at"`
-}
-
-func (FoxSymbol) TableName() string {
-	return "fox_symbols"
-}
+//// FoxSymbol 标的表
+//type FoxSymbol struct {
+//	ID         uint   `gorm:"primaryKey" json:"id"`
+//	Name       string `gorm:"not null;default:''" json:"name"`
+//	UserID     uint   `gorm:"not null;default:0" json:"user_id"`
+//	Exchange   string `gorm:"not null;default:'okx';check:exchange IN ('okx', 'binance', 'gate')" json:"exchange"`
+//	Leverage   int    `gorm:"not null;default:1" json:"leverage"`
+//	MarginType string `gorm:"not null;default:'isolated';check:margin_type IN ('isolated', 'cross')" json:"margin_type"`
+//	CreatedAt  string `gorm:"not null;default:''" json:"created_at"`
+//	UpdatedAt  string `gorm:"not null;default:''" json:"updated_at"`
+//}
+//
+//func (FoxSymbol) TableName() string {
+//	return "fox_symbols"
+//}
 
 type FoxContractMultiplier struct {
 	ID         uint    `gorm:"primaryKey" json:"id"`
@@ -108,8 +108,7 @@ func (FoxStrategy) TableName() string {
 // 初始化数据库表
 func InitDB(db *gorm.DB) error {
 	return db.AutoMigrate(
-		&FoxUser{},
-		&FoxSymbol{},
+		&FoxAccount{},
 		&FoxContractMultiplier{},
 		&FoxSS{},
 		&FoxExchange{},

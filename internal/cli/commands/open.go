@@ -78,7 +78,7 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 
 	// 解析参数
 	order := &models.FoxSS{
-		UserID:    ctx.GetUserInstance().ID,
+		UserID:    ctx.GetAccountInstance().ID,
 		Symbol:    symbolName,
 		PosSide:   posSide,
 		Sz:        amountValue,

@@ -38,45 +38,45 @@ func (c *CreateCommand) Execute(ctx command.Context, args []string) error {
 
 func (c *CreateCommand) createAccount(ctx command.Context, args []string) error {
 	if len(args) < 4 {
-		return fmt.Errorf("usage: create account <trade_type> username=<name> apiKey=<key> secretKey=<secret> [passphrase=<passphrase>]")
+		return fmt.Errorf("usage: create account <trade_type> name=<name> apiKey=<key> secretKey=<secret> [passphrase=<passphrase>]")
 	}
 
-	user := &models.FoxUser{}
+	account := &models.FoxAccount{}
 
-	user.TradeType = args[0]
+	account.TradeType = args[0]
 	for _, arg := range args {
-		if strings.HasPrefix(arg, "username=") {
-			user.Username = strings.TrimPrefix(arg, "username=")
+		if strings.HasPrefix(arg, "name=") {
+			account.Name = strings.TrimPrefix(arg, "name=")
 		} else if strings.HasPrefix(arg, "apiKey=") {
-			user.AccessKey = strings.TrimPrefix(arg, "apiKey=")
+			account.AccessKey = strings.TrimPrefix(arg, "apiKey=")
 		} else if strings.HasPrefix(arg, "secretKey=") {
-			user.SecretKey = strings.TrimPrefix(arg, "secretKey=")
+			account.SecretKey = strings.TrimPrefix(arg, "secretKey=")
 		} else if strings.HasPrefix(arg, "passphrase=") {
-			user.Passphrase = strings.TrimPrefix(arg, "passphrase=")
+			account.Passphrase = strings.TrimPrefix(arg, "passphrase=")
 		}
 	}
 
-	if user.TradeType == "" || user.Username == "" || user.AccessKey == "" || user.SecretKey == "" {
+	if account.TradeType == "" || account.Name == "" || account.AccessKey == "" || account.SecretKey == "" {
 		return fmt.Errorf("missing required parameters")
 	}
 
 	// 根据用户名获取用户信息
-	userInfo, err := repository.FindUserByUsername(user.Username)
+	accountInfo, err := repository.FindAccountByName(account.Name)
 	if err != nil {
 		return fmt.Errorf("find username err: %w", err)
 	}
 
 	// 用户存在则不允许创建
-	if userInfo != nil && userInfo.ID > 0 {
-		return fmt.Errorf("user already exists, username: %s", userInfo.Username)
+	if accountInfo != nil && accountInfo.ID > 0 {
+		return fmt.Errorf("account already exists, name: %s", accountInfo.Name)
 	}
 
-	user.Exchange = ctx.GetExchangeName()
-	if user.Exchange == "" {
-		user.Exchange = config.DefaultExchange // 默认交易所
+	account.Exchange = ctx.GetExchangeName()
+	if account.Exchange == "" {
+		account.Exchange = config.DefaultExchange // 默认交易所
 	}
 
-	exchangeInfo, err := repository.GetExchange(user.Exchange)
+	exchangeInfo, err := repository.GetExchange(account.Exchange)
 	if err != nil {
 		return fmt.Errorf("get exchange error: %w", err)
 	}
@@ -85,8 +85,8 @@ func (c *CreateCommand) createAccount(ctx command.Context, args []string) error 
 		return fmt.Errorf("exchange is not found")
 	}
 
-	if exchangeInfo.Name == config.DefaultExchange && user.Passphrase == "" {
-		return fmt.Errorf("okx exchange --passphrase is required")
+	if exchangeInfo.Name == config.DefaultExchange && account.Passphrase == "" {
+		return fmt.Errorf("okx exchange passphrase is required")
 	}
 
 	// 到指定交易交易所验证当前用户
@@ -94,16 +94,21 @@ func (c *CreateCommand) createAccount(ctx command.Context, args []string) error 
 	if err != nil {
 		return fmt.Errorf("get exchange client error: %w", err)
 	}
-	err = exchangeClient.Connect(ctx.GetContext(), user)
+	err = exchangeClient.Connect(ctx.GetContext(), account)
 	if err != nil {
 		return fmt.Errorf("connect exchange error: %w", err)
 	}
 
-	if err = repository.CreateUser(user); err != nil {
-		return fmt.Errorf("failed to create user: %w", err)
+	if err = repository.CreateAccount(account); err != nil {
+		return fmt.Errorf("failed to create account: %w", err)
 	}
 
-	fmt.Println(utils.RenderSuccess(fmt.Sprintf("用户创建成功: %s", user.Username)))
+	useCommand := UseCommand{}
+	err = useCommand.HandleAccountCommand(ctx, account.Name)
+	if err != nil {
+		return fmt.Errorf("create account & use error: %w", err)
+	}
+
 	return nil
 }
 
@@ -114,7 +119,7 @@ func (c *CreateCommand) createStrategyOrder(ctx command.Context, args []string) 
 
 	// 解析参数
 	order := &models.FoxSS{
-		UserID:    ctx.GetUserInstance().ID,
+		UserID:    ctx.GetAccountInstance().ID,
 		OrderType: "limit",
 		Type:      "open",
 		Status:    "waiting",
@@ -160,28 +165,28 @@ func (c *CreateCommand) createStrategyOrder(ctx command.Context, args []string) 
 		return fmt.Errorf("get exchange client error: %w", err)
 	}
 
-	// 获取当前用户要构面的交易对信息是否存在
-	localSymbol, err := repository.GetSymbolByNameUser(order.Symbol, ctx.GetUserInstance().ID)
-	if err != nil {
-		return fmt.Errorf("get local symbol err: %w", err)
-	}
-
-	if localSymbol == nil || localSymbol.ID == 0 {
-		return fmt.Errorf("symbol not exists")
-	}
+	//// 获取当前用户要构面的交易对信息是否存在
+	//localSymbol, err := repository.GetSymbolByNameUser(order.Symbol, ctx.GetUserInstance().ID)
+	//if err != nil {
+	//	return fmt.Errorf("get local symbol err: %w", err)
+	//}
+	//
+	//if localSymbol == nil || localSymbol.ID == 0 {
+	//	return fmt.Errorf("symbol not exists")
+	//}
 
 	// 如果没有策略，直接提交订单；否则仅写库
 	if strategy == "" {
 
 		// 构造交易所订单
 		exOrder := &exchange.Order{
-			Symbol:     order.Symbol,
-			Side:       order.Side,
-			PosSide:    order.PosSide,
-			Price:      order.Px,
-			Size:       order.Sz,
-			Type:       order.OrderType,
-			MarginType: localSymbol.MarginType,
+			Symbol:  order.Symbol,
+			Side:    order.Side,
+			PosSide: order.PosSide,
+			Price:   order.Px,
+			Size:    order.Sz,
+			Type:    order.OrderType,
+			//MarginType: localSymbol.MarginType,
 		}
 
 		createdOrder, err := exchangeClient.CreateOrder(ctx.GetContext(), exOrder)
