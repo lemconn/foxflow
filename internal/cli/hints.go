@@ -56,8 +56,13 @@ func handleSpecialCommandCompletions(ctx *Context, d prompt.Document, w string, 
 		return result
 	}
 
+	// delete account 后的类型选择
+	if result := handleDeleteAccountCompletion(ctx, d, w, fields, first, second); result != nil {
+		return result
+	}
+
 	// update 命令的补全
-	if result := handleUpdateCommandCompletion(d, w, fields, first, second, ctx); result != nil {
+	if result := handleUpdateCommandCompletion(ctx, d, w, fields, first, second); result != nil {
 		return result
 	}
 
@@ -119,19 +124,39 @@ func handleCreateAccountCompletion(d prompt.Document, w string, fields []string,
 	return nil
 }
 
+// handleDeleteAccountCompletion 处理 create account 命令的补全
+func handleDeleteAccountCompletion(ctx *Context, d prompt.Document, w string, fields []string, first, second string) []prompt.Suggest {
+	if first != "delete" || second != "account" {
+		return nil
+	}
+
+	// 类型选择：第二个token已完成，在第三个token位置
+	if len(fields) == 2 && strings.HasSuffix(w, " ") {
+		return deleteAccountsList(ctx)
+	}
+
+	// 正在输入类型选择（第三个token）
+	if len(fields) == 3 && !strings.HasSuffix(w, " ") {
+		prefix := d.GetWordBeforeCursor()
+		return prompt.FilterHasPrefix(deleteAccountsList(ctx), prefix, true)
+	}
+
+	return nil
+}
+
 // handleUpdateCommandCompletion 处理 update 命令的补全
-func handleUpdateCommandCompletion(d prompt.Document, w string, fields []string, first, second string, ctx *Context) []prompt.Suggest {
+func handleUpdateCommandCompletion(ctx *Context, d prompt.Document, w string, fields []string, first, second string) []prompt.Suggest {
 	if first != "update" {
 		return nil
 	}
 
 	// 处理 update symbol
-	if result := handleUpdateSymbolCompletion(d, w, fields, first, second, ctx); result != nil {
+	if result := handleUpdateSymbolCompletion(ctx, d, w, fields, first, second); result != nil {
 		return result
 	}
 
 	// 处理 update account
-	if result := handleUpdateAccountCompletion(d, w, fields, first, second, ctx); result != nil {
+	if result := handleUpdateAccountCompletion(ctx, d, w, fields, first, second); result != nil {
 		return result
 	}
 
@@ -139,7 +164,7 @@ func handleUpdateCommandCompletion(d prompt.Document, w string, fields []string,
 }
 
 // handleUpdateSymbolCompletion 处理 update symbol 命令的补全
-func handleUpdateSymbolCompletion(d prompt.Document, w string, fields []string, first, second string, ctx *Context) []prompt.Suggest {
+func handleUpdateSymbolCompletion(ctx *Context, d prompt.Document, w string, fields []string, first, second string) []prompt.Suggest {
 	if second != "symbol" {
 		return nil
 	}
@@ -235,20 +260,20 @@ func handleUpdateSymbolCompletion(d prompt.Document, w string, fields []string, 
 }
 
 // handleUpdateAccountCompletion 处理 update account 命令的补全
-func handleUpdateAccountCompletion(d prompt.Document, w string, fields []string, first, second string, ctx *Context) []prompt.Suggest {
+func handleUpdateAccountCompletion(ctx *Context, d prompt.Document, w string, fields []string, first, second string) []prompt.Suggest {
 	if second != "account" {
 		return nil
 	}
 
 	// 选择账户：第三个token位置
 	if len(fields) == 2 && strings.HasSuffix(w, " ") {
-		return getDynamicAccountList()
+		return getDynamicAccountList(ctx)
 	}
 
 	// 正在输入账户名（第三个token）
 	if len(fields) == 3 && !strings.HasSuffix(w, " ") {
 		prefix := strings.ToLower(d.GetWordBeforeCursor()) // 忽略大小写
-		accounts := getDynamicAccountList()
+		accounts := getDynamicAccountList(ctx)
 		var filtered []prompt.Suggest
 		for _, account := range accounts {
 			if strings.Contains(strings.ToLower(account.Text), prefix) {
@@ -285,12 +310,6 @@ func handleArgumentHints(ctx *Context, d prompt.Document, w string, fields []str
 
 	var mode string
 	var argOffset int
-
-	// 对于 create users，如果已经指定了模式，则获取模式信息
-	if first == "create" && second == "users" && len(fields) >= 3 {
-		mode = fields[2]
-		argOffset = 1 // create users 模式后的参数从第4个token开始
-	}
 
 	// 对于 update account，在选择完类型后显示参数
 	if first == "update" && second == "account" && len(fields) >= 4 {
@@ -662,8 +681,7 @@ func getSubcommandSuggestions() map[string][]prompt.Suggest {
 			{Text: "order", Description: "取消订单"},
 		},
 		"delete": {
-			{Text: "users", Description: "删除用户"},
-			{Text: "symbols", Description: "删除交易对"},
+			{Text: "account", Description: "删除交易账户"},
 		},
 	}
 }
@@ -678,7 +696,7 @@ var argHints = map[string]map[string]map[string][]prompt.Suggest{
 // 动态生成 create account 的参数提示
 func getCreateAccountArgHints(exchangeName string) []prompt.Suggest {
 	baseArgs := []prompt.Suggest{
-		{Text: "username=", Description: "[必填] 用户账户名称"},
+		{Text: "name=", Description: "[必填] 用户账户名称"},
 		{Text: "apiKey=", Description: "[必填] API访问密钥"},
 		{Text: "secretKey=", Description: "[必填] API密钥密钥"},
 	}
@@ -730,17 +748,17 @@ func getDynamicSymbolList(ctx *Context) []prompt.Suggest {
 }
 
 // getDynamicAccountList 获取动态账户列表
-func getDynamicAccountList() []prompt.Suggest {
-	userList, err := repository.ListUsers()
+func getDynamicAccountList(ctx *Context) []prompt.Suggest {
+	accountList, err := repository.ExchangeAccountList(ctx.GetExchangeName())
 	if err != nil {
 		return []prompt.Suggest{}
 	}
 
 	var suggestions []prompt.Suggest
-	for _, user := range userList {
+	for _, account := range accountList {
 		suggestions = append(suggestions, prompt.Suggest{
-			Text:        user.Username,
-			Description: fmt.Sprintf("%s：%s", user.TradeType, user.Exchange),
+			Text:        account.Name,
+			Description: fmt.Sprintf("%s：%s", account.TradeType, account.Exchange),
 		})
 	}
 
@@ -750,15 +768,15 @@ func getDynamicAccountList() []prompt.Suggest {
 // getUpdateSymbolArgHints 获取update symbol的参数提示
 func getUpdateSymbolArgHints() []prompt.Suggest {
 	return []prompt.Suggest{
-		{Text: "leverage=", Description: "[必填] 杠杆倍数，范围 1-100"},
 		{Text: "margin=", Description: "[必填] 保证金模式：isolated(逐仓)/cross(全仓)"},
+		{Text: "leverage=", Description: "[必填] 杠杆倍数"},
 	}
 }
 
 // getUpdateAccountArgHints 获取update account的参数提示
 func getUpdateAccountArgHints(exchangeName string) []prompt.Suggest {
 	baseArgs := []prompt.Suggest{
-		{Text: "username=", Description: "[必填] 用户账户名称"},
+		{Text: "name=", Description: "[必填] 用户账户名称"},
 		{Text: "apiKey=", Description: "[必填] API访问密钥"},
 		{Text: "secretKey=", Description: "[必填] API密钥密钥"},
 	}
@@ -1059,17 +1077,37 @@ func useExchangesList() []prompt.Suggest {
 // useAccountsList 获取账户列表（用于use account命令）
 func useAccountsList() []prompt.Suggest {
 	// 获取所有用户列表
-	userList, err := repository.ListUsers()
+	accountList, err := repository.ListAccount()
 	if err != nil {
 		return []prompt.Suggest{}
 	}
-	users := make([]prompt.Suggest, 0, len(userList))
-	for _, user := range userList {
-		users = append(users, prompt.Suggest{
-			Text:        user.Username,
-			Description: fmt.Sprintf("%s：%s", user.TradeType, user.Exchange),
+	accounts := make([]prompt.Suggest, 0)
+	for _, account := range accountList {
+		accounts = append(accounts, prompt.Suggest{
+			Text:        account.Name,
+			Description: fmt.Sprintf("%s：%s", account.TradeType, account.Exchange),
 		})
 	}
 
-	return users
+	return accounts
+}
+
+// deleteAccountsList 获取账户列表（用于delete account命令）
+func deleteAccountsList(ctx *Context) []prompt.Suggest {
+
+	// 获取指定交易所的所有用户列表
+	accountList, err := repository.ExchangeAccountList(ctx.GetExchangeName())
+	if err != nil {
+		return []prompt.Suggest{}
+	}
+
+	accounts := make([]prompt.Suggest, 0)
+	for _, account := range accountList {
+		accounts = append(accounts, prompt.Suggest{
+			Text:        account.Name,
+			Description: fmt.Sprintf("%s：%s", account.TradeType, account.Exchange),
+		})
+	}
+
+	return accounts
 }

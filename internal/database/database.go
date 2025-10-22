@@ -38,8 +38,8 @@ func InitDB() error {
 func migrateTables() error {
 	// 使用 AutoMigrate 创建和迁移所有表
 	if err := DB.AutoMigrate(
-		&models.FoxUser{},
-		&models.FoxSymbol{},
+		&models.FoxAccount{},
+		//&models.FoxSymbol{},
 		&models.FoxContractMultiplier{},
 		&models.FoxSS{},
 		&models.FoxExchange{},
@@ -74,17 +74,17 @@ func insertDefaultData() error {
 
 	// 插入测试用户数据
 	var userCount int64
-	DB.Model(&models.FoxUser{}).Count(&userCount)
+	DB.Model(&models.FoxAccount{}).Count(&userCount)
 	if userCount == 0 {
 		insertTestUsers()
 	}
 
-	// 插入测试标的数据
-	var symbolCount int64
-	DB.Model(&models.FoxSymbol{}).Count(&symbolCount)
-	if symbolCount == 0 {
-		insertTestSymbols()
-	}
+	//// 插入测试标的数据
+	//var symbolCount int64
+	//DB.Model(&models.FoxSymbol{}).Count(&symbolCount)
+	//if symbolCount == 0 {
+	//	insertTestSymbols()
+	//}
 
 	// 插入测试策略订单数据
 	var orderCount int64
@@ -124,33 +124,34 @@ func insertDefaultStrategies() {
 
 // insertTestUsers 插入测试用户数据
 func insertTestUsers() {
-	users := []models.FoxUser{
-		{Username: "test_user_1", Exchange: "binance", AccessKey: "test_binance_access_key_1", SecretKey: "test_binance_secret_key_1", IsActive: true, TradeType: "mock"},
-		{Username: "test_user_2", Exchange: "okx", AccessKey: "test_okx_access_key_2", SecretKey: "test_okx_secret_key_2", IsActive: true, TradeType: "real"},
-		{Username: "test_user_3", Exchange: "gate", AccessKey: "test_gate_access_key_3", SecretKey: "test_gate_secret_key_3", IsActive: false, TradeType: "mock"},
-		{Username: "demo_trader", Exchange: "binance", AccessKey: "demo_binance_key", SecretKey: "demo_binance_secret", IsActive: true, TradeType: "mock"},
+	users := []models.FoxAccount{
+		{Name: "test_user_1", Exchange: "binance", AccessKey: "test_binance_access_key_1", SecretKey: "test_binance_secret_key_1", IsActive: true, TradeType: "mock"},
+		{Name: "test_user_2", Exchange: "okx", AccessKey: "test_okx_access_key_2", SecretKey: "test_okx_secret_key_2", IsActive: true, TradeType: "real"},
+		{Name: "test_user_3", Exchange: "gate", AccessKey: "test_gate_access_key_3", SecretKey: "test_gate_secret_key_3", IsActive: false, TradeType: "mock"},
+		{Name: "demo_trader", Exchange: "binance", AccessKey: "demo_binance_key", SecretKey: "demo_binance_secret", IsActive: true, TradeType: "mock"},
 	}
 
 	for _, user := range users {
-		DB.FirstOrCreate(&user, models.FoxUser{Username: user.Username, AccessKey: user.AccessKey, SecretKey: user.SecretKey})
+		DB.FirstOrCreate(&user, models.FoxAccount{Name: user.Name, AccessKey: user.AccessKey, SecretKey: user.SecretKey})
 	}
 }
 
-// insertTestSymbols 插入测试标的数据
-func insertTestSymbols() {
-	symbols := []models.FoxSymbol{
-		{Name: "BTCUSDT", UserID: 1, Exchange: "binance", Leverage: 10, MarginType: "isolated"},
-		{Name: "ETHUSDT", UserID: 1, Exchange: "binance", Leverage: 5, MarginType: "cross"},
-		{Name: "BTC-USDT-SWAP", UserID: 2, Exchange: "okx", Leverage: 20, MarginType: "isolated"},
-		{Name: "ETH-USDT-SWAP", UserID: 2, Exchange: "okx", Leverage: 15, MarginType: "cross"},
-		{Name: "BTC_USDT", UserID: 3, Exchange: "gate", Leverage: 8, MarginType: "isolated"},
-		{Name: "ADAUSDT", UserID: 4, Exchange: "binance", Leverage: 3, MarginType: "isolated"},
-	}
-
-	for _, symbol := range symbols {
-		DB.FirstOrCreate(&symbol, models.FoxSymbol{UserID: symbol.UserID, Exchange: symbol.Exchange, Name: symbol.Name})
-	}
-}
+//
+//// insertTestSymbols 插入测试标的数据
+//func insertTestSymbols() {
+//	symbols := []models.FoxSymbol{
+//		{Name: "BTCUSDT", UserID: 1, Exchange: "binance", Leverage: 10, MarginType: "isolated"},
+//		{Name: "ETHUSDT", UserID: 1, Exchange: "binance", Leverage: 5, MarginType: "cross"},
+//		{Name: "BTC-USDT-SWAP", UserID: 2, Exchange: "okx", Leverage: 20, MarginType: "isolated"},
+//		{Name: "ETH-USDT-SWAP", UserID: 2, Exchange: "okx", Leverage: 15, MarginType: "cross"},
+//		{Name: "BTC_USDT", UserID: 3, Exchange: "gate", Leverage: 8, MarginType: "isolated"},
+//		{Name: "ADAUSDT", UserID: 4, Exchange: "binance", Leverage: 3, MarginType: "isolated"},
+//	}
+//
+//	for _, symbol := range symbols {
+//		DB.FirstOrCreate(&symbol, models.FoxSymbol{UserID: symbol.UserID, Exchange: symbol.Exchange, Name: symbol.Name})
+//	}
+//}
 
 // insertTestOrders 插入测试策略订单数据
 func insertTestOrders() {

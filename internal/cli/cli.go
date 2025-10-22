@@ -219,7 +219,7 @@ func (c *CLI) setDefaultExchange() {
 // 额外：在提示行上方打印一行彩色状态，作为多色前缀替代
 func (c *CLI) printStatus() {
 	exchangeName := c.ctx.GetExchangeName()
-	user := c.ctx.GetUserInstance()
+	account := c.ctx.GetAccountInstance()
 
 	if exchangeName == "" {
 		fmt.Println(utils.MessageGreen("foxflow ") +
@@ -227,7 +227,7 @@ func (c *CLI) printStatus() {
 		return
 	}
 
-	if user == nil || user.Username == "" {
+	if account == nil || account.Name == "" {
 		fmt.Println(utils.MessageGreen("foxflow ") +
 			utils.MessageYellow("["+exchangeName+"] ") +
 			utils.MessagePurple("["+time.Now().Format(config.DateFormat)+"]"))
@@ -235,6 +235,6 @@ func (c *CLI) printStatus() {
 	}
 
 	fmt.Println(utils.MessageGreen("foxflow ") +
-		utils.MessageYellow("["+exchangeName+":"+user.TradeType+"@"+user.Username+"] ") +
+		utils.MessageYellow("["+exchangeName+":"+account.TradeType+"@"+account.Name+"] ") +
 		utils.MessagePurple("["+time.Now().Format(config.DateFormat)+"]"))
 }
