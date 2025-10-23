@@ -197,11 +197,20 @@ func (e *Engine) processOrder(exchangeInstance exchange.Exchange, order *models.
 
 // submitOrder 提交订单到交易所
 func (e *Engine) submitOrder(exchangeInstance exchange.Exchange, order *models.FoxSS) error {
-	// 从 FoxSymbol 表查询 MarginType
-	db := database.GetDB()
-	var symbol models.FoxSymbol
-	if err := db.Where("name = ?", order.Symbol).First(&symbol).Error; err != nil {
-		return fmt.Errorf("failed to get symbol margin type: %w", err)
+	preCheckOrder := &exchange.OrderCostReq{
+		Symbol:     order.Symbol,
+		Amount:     order.Sz,
+		AmountType: order.SzType,
+		MarginType: order.MarginType,
+	}
+
+	preOrder, err := exchangeInstance.CalcOrderCost(e.ctx, preCheckOrder)
+	if err != nil {
+		return fmt.Errorf("failed to pre-check order cost: %w", err)
+	}
+
+	if !preOrder.CanBuyWithTaker {
+		return fmt.Errorf("insufficient balance to place order")
 	}
 
 	// 构建订单对象
@@ -209,9 +218,9 @@ func (e *Engine) submitOrder(exchangeInstance exchange.Exchange, order *models.F
 		Symbol:     order.Symbol,
 		Side:       order.Side,
 		PosSide:    order.PosSide,
-		MarginType: symbol.MarginType,
+		MarginType: order.MarginType,
 		Price:      order.Px,
-		Size:       order.Sz,
+		Size:       preOrder.Contracts,
 		Type:       order.OrderType,
 	}
 
@@ -225,6 +234,7 @@ func (e *Engine) submitOrder(exchangeInstance exchange.Exchange, order *models.F
 	order.OrderID = result.ID
 	order.Status = "pending"
 
+	db := database.GetDB()
 	if err := db.Save(order).Error; err != nil {
 		return fmt.Errorf("failed to update order: %w", err)
 	}
