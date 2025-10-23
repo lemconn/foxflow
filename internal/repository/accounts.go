@@ -21,6 +21,18 @@ func ListAccount() ([]models.FoxAccount, error) {
 	return accounts, nil
 }
 
+func ActiveAccount() (*models.FoxAccount, error) {
+	db := database.GetDB()
+	var account models.FoxAccount
+
+	err := db.Where("is_active = ?", true).First(&account).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	return &account, nil
+}
+
 func ExchangeAccountList(exchangeName string) ([]models.FoxAccount, error) {
 	db := database.GetDB()
 	var accounts []models.FoxAccount

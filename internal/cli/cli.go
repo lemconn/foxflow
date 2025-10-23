@@ -8,12 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lemconn/foxflow/internal/config"
-	"github.com/lemconn/foxflow/internal/repository"
-
 	"github.com/lemconn/foxflow/internal/cli/command"
 	cliCmds "github.com/lemconn/foxflow/internal/cli/commands"
 	"github.com/lemconn/foxflow/internal/cli/render"
+	"github.com/lemconn/foxflow/internal/config"
+	"github.com/lemconn/foxflow/internal/repository"
 	"github.com/lemconn/foxflow/internal/utils"
 
 	"github.com/c-bata/go-prompt"
@@ -185,6 +184,11 @@ func parseArgs(line string) []string {
 
 func (c *CLI) setDefaultExchange() {
 
+	err := c.useActiveAccount()
+	if err == nil {
+		return
+	}
+
 	exchangesList, err := repository.ListExchanges()
 	if err != nil {
 		log.Printf("set default exchanges list error: %v\n", err)
@@ -213,6 +217,30 @@ func (c *CLI) setDefaultExchange() {
 	if err != nil {
 		log.Printf("set default exchange execute error: %v\n", err)
 	}
+}
+
+func (c *CLI) useActiveAccount() error {
+
+	activeAccount, err := repository.ActiveAccount()
+	if err != nil {
+		log.Printf("Failed to obtain activation account: %v\n", err)
+		return err
+	}
+
+	if activeAccount.Name == "" {
+		log.Printf("No active account found")
+		return nil
+	}
+
+	// 初始化设置默认交易所
+	useCommand := &cliCmds.UseCommand{}
+	err = useCommand.Execute(c.ctx, []string{"account", activeAccount.Name})
+	if err != nil {
+		log.Printf("set default exchange execute error: %v\n", err)
+		return err
+	}
+
+	return nil
 }
 
 // 额外：在提示行上方打印一行彩色状态，作为多色前缀替代
