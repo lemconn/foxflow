@@ -22,21 +22,21 @@ func (FoxAccount) TableName() string {
 	return "fox_accounts"
 }
 
-//// FoxSymbol 标的表
-//type FoxSymbol struct {
-//	ID         uint   `gorm:"primaryKey" json:"id"`
-//	Name       string `gorm:"not null;default:''" json:"name"`
-//	UserID     uint   `gorm:"not null;default:0" json:"user_id"`
-//	Exchange   string `gorm:"not null;default:'okx';check:exchange IN ('okx', 'binance', 'gate')" json:"exchange"`
-//	Leverage   int    `gorm:"not null;default:1" json:"leverage"`
-//	MarginType string `gorm:"not null;default:'isolated';check:margin_type IN ('isolated', 'cross')" json:"margin_type"`
-//	CreatedAt  string `gorm:"not null;default:''" json:"created_at"`
-//	UpdatedAt  string `gorm:"not null;default:''" json:"updated_at"`
-//}
-//
-//func (FoxSymbol) TableName() string {
-//	return "fox_symbols"
-//}
+// FoxSymbol 标的表
+type FoxSymbol struct {
+	ID         uint   `gorm:"primaryKey" json:"id"`
+	Name       string `gorm:"not null;default:''" json:"name"`
+	UserID     uint   `gorm:"not null;default:0" json:"user_id"`
+	Exchange   string `gorm:"not null;default:'okx';check:exchange IN ('okx', 'binance', 'gate')" json:"exchange"`
+	Leverage   int    `gorm:"not null;default:1" json:"leverage"`
+	MarginType string `gorm:"not null;default:'isolated';check:margin_type IN ('isolated', 'cross')" json:"margin_type"`
+	CreatedAt  string `gorm:"not null;default:''" json:"created_at"`
+	UpdatedAt  string `gorm:"not null;default:''" json:"updated_at"`
+}
+
+func (FoxSymbol) TableName() string {
+	return "fox_symbols"
+}
 
 type FoxContractMultiplier struct {
 	ID         uint    `gorm:"primaryKey" json:"id"`
@@ -54,21 +54,23 @@ func (FoxContractMultiplier) TableName() string {
 
 // FoxSS 策略订单表
 type FoxSS struct {
-	ID        uint    `gorm:"primaryKey" json:"id"`
-	UserID    uint    `gorm:"not null;default:0" json:"user_id"`
-	Symbol    string  `gorm:"not null;default:''" json:"symbol"`
-	Side      string  `gorm:"not null;default:'';check:side IN ('buy', 'sell')" json:"side"`
-	PosSide   string  `gorm:"not null;default:'';check:pos_side IN ('long', 'short')" json:"pos_side"`
-	Px        float64 `gorm:"not null;default:0" json:"px"`
-	Sz        float64 `gorm:"not null;default:0" json:"sz"`
-	SzType    string  `gorm:"not null;default:0" json:"sz_type"` // 用户购买的单位，U表示sz是购买金额，而不是标的数量。空表示sz是标的数量
-	OrderType string  `gorm:"not null;default:'limit';check:order_type IN ('limit', 'market')" json:"order_type"`
-	Strategy  string  `gorm:"not null;default:''" json:"strategy"`
-	OrderID   string  `gorm:"not null;default:''" json:"order_id"`
-	Type      string  `gorm:"not null;default:'open';check:type IN ('open', 'close')" json:"type"`
-	Status    string  `gorm:"not null;default:'waiting';check:status IN ('waiting', 'pending', 'filled', 'cancelled')" json:"status"`
-	CreatedAt string  `gorm:"not null;default:''" json:"created_at"`
-	UpdatedAt string  `gorm:"not null;default:''" json:"updated_at"`
+	ID         uint    `gorm:"primaryKey" json:"id"`
+	UserID     uint    `gorm:"not null;default:0" json:"user_id"`
+	Symbol     string  `gorm:"not null;default:''" json:"symbol"`
+	Side       string  `gorm:"not null;default:'';check:side IN ('buy', 'sell')" json:"side"`
+	PosSide    string  `gorm:"not null;default:'';check:pos_side IN ('long', 'short')" json:"pos_side"`
+	MarginType string  `gorm:"not null;default:'';check:margin_type IN ('isolated', 'cross')" json:"margin_type"`
+	Px         float64 `gorm:"not null;default:0" json:"px"`
+	Sz         float64 `gorm:"not null;default:0" json:"sz"`
+	SzType     string  `gorm:"not null;default:''" json:"sz_type"` // 用户购买的单位，U表示sz是购买金额，而不是标的数量。空表示sz是标的数量
+	OrderType  string  `gorm:"not null;default:'limit';check:order_type IN ('limit', 'market')" json:"order_type"`
+	Strategy   string  `gorm:"not null;default:''" json:"strategy"`
+	OrderID    string  `gorm:"not null;default:''" json:"order_id"`
+	Type       string  `gorm:"not null;default:'open';check:type IN ('open', 'close')" json:"type"`
+	Status     string  `gorm:"not null;default:'waiting';check:status IN ('waiting', 'pending', 'filled', 'cancelled')" json:"status"`
+	Msg        string  `gorm:"not null;default:''" json:"msg"` // 订单描述（引擎处理结果）
+	CreatedAt  string  `gorm:"not null;default:''" json:"created_at"`
+	UpdatedAt  string  `gorm:"not null;default:''" json:"updated_at"`
 }
 
 func (FoxSS) TableName() string {

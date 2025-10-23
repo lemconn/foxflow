@@ -41,6 +41,27 @@ type OrderCondition struct {
 	AmendPxOnTriggerType string  `json:"amendPxOnTriggerType,omitempty"` // 是否启用开仓价止损: "0"(不开启), "1"(开启)
 }
 
+type OrderCostReq struct {
+	Symbol     string  `json:"symbol"`      // 标的
+	Amount     float64 `json:"amount"`      // 购买数量（标的数量）
+	AmountType string  `json:"amount_type"` // 数量类型：coin(标的数量) / usdt(USDT数量)
+	MarginType string  `json:"margin_type"` // 保证金模式：isolated(逐仓) / cross(全仓)
+	LimitPrice float64 `json:"limit_price"` // 限价（目前不需要传递）
+}
+
+type OrderCostResp struct {
+	Symbol          string  `json:"symbol"`             // 标的
+	MarkPrice       float64 `json:"mark_price"`         // 标的价格
+	MarginType      string  `json:"margin_type"`        // 保证金模式：isolated(逐仓) / cross(全仓)
+	Lever           float64 `json:"lever"`              // 标的杠杆倍数
+	Contracts       float64 `json:"contracts"`          // 购买张数
+	AvailableFunds  float64 `json:"available_funds"`    // 可用资金
+	MarginRequired  float64 `json:"margin_required"`    // 保证金
+	Fee             float64 `json:"fee"`                // 手续费
+	TotalRequired   float64 `json:"total_required"`     // 需求总资金
+	CanBuyWithTaker bool    `json:"can_buy_with_taker"` // 是否可以购买
+}
+
 // Position 仓位信息
 type Position struct {
 	Symbol    string  `json:"symbol"`
@@ -59,13 +80,13 @@ type Asset struct {
 }
 
 type Symbol struct {
-	Type          string `json:"type"`
-	Name          string `json:"name"`
-	Base          string `json:"base"`
-	Quote         string `json:"quote"`
-	MaxLever      string `json:"max_lever"`
-	MinSize       string `json:"min_size"`       // 最小下单（合约：张，现货：交易货币）
-	ContractValue string `json:"contract_value"` // 张/标的的换算单位（1张=0.01个BTC，这里是0.01）
+	Type          string  `json:"type"`
+	Name          string  `json:"name"`
+	Base          string  `json:"base"`
+	Quote         string  `json:"quote"`
+	MaxLever      float64 `json:"max_lever"`
+	MinSize       float64 `json:"min_size"`       // 最小下单（合约：张，现货：交易货币）
+	ContractValue float64 `json:"contract_value"` // 张/标的的换算单位（1张=0.01个BTC，这里是0.01）
 }
 
 // Ticker 行情信息
@@ -117,6 +138,7 @@ type Exchange interface {
 	GetOrders(ctx context.Context, symbol string, status string) ([]Order, error)
 	CreateOrder(ctx context.Context, order *Order) (*Order, error)
 	CancelOrder(ctx context.Context, order *Order) error
+	CalcOrderCost(ctx context.Context, req *OrderCostReq) (*OrderCostResp, error) // 计算order成本（手续费+可买价格，是否可成交等等）
 
 	// 行情数据
 	GetTicker(ctx context.Context, symbol string) (*Ticker, error)

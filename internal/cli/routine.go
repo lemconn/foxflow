@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"log"
-	"strconv"
 	"strings"
 
 	"github.com/lemconn/foxflow/internal/config"
@@ -47,34 +46,13 @@ func InitExchangeSymbols() {
 					}
 
 					symbolInfo := config.SymbolInfo{
-						Type:  symbol.Type,
-						Name:  symbol.Name,
-						Base:  symbol.Base,
-						Quote: symbol.Quote,
-					}
-
-					if symbol.MaxLever != "" {
-						symbolInfo.MaxLever, err = strconv.ParseFloat(symbol.MaxLever, 64)
-						if err != nil {
-							log.Printf("获取交易所 %s 交易对最大杠杆失败: %v", name, err)
-							continue
-						}
-					}
-
-					if symbol.MaxLever != "" {
-						symbolInfo.MinSize, err = strconv.ParseFloat(symbol.MinSize, 64)
-						if err != nil {
-							log.Printf("获取交易所 %s 交易对最小下单量失败: %v", name, err)
-							continue
-						}
-					}
-
-					if symbol.ContractValue != "" {
-						symbolInfo.Contract, err = strconv.ParseFloat(symbol.ContractValue, 64)
-						if err != nil {
-							log.Printf("获取交易所 %s 交易对合约面值失败: %v", name, err)
-							continue
-						}
+						Type:     symbol.Type,
+						Name:     symbol.Name,
+						Base:     symbol.Base,
+						Quote:    symbol.Quote,
+						MaxLever: symbol.MaxLever,
+						MinSize:  symbol.MinSize,
+						Contract: symbol.ContractValue,
 					}
 
 					symbolList = append(symbolList, symbolInfo)

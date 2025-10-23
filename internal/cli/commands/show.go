@@ -72,17 +72,6 @@ func (c *ShowCommand) handleSymbolCommand(ctx command.Context, args []string) er
 		return fmt.Errorf("exchange %s not found", exchangeName)
 	}
 
-	//exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeInstance().Name)
-	//if err != nil {
-	//	return fmt.Errorf("failed to get exchange client: %w", err)
-	//}
-	//
-	//isolatedLever, isolatedErr := exchangeClient.GetLeverageMarginType(ctx.GetContext(), "isolated", "BTC-USDT-SWAP,SOL-USDT-SWAP")
-	//crossLever, crossErr := exchangeClient.GetLeverageMarginType(ctx.GetContext(), "cross", "BTC-USDT-SWAP,SOL-USDT-SWAP")
-	//
-	//fmt.Printf("----------[%+v]---------------[%+v]-----------[%+v]-----------[%+v]--------\n", isolatedErr, isolatedLever, crossErr, crossLever)
-	//return nil
-
 	symbolInfoList := make([]cliRender.RenderSymbolsInfo, 0)
 	for _, symbolInfo := range symbolList {
 

@@ -23,6 +23,7 @@ const (
 	okxPublicUriConvertContractCoin = "/api/v5/public/convert-contract-coin"
 	okxUriSetLeverage               = "/api/v5/account/set-leverage"
 	okxUriGetLeverageInfo           = "/api/v5/account/leverage-info"
+	okxUriGetTradeFee               = "/api/v5/account/trade-fee"
 
 	okxUriUserAssetValuation   = "/api/v5/asset/asset-valuation"
 	okxUriUserBalance          = "/api/v5/account/balance"
@@ -873,12 +874,31 @@ func (e *OKXExchange) GetSymbols(ctx context.Context, symbol string) (*Symbol, e
 	}
 
 	symbolInfo := &Symbol{
-		Type:     okxSymbolInfos[0].InstType,
-		Name:     okxSymbolInfos[0].InstId,
-		Base:     okxSymbolInfos[0].BaseCcy,
-		Quote:    okxSymbolInfos[0].QuoteCcy,
-		MaxLever: okxSymbolInfos[0].Lever,
-		MinSize:  okxSymbolInfos[0].MinSz,
+		Type:  okxSymbolInfos[0].InstType,
+		Name:  okxSymbolInfos[0].InstId,
+		Base:  okxSymbolInfos[0].BaseCcy,
+		Quote: okxSymbolInfos[0].QuoteCcy,
+	}
+
+	if okxSymbolInfos[0].Lever != "" {
+		symbolInfo.MaxLever, err = strconv.ParseFloat(okxSymbolInfos[0].Lever, 64)
+		if err != nil {
+			symbolInfo.MaxLever = 0
+		}
+	}
+
+	if okxSymbolInfos[0].MinSz != "" {
+		symbolInfo.MinSize, err = strconv.ParseFloat(okxSymbolInfos[0].MinSz, 64)
+		if err != nil {
+			symbolInfo.MinSize = 0
+		}
+	}
+
+	if okxSymbolInfos[0].CtVal != "" {
+		symbolInfo.ContractValue, err = strconv.ParseFloat(okxSymbolInfos[0].CtVal, 64)
+		if err != nil {
+			symbolInfo.ContractValue = 0
+		}
 	}
 
 	return symbolInfo, nil
@@ -909,14 +929,33 @@ func (e *OKXExchange) GetAllSymbols(ctx context.Context, instType string) ([]Sym
 	var symbols []Symbol
 	for _, okxSymbolInfo := range okxSymbolInfos {
 		symbol := Symbol{
-			Type:          okxSymbolInfo.InstType,
-			Name:          okxSymbolInfo.InstId,
-			Base:          okxSymbolInfo.BaseCcy,
-			Quote:         okxSymbolInfo.QuoteCcy,
-			MaxLever:      okxSymbolInfo.Lever,
-			MinSize:       okxSymbolInfo.MinSz,
-			ContractValue: okxSymbolInfo.CtVal,
+			Type:  okxSymbolInfo.InstType,
+			Name:  okxSymbolInfo.InstId,
+			Base:  okxSymbolInfo.BaseCcy,
+			Quote: okxSymbolInfo.QuoteCcy,
 		}
+
+		if okxSymbolInfo.Lever != "" {
+			symbol.MaxLever, err = strconv.ParseFloat(okxSymbolInfo.Lever, 64)
+			if err != nil {
+				symbol.MaxLever = 0
+			}
+		}
+
+		if okxSymbolInfo.MinSz != "" {
+			symbol.MinSize, err = strconv.ParseFloat(okxSymbolInfo.MinSz, 64)
+			if err != nil {
+				symbol.MinSize = 0
+			}
+		}
+
+		if okxSymbolInfo.CtVal != "" {
+			symbol.ContractValue, err = strconv.ParseFloat(okxSymbolInfo.CtVal, 64)
+			if err != nil {
+				symbol.ContractValue = 0
+			}
+		}
+
 		symbols = append(symbols, symbol)
 	}
 
@@ -1063,6 +1102,183 @@ func (e *OKXExchange) GetLeverageMarginType(ctx context.Context, margin, symbols
 	}
 
 	return resultData, nil
+}
+
+// okxTradeFeeResp 交易手续费率响应结构
+type okxTradeFeeResp struct {
+	Level     string `json:"level"`     // 手续费等级
+	Taker     string `json:"taker"`     // 吃单手续费率，适用于币币、杠杆和永续合约/交割合约/期权
+	Maker     string `json:"maker"`     // 挂单手续费率，适用于币币、杠杆和永续合约/交割合约/期权
+	TakerU    string `json:"takerU"`    // USDT交割/永续的吃单手续费率（usdt）
+	MakerU    string `json:"makerU"`    // USDT交割/永续的挂单手续费率（usdt）
+	Delivery  string `json:"delivery"`  // 交割的吃单手续费率
+	Exercise  string `json:"exercise"`  // 期权行权/交割的手续费率
+	InstType  string `json:"instType"`  // 产品类型：SPOT：币币 MARGIN：杠杆 SWAP：永续合约 FUTURES：交割合约 OPTION：期权
+	TakerUSDC string `json:"takerUSDC"` // USDC交割/永续的吃单手续费率（usdc）
+	MakerUSDC string `json:"makerUSDC"` // USDC交割/永续的挂单手续费率（usdc）
+	RuleType  string `json:"ruleType"`  // 交易规则类型 normal：普通交易 pre_market：盘前交易
+	Ts        string `json:"ts"`        // 数据返回时间，Unix时间戳的毫秒数格式，如 1597026383085
+}
+
+// GetTradeFee 获取交易手续费率
+// instType: 产品类型 SPOT：币币 MARGIN：币币杠杆 SWAP：永续合约 FUTURES：交割合约 OPTION：期权
+// instId: 产品ID，如 BTC-USDT（可选）
+// uly: 标的指数，如 BTC-USD（可选，适用于交割/永续/期权）
+// instFamily: 交易品种，如 BTC-USD（可选，适用于交割/永续/期权）
+func (e *OKXExchange) GetTradeFee(ctx context.Context, instType, instId, uly, instFamily string) (*okxTradeFeeResp, error) {
+	if e.account == nil || e.account.AccessKey == "" || e.account.SecretKey == "" || e.account.Passphrase == "" {
+		return nil, fmt.Errorf("account information is missing, account: %+v ", e.account)
+	}
+
+	// 构建查询参数
+	params := url.Values{}
+	params.Set("instType", instType)
+
+	if instId != "" {
+		params.Set("instId", instId)
+	}
+	if uly != "" {
+		params.Set("uly", uly)
+	}
+	if instFamily != "" {
+		params.Set("instFamily", instFamily)
+	}
+
+	// 构建完整URL
+	fullURL := fmt.Sprintf("%s?%s", okxUriGetTradeFee, params.Encode())
+
+	// 发送请求
+	result, err := e.sendRequest(ctx, "GET", fullURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get trade fee err: %w", err)
+	}
+
+	if result.Code != "0" {
+		return nil, fmt.Errorf("okx GetTradeFee error: %s, code: %s", result.Msg, result.Code)
+	}
+
+	// 解析响应数据
+	var tradeFeeData []okxTradeFeeResp
+	resultBytes, err := json.Marshal(result.Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result data: %w", err)
+	}
+
+	if err := json.Unmarshal(resultBytes, &tradeFeeData); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal trade fee data: %w", err)
+	}
+
+	if len(tradeFeeData) == 0 {
+		return nil, fmt.Errorf("no trade fee data found for instType: %s", instType)
+	}
+
+	return &tradeFeeData[0], nil
+}
+
+// CalcOrderCost 计算订单成本、费率以及判断用户是否可以购买
+func (e *OKXExchange) CalcOrderCost(ctx context.Context, req *OrderCostReq) (*OrderCostResp, error) {
+	if e.account == nil || e.account.AccessKey == "" || e.account.SecretKey == "" || e.account.Passphrase == "" {
+		return nil, fmt.Errorf("account information is missing, account: %+v ", e.account)
+	}
+
+	// 获取当前市场价格
+	ticker, err := e.GetTicker(ctx, req.Symbol)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ticker: %w", err)
+	}
+
+	// 获取交易对信息（获取合约面值等）
+	symbolInfo, err := e.GetSymbols(ctx, req.Symbol)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get symbol info: %w", err)
+	}
+
+	// 根据 amountType 计算实际购买的标的数量
+	var coinAmount float64
+	if req.AmountType == "USDT" {
+		// 如果是USDT数量，需要先转换为标的数量
+		coinAmount = req.Amount / ticker.Price
+	} else {
+		coinAmount = req.Amount
+	}
+
+	// 计算可以购买的张数
+	contracts := coinAmount / symbolInfo.ContractValue
+	if contracts < symbolInfo.MinSize {
+		return nil, fmt.Errorf("contracts is less than min size, contracts: %f, min size: %f", contracts, symbolInfo.MinSize)
+	}
+
+	// 获取杠杆倍数
+	leverList, err := e.GetLeverageMarginType(ctx, req.MarginType, req.Symbol)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get leverage margin type: %w", err)
+	}
+	var lever float64
+	if len(leverList) > 0 {
+		lever = leverList[0].Lever
+	}
+
+	// 获取手续费率（合约手续费，目前仅支持合约）
+	feeData, err := e.GetTradeFee(ctx, "SWAP", "", "", "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get trade fee: %w", err)
+	}
+	if feeData.TakerU == "" && feeData.Taker == "" {
+		return nil, fmt.Errorf("no trade fee data found")
+	}
+
+	// 计算名义价值（实际购买的标的数量 * 当前价格）
+	actualCoinAmount := contracts * symbolInfo.ContractValue
+	notionalValue := actualCoinAmount * ticker.Price
+
+	// 计算所需保证金
+	marginRequired := notionalValue / lever
+
+	// 手续费计算统一按照吃单
+	var takerUFeeRate float64
+	if feeData.TakerU != "" {
+		takerUFeeRate, _ = strconv.ParseFloat(feeData.TakerU, 64)
+	} else {
+		takerUFeeRate, _ = strconv.ParseFloat(feeData.Taker, 64)
+	}
+
+	// 计算手续费
+	takerFee := math.Abs(notionalValue * takerUFeeRate)
+
+	// 计算总成本
+	totalCostWithTaker := marginRequired + takerFee
+
+	// 获取用户可用余额
+	balances, err := e.GetBalance(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get balance: %w", err)
+	}
+
+	// 提取USDT的余额
+	var availableBalance float64
+	for _, balance := range balances {
+		if balance.Currency == "USDT" {
+			availableBalance = balance.Available
+			break
+		}
+	}
+
+	// 判断是否可以购买
+	canBuyWithTaker := availableBalance >= totalCostWithTaker
+
+	// 组合结果数据
+	return &OrderCostResp{
+		Symbol:          req.Symbol,
+		MarkPrice:       ticker.Price,
+		MarginType:      req.MarginType,
+		Lever:           lever,
+		Contracts:       contracts,
+		AvailableFunds:  availableBalance,
+		MarginRequired:  marginRequired,
+		Fee:             takerFee,
+		TotalRequired:   totalCostWithTaker,
+		CanBuyWithTaker: canBuyWithTaker,
+	}, nil
 }
 
 // ConvertToExchangeSymbol 将用户输入的币种名称转换为OKX交易所格式

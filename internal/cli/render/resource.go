@@ -219,7 +219,7 @@ func RenderSymbols(symbols []RenderSymbolsInfo) string {
 func RenderStrategyOrders(orders []*models.FoxSS) string {
 	pt := utils.NewPrettyTable()
 	pt.SetTitle("🎯 策略订单列表")
-	pt.SetHeaders([]interface{}{"ID", "交易对", "方向", "仓位", "价格", "数量", "策略", "状态"})
+	pt.SetHeaders([]interface{}{"ID", "交易对", "方向", "仓位", "价格", "数量/金额", "状态", "策略", "结果"})
 
 	for _, order := range orders {
 		side := "🟢 买入"
@@ -244,15 +244,24 @@ func RenderStrategyOrders(orders []*models.FoxSS) string {
 			status = "❌ 已取消"
 		}
 
+		var amount string
+		switch order.SzType {
+		case "USDT":
+			amount = fmt.Sprintf("%fU", order.Sz)
+		default:
+			amount = fmt.Sprintf("%f", order.Sz)
+		}
+
 		pt.AddRow([]interface{}{
 			order.ID,
 			order.Symbol,
 			side,
 			posSide,
 			fmt.Sprintf("%.2f", order.Px),
-			fmt.Sprintf("%.4f", order.Sz),
-			order.Strategy,
+			amount,
 			status,
+			order.Strategy,
+			order.Msg,
 		})
 	}
 
