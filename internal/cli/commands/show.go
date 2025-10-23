@@ -41,7 +41,7 @@ func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
 	case "exchange":
 		return c.handleExchangeCommand()
 	case "account":
-		return c.handleAccountCommand()
+		return c.handleAccountCommand(ctx)
 	case "balance":
 		return c.handleBalanceCommand(ctx)
 	case "order":
@@ -149,8 +149,8 @@ func (c *ShowCommand) handleBalanceCommand(ctx command.Context) error {
 	return nil
 }
 
-func (c *ShowCommand) handleAccountCommand() error {
-	accounts, err := repository.ListAccount()
+func (c *ShowCommand) handleAccountCommand(ctx command.Context) error {
+	accounts, err := repository.ExchangeAccountList(ctx.GetExchangeName())
 	if err != nil {
 		return fmt.Errorf("failed to get accounts: %w", err)
 	}
