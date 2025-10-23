@@ -11,55 +11,55 @@ import (
 // ListAccount 列出所有用户
 func ListAccount() ([]models.FoxAccount, error) {
 	db := database.GetDB()
-	var users []models.FoxAccount
+	var accounts []models.FoxAccount
 
-	err := db.Find(&users).Error
+	err := db.Find(&accounts).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
 
-	return users, nil
+	return accounts, nil
 }
 
 func ExchangeAccountList(exchangeName string) ([]models.FoxAccount, error) {
 	db := database.GetDB()
-	var users []models.FoxAccount
+	var accounts []models.FoxAccount
 
-	err := db.Where("exchange = ?", exchangeName).Find(&users).Error
+	err := db.Where("exchange = ?", exchangeName).Find(&accounts).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
 
-	return users, nil
+	return accounts, nil
 }
 
 // FindAccountByName 根据用户名查找用户
 func FindAccountByName(name string) (*models.FoxAccount, error) {
-	var user models.FoxAccount
+	var account models.FoxAccount
 
-	err := database.GetDB().Where("name = ?", name).Find(&user).Error
+	err := database.GetDB().Where("name = ?", name).Find(&account).Error
 	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
 
-	return &user, nil
+	return &account, nil
 }
 
 // FindAccountByExchangeName 根据交易所+用户名查找用户
 func FindAccountByExchangeName(exchange, name string) (*models.FoxAccount, error) {
-	var user models.FoxAccount
+	var account models.FoxAccount
 
-	err := database.GetDB().Where("exchange = ?", exchange).Where("name = ?", name).Find(&user).Error
+	err := database.GetDB().Where("exchange = ?", exchange).Where("name = ?", name).Find(&account).Error
 	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
 
-	return &user, nil
+	return &account, nil
 }
 
 // CreateAccount 创建用户
-func CreateAccount(user *models.FoxAccount) error {
-	return database.GetDB().Create(user).Error
+func CreateAccount(account *models.FoxAccount) error {
+	return database.GetDB().Create(account).Error
 }
 
 // DeleteAccountByName 删除用户

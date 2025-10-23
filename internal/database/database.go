@@ -39,7 +39,7 @@ func migrateTables() error {
 	// 使用 AutoMigrate 创建和迁移所有表
 	if err := DB.AutoMigrate(
 		&models.FoxAccount{},
-		//&models.FoxSymbol{},
+		&models.FoxSymbol{},
 		&models.FoxContractMultiplier{},
 		&models.FoxSS{},
 		&models.FoxExchange{},

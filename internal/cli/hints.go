@@ -834,26 +834,44 @@ func handleOpenCommandCompletion(ctx *Context, d prompt.Document, w string, fiel
 		return filtered
 	}
 
-	// 选择direction后，输入amount（不显示下拉提示，等待用户输入）
+	// 选择direction后，选择保证金模式
 	if len(fields) == 3 && strings.HasSuffix(w, " ") {
+		return getMarginModeList(ctx, fields[1])
+	}
+
+	// 正在输入保证金模式（第四个token）
+	if len(fields) == 4 && !strings.HasSuffix(w, " ") {
+		prefix := strings.ToLower(d.GetWordBeforeCursor())
+		marginModes := getMarginModeList(ctx, fields[1])
+		var filtered []prompt.Suggest
+		for _, mode := range marginModes {
+			if strings.Contains(strings.ToLower(mode.Text), prefix) {
+				filtered = append(filtered, mode)
+			}
+		}
+		return filtered
+	}
+
+	// 选择保证金模式后，输入amount（不显示下拉提示，等待用户输入）
+	if len(fields) == 4 && strings.HasSuffix(w, " ") {
 		// 返回nil表示没有补全建议，让用户直接输入amount
 		return nil
 	}
 
 	// 输入amount后，可以选择with策略（选填）
-	if len(fields) == 4 && strings.HasSuffix(w, " ") {
+	if len(fields) == 5 && strings.HasSuffix(w, " ") {
 		return []prompt.Suggest{
 			{Text: "with", Description: "[选填] 添加策略条件"},
 		}
 	}
 
 	// 输入with后，显示策略提示
-	if len(fields) == 5 && strings.HasSuffix(w, " ") && fields[4] == "with" {
+	if len(fields) == 6 && strings.HasSuffix(w, " ") && fields[5] == "with" {
 		return getStrategyList()
 	}
 
 	// 正在输入策略名称时显示提示
-	if len(fields) == 6 && !strings.HasSuffix(w, " ") && fields[4] == "with" {
+	if len(fields) == 7 && !strings.HasSuffix(w, " ") && fields[5] == "with" {
 		prefix := strings.ToLower(d.GetWordBeforeCursor())
 		strategies := getStrategyList()
 		var filtered []prompt.Suggest
@@ -910,26 +928,44 @@ func handleCloseCommandCompletion(ctx *Context, d prompt.Document, w string, fie
 		return filtered
 	}
 
-	// 选择direction后，输入amount（不显示下拉提示，等待用户输入）
+	// 选择direction后，选择保证金模式
 	if len(fields) == 3 && strings.HasSuffix(w, " ") {
+		return getMarginModeList(ctx, fields[1])
+	}
+
+	// 正在输入保证金模式（第四个token）
+	if len(fields) == 4 && !strings.HasSuffix(w, " ") {
+		prefix := strings.ToLower(d.GetWordBeforeCursor())
+		marginModes := getMarginModeList(ctx, fields[1])
+		var filtered []prompt.Suggest
+		for _, mode := range marginModes {
+			if strings.Contains(strings.ToLower(mode.Text), prefix) {
+				filtered = append(filtered, mode)
+			}
+		}
+		return filtered
+	}
+
+	// 选择保证金模式后，输入amount（不显示下拉提示，等待用户输入）
+	if len(fields) == 4 && strings.HasSuffix(w, " ") {
 		// 返回nil表示没有补全建议，让用户直接输入amount
 		return nil
 	}
 
 	// 输入amount后，可以选择with策略（选填）
-	if len(fields) == 4 && strings.HasSuffix(w, " ") {
+	if len(fields) == 5 && strings.HasSuffix(w, " ") {
 		return []prompt.Suggest{
 			{Text: "with", Description: "[选填] 添加策略条件"},
 		}
 	}
 
 	// 输入with后，显示策略提示
-	if len(fields) == 5 && strings.HasSuffix(w, " ") && fields[4] == "with" {
+	if len(fields) == 6 && strings.HasSuffix(w, " ") && fields[5] == "with" {
 		return getStrategyList()
 	}
 
 	// 正在输入策略名称时显示提示
-	if len(fields) == 6 && !strings.HasSuffix(w, " ") && fields[4] == "with" {
+	if len(fields) == 7 && !strings.HasSuffix(w, " ") && fields[5] == "with" {
 		prefix := strings.ToLower(d.GetWordBeforeCursor())
 		strategies := getStrategyList()
 		var filtered []prompt.Suggest
@@ -1031,7 +1067,7 @@ func getOpenSymbolList(ctx *Context) []prompt.Suggest {
 	for _, symbol := range symbolList {
 		suggestions = append(suggestions, prompt.Suggest{
 			Text: symbol.Name,
-			Description: fmt.Sprintf("最大杠杆:%sx 最小购买量:%s",
+			Description: fmt.Sprintf("最大杠杆:%.0fx 最小购买量:%.4f",
 				symbol.MaxLever,
 				symbol.MinSize),
 		})
@@ -1045,6 +1081,14 @@ func getDirectionList() []prompt.Suggest {
 	return []prompt.Suggest{
 		{Text: "long", Description: "多头 - 买入做多"},
 		{Text: "short", Description: "空头 - 卖出做空"},
+	}
+}
+
+// getMarginModeList 获取保证金模式列表
+func getMarginModeList(ctx *Context, symbol string) []prompt.Suggest {
+	return []prompt.Suggest{
+		{Text: "isolated", Description: "逐仓模式 - 仅使用仓位保证金"},
+		{Text: "cross", Description: "全仓模式 - 使用账户全部可用余额"},
 	}
 }
 
