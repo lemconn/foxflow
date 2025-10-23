@@ -7,6 +7,7 @@ import (
 
 	"github.com/lemconn/foxflow/internal/cli/command"
 	"github.com/lemconn/foxflow/internal/config"
+	"github.com/lemconn/foxflow/internal/engine/syntax"
 	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/models"
 	"github.com/lemconn/foxflow/internal/repository"
@@ -18,11 +19,17 @@ type OpenCommand struct{}
 
 func (c *OpenCommand) GetName() string        { return "open" }
 func (c *OpenCommand) GetDescription() string { return "开仓/下单" }
-func (c *OpenCommand) GetUsage() string       { return "open <symbol> <direction> <margin> <amount> [with]" }
+func (c *OpenCommand) GetUsage() string {
+	return "open <symbol> <direction> <margin> <amount> [with] [strategy]"
+}
 
 func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 	if !ctx.IsReady() {
 		return fmt.Errorf("请先选择交易所和用户")
+	}
+
+	if len(args) < 4 {
+		return fmt.Errorf("当前参数不全，请不全参数，例：open BTC-USDT-SWAP isolated long 1000 [with] [strategy]")
 	}
 
 	symbolName := strings.ToUpper(args[0])
@@ -70,6 +77,13 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 		return fmt.Errorf("amount 参数错误，只能为大于0的数字或者带有U单位，例：100/100U")
 	}
 
+	var side string
+	if posSide == "long" {
+		side = "buy"
+	} else {
+		side = "sell"
+	}
+
 	// 激活交易所
 	exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeName())
 	if err != nil {
@@ -78,6 +92,7 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 
 	// 校验当前用户提交的数据（按照当前标的价格计算校验）
 	costRes, costErr := exchangeClient.CalcOrderCost(ctx.GetContext(), &exchange.OrderCostReq{
+		Side:       side,
 		Symbol:     symbolName,
 		Amount:     amountValue,
 		AmountType: amountType,
@@ -91,21 +106,34 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 		return fmt.Errorf("当前暂时暂时不可提交订单，标的价格：%f，期望购买数（张）：%f，可用资金：%f，手续费（%s交易所收取）:%f，需要总资金：%f", costRes.MarkPrice, costRes.Contracts, costRes.AvailableFunds, ctx.GetExchangeName(), costRes.Fee, costRes.TotalRequired)
 	}
 
-	// @TODO 校验策略
-	stategry := ""
-	if len(args) >= 5 {
+	// 校验策略
+	var stategry string
+	if len(args) >= 6 {
+		engineClient := syntax.NewEngine()
+
+		// 解析语法表达式
+		node, err := engineClient.Parse(args[5])
+		if err != nil {
+			return fmt.Errorf("failed to parse strategy syntax: %w", err)
+		}
+
+		// 验证AST
+		if err := engineClient.GetEvaluator().Validate(node); err != nil {
+			return fmt.Errorf("failed to validate AST: %w", err)
+		}
 		stategry = args[5]
 	}
 
 	// 解析参数
 	order := &models.FoxSS{
+		Exchange:   ctx.GetExchangeName(),
 		UserID:     ctx.GetAccountInstance().ID,
 		Symbol:     symbolName,
 		PosSide:    posSide,
 		MarginType: margin,
 		Sz:         amountValue,
 		SzType:     amountType,
-		Side:       "buy",
+		Side:       side,
 		OrderType:  "market",
 		Strategy:   stategry,
 		Type:       "open",
