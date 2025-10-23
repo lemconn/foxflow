@@ -47,7 +47,7 @@ func handleSubcommandCompletion(d prompt.Document, w string, fields []string, fi
 // handleSpecialCommandCompletions 处理特殊命令的补全逻辑
 func handleSpecialCommandCompletions(ctx *Context, d prompt.Document, w string, fields []string, first, second string) []prompt.Suggest {
 	// use 命令的动态补全
-	if result := handleUseCommandCompletion(d, w, fields, first, second); result != nil {
+	if result := handleUseCommandCompletion(ctx, d, w, fields, first, second); result != nil {
 		return result
 	}
 
@@ -75,7 +75,7 @@ func handleSpecialCommandCompletions(ctx *Context, d prompt.Document, w string, 
 }
 
 // handleUseCommandCompletion 处理 use 命令的动态补全
-func handleUseCommandCompletion(d prompt.Document, w string, fields []string, first, second string) []prompt.Suggest {
+func handleUseCommandCompletion(ctx *Context, d prompt.Document, w string, fields []string, first, second string) []prompt.Suggest {
 	if first != "use" {
 		return nil
 	}
@@ -88,7 +88,7 @@ func handleUseCommandCompletion(d prompt.Document, w string, fields []string, fi
 		case "exchange":
 			return prompt.FilterHasPrefix(useExchangesList(), prefix, true)
 		case "account":
-			return prompt.FilterHasPrefix(useAccountsList(), prefix, true)
+			return prompt.FilterHasPrefix(useAccountsList(ctx), prefix, true)
 		}
 	} else if len(fields) == 3 && !strings.HasSuffix(w, " ") {
 		// 正在输入第三个参数时的模糊匹配，如 "use exchange ok"
@@ -97,7 +97,7 @@ func handleUseCommandCompletion(d prompt.Document, w string, fields []string, fi
 		case "exchange":
 			return prompt.FilterHasPrefix(useExchangesList(), prefix, true)
 		case "account":
-			return prompt.FilterHasPrefix(useAccountsList(), prefix, true)
+			return prompt.FilterHasPrefix(useAccountsList(ctx), prefix, true)
 		}
 	}
 
@@ -1119,9 +1119,9 @@ func useExchangesList() []prompt.Suggest {
 }
 
 // useAccountsList 获取账户列表（用于use account命令）
-func useAccountsList() []prompt.Suggest {
+func useAccountsList(ctx *Context) []prompt.Suggest {
 	// 获取所有用户列表
-	accountList, err := repository.ListAccount()
+	accountList, err := repository.ExchangeAccountList(ctx.GetExchangeName())
 	if err != nil {
 		return []prompt.Suggest{}
 	}

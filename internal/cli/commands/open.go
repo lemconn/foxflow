@@ -29,7 +29,7 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 	}
 
 	if len(args) < 4 {
-		return fmt.Errorf("当前参数不全，请不全参数，例：open BTC-USDT-SWAP isolated long 1000 [with] [strategy]")
+		return fmt.Errorf("当前参数不全，请补全参数，例：open BTC-USDT-SWAP isolated long 1000/1000U [with] [strategy]")
 	}
 
 	symbolName := strings.ToUpper(args[0])
