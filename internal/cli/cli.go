@@ -59,7 +59,6 @@ func (c *CLI) Run() error {
 
 	// 显示操作指南
 	fmt.Println("快捷键说明:")
-	fmt.Println("  Tab     - 自动补全和显示选项并选择")
 	fmt.Println()
 
 	// 设置默认交易所

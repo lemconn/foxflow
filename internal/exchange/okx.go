@@ -419,12 +419,13 @@ func (e *OKXExchange) GetPositions(ctx context.Context) ([]Position, error) {
 		return nil, nil
 	}
 
-	res := make([]Position, len(okxPositionInfos))
+	res := make([]Position, 0)
 	for _, positionInfo := range okxPositionInfos {
 
 		position := Position{
-			Symbol:  positionInfo.InstId,
-			PosSide: positionInfo.PosSide,
+			Symbol:     positionInfo.InstId,
+			PosSide:    positionInfo.PosSide,
+			MarginType: positionInfo.Margin,
 		}
 		floatSize, err := strconv.ParseFloat(positionInfo.Pos, 64)
 		if err != nil {
@@ -650,6 +651,7 @@ func (e *OKXExchange) CreateOrder(ctx context.Context, order *Order) (*Order, er
 		InstID:        order.Symbol,
 		TdMode:        order.MarginType,
 		Side:          order.Side,
+		PosSide:       order.PosSide,
 		OrdType:       order.Type,
 		TradeQuoteCcy: "USDT", // tradeQuoteCcy 对于特定国家和地区的用户，下单成功需要填写该参数，否则会取 `instId` 的计价币种为默认值，报错 51000。
 	}
@@ -1223,9 +1225,6 @@ func (e *OKXExchange) CalcOrderCost(ctx context.Context, req *OrderCostReq) (*Or
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trade fee: %w", err)
 	}
-	if feeData.TakerU == "" && feeData.Taker == "" {
-		return nil, fmt.Errorf("no trade fee data found")
-	}
 
 	// 计算名义价值（实际购买的标的数量 * 当前价格）
 	actualCoinAmount := contracts * symbolInfo.ContractValue
@@ -1234,16 +1233,31 @@ func (e *OKXExchange) CalcOrderCost(ctx context.Context, req *OrderCostReq) (*Or
 	// 计算所需保证金
 	marginRequired := notionalValue / lever
 
-	// 手续费计算统一按照吃单
-	var takerUFeeRate float64
-	if feeData.TakerU != "" {
-		takerUFeeRate, _ = strconv.ParseFloat(feeData.TakerU, 64)
+	// 手续费计算（这里按照传递的限价计算，没有传递限价则会立即成交，或者卖单时传递价格比现价低或者买入时传递价格比现价多都会立即成交）
+	var feeRate float64
+	if (req.LimitPrice <= 0) || (((req.Side == "buy") && (req.LimitPrice >= ticker.Price)) || (req.Side == "sell") && (req.LimitPrice <= ticker.Price)) {
+		if feeData.TakerU == "" && feeData.Taker == "" {
+			return nil, fmt.Errorf("no trade fee data found")
+		}
+		if feeData.TakerU != "" {
+			feeRate, _ = strconv.ParseFloat(feeData.TakerU, 64)
+		} else {
+			feeRate, _ = strconv.ParseFloat(feeData.Taker, 64)
+		}
 	} else {
-		takerUFeeRate, _ = strconv.ParseFloat(feeData.Taker, 64)
+		if feeData.MakerU == "" && feeData.Maker == "" {
+			return nil, fmt.Errorf("no trade fee data found")
+		}
+
+		if feeData.MakerU != "" {
+			feeRate, _ = strconv.ParseFloat(feeData.MakerU, 64)
+		} else {
+			feeRate, _ = strconv.ParseFloat(feeData.Maker, 64)
+		}
 	}
 
 	// 计算手续费
-	takerFee := math.Abs(notionalValue * takerUFeeRate)
+	takerFee := math.Abs(notionalValue * feeRate)
 
 	// 计算总成本
 	totalCostWithTaker := marginRequired + takerFee

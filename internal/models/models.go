@@ -55,6 +55,7 @@ func (FoxContractMultiplier) TableName() string {
 // FoxSS 策略订单表
 type FoxSS struct {
 	ID         uint    `gorm:"primaryKey" json:"id"`
+	Exchange   string  `gorm:"not null;default:'okx';check:exchange IN ('okx', 'binance', 'gate')" json:"exchange"` // 交易所
 	UserID     uint    `gorm:"not null;default:0" json:"user_id"`
 	Symbol     string  `gorm:"not null;default:''" json:"symbol"`
 	Side       string  `gorm:"not null;default:'';check:side IN ('buy', 'sell')" json:"side"`
