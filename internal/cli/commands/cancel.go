@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/lemconn/foxflow/internal/cli/command"
-	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/models"
 	"github.com/lemconn/foxflow/internal/repository"
 	"github.com/lemconn/foxflow/internal/utils"
@@ -44,6 +43,12 @@ func (c *CancelCommand) Execute(ctx command.Context, args []string) error {
 	direction := orderParts[1]
 	amountStr := orderParts[2]
 
+	amountType := ""
+	if strings.HasSuffix(amountStr, "U") {
+		amountStr = strings.TrimSuffix(amountStr, "U")
+		amountType = "USDT"
+	}
+
 	amount, err := strconv.ParseFloat(amountStr, 64)
 	if err != nil {
 		return fmt.Errorf("invalid amount: %s", amountStr)
@@ -57,32 +62,14 @@ func (c *CancelCommand) Execute(ctx command.Context, args []string) error {
 
 	var targetOrder *models.FoxSS
 	for _, order := range orders {
-		if order.Symbol == symbol && order.Side == direction &&
-			fmt.Sprintf("%.4f", order.Sz) == fmt.Sprintf("%.4f", amount) &&
-			order.Status != "cancelled" && order.Status != "completed" {
+		if order.Symbol == symbol && order.Side == direction && order.Sz == amount && order.SzType == amountType {
 			targetOrder = order
 			break
 		}
 	}
 
 	if targetOrder == nil {
-		return fmt.Errorf("order not found: %s:%s:%s", symbol, direction, amountStr)
-	}
-
-	// 如果订单已提交到交易所，需要取消远程订单
-	if targetOrder.Status == "pending" && targetOrder.OrderID != "" {
-		exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeInstance().Name)
-		if err != nil {
-			return fmt.Errorf("failed to get exchange client: %w", err)
-		}
-
-		exchangeOrder := &exchange.Order{
-			ID:     targetOrder.OrderID,
-			Symbol: targetOrder.Symbol,
-		}
-		if err := exchangeClient.CancelOrder(ctx.GetContext(), exchangeOrder); err != nil {
-			return fmt.Errorf("failed to cancel remote order: %w", err)
-		}
+		return fmt.Errorf("order not found: %s:%s:%s", symbol, direction, orderParts[2])
 	}
 
 	// 更新订单状态

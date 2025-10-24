@@ -21,7 +21,7 @@ INSERT OR IGNORE INTO fox_users (username, exchange, access_key, secret_key, sta
 ('demo_trader', 'binance', 'demo_binance_key', 'demo_binance_secret', 'active', 'mock', 1, datetime('now', 'localtime'), datetime('now', 'localtime'));
 
 -- 插入测试标的数据
-INSERT OR IGNORE INTO fox_symbols (name, user_id, exchange, leverage, margin_type, status, created_at, updated_at) VALUES 
+INSERT OR IGNORE INTO fox_symbols (name, account_id, exchange, leverage, margin_type, status, created_at, updated_at) VALUES
 ('BTCUSDT', 1, 'binance', 10, 'isolated', 'active', datetime('now', 'localtime'), datetime('now', 'localtime')),
 ('ETHUSDT', 1, 'binance', 5, 'cross', 'active', datetime('now', 'localtime'), datetime('now', 'localtime')),
 ('BTC-USDT-SWAP', 2, 'okx', 20, 'isolated', 'active', datetime('now', 'localtime'), datetime('now', 'localtime')),
@@ -30,7 +30,7 @@ INSERT OR IGNORE INTO fox_symbols (name, user_id, exchange, leverage, margin_typ
 ('ADAUSDT', 4, 'binance', 3, 'isolated', 'active', datetime('now', 'localtime'), datetime('now', 'localtime'));
 
 -- 插入测试策略订单数据
-INSERT OR IGNORE INTO fox_ss (user_id, symbol, side, pos_side, px, sz, order_type, strategy, order_id, type, status, created_at, updated_at) VALUES 
+INSERT OR IGNORE INTO fox_ss (account_id, symbol, side, pos_side, px, sz, order_type, strategy, order_id, type, status, created_at, updated_at) VALUES
 -- 用户1的订单
 (1, 'BTCUSDT', 'buy', 'long', 45000.50, 0.01, 'limit', 'macd', 'binance_order_001', 'open', 'waiting', datetime('now', 'localtime'), datetime('now', 'localtime')),
 (1, 'BTCUSDT', 'sell', 'long', 46000.00, 0.01, 'limit', 'macd', 'binance_order_002', 'close', 'pending', datetime('now', 'localtime'), datetime('now', 'localtime')),

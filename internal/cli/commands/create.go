@@ -119,7 +119,7 @@ func (c *CreateCommand) createStrategyOrder(ctx command.Context, args []string) 
 
 	// 解析参数
 	order := &models.FoxSS{
-		UserID:    ctx.GetAccountInstance().ID,
+		AccountID: ctx.GetAccountInstance().ID,
 		OrderType: "limit",
 		Type:      "open",
 		Status:    "waiting",

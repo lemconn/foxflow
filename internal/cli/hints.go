@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/c-bata/go-prompt"
@@ -1013,35 +1014,29 @@ func handleCancelCommandCompletion(ctx *Context, d prompt.Document, w string, fi
 // getCancelOrderList 获取可取消的订单列表（暂时使用mock数据）
 func getCancelOrderList(ctx *Context) []prompt.Suggest {
 
-	// 暂时使用mock数据，确保有数据显示
-	mockOrders := []struct {
-		symbol   string
-		side     string
-		amount   float64
-		strategy string
-		status   string
-	}{
-		{"BTC-USDT", "long", 10.5, "avg", "waiting"},
-		{"ETH-USDT", "short", 5.0, "", "waiting"},
-		{"ADA-USDT", "long", 1000.0, "limit", "pending"},
-		{"SOL-USDT", "short", 50.0, "stop", "waiting"},
-		{"DOGE-USDT", "long", 50000.0, "", "pending"},
+	// 只获取未完成的订单
+	accountOrderList, err := repository.ListSSOrders(ctx.GetAccountInstance().ID, []string{"waiting", "pending"})
+	if err != nil {
+		return []prompt.Suggest{}
 	}
 
 	var suggestions []prompt.Suggest
-	for _, order := range mockOrders {
-		// 只显示未完成和未取消的订单
-		if order.status == "cancelled" || order.status == "completed" {
-			continue
+	for _, order := range accountOrderList {
+
+		var amount string
+		if order.SzType == "USDT" {
+			amount = fmt.Sprintf("%sU", strconv.FormatFloat(order.Sz, 'g', -1, 64))
+		} else {
+			amount = fmt.Sprintf("%s", strconv.FormatFloat(order.Sz, 'g', -1, 64))
 		}
 
 		// 构建订单标识：symbol:direction:amount
-		orderText := fmt.Sprintf("%s:%s:%.4f", order.symbol, order.side, order.amount)
+		orderText := fmt.Sprintf("%s:%s:%s", order.Symbol, order.Side, amount)
 
 		// 构建描述信息
 		var description string
-		if order.strategy != "" {
-			description = fmt.Sprintf("策略: %s", order.strategy)
+		if order.Strategy != "" {
+			description = fmt.Sprintf("策略: %s", order.Strategy)
 		} else {
 			description = "暂无订单策略"
 		}
