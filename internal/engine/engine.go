@@ -114,7 +114,7 @@ func (e *Engine) checkStrategies() error {
 	// 按用户分组处理
 	userOrders := make(map[uint][]models.FoxSS)
 	for _, order := range orders {
-		userOrders[order.UserID] = append(userOrders[order.UserID], order)
+		userOrders[order.AccountID] = append(userOrders[order.AccountID], order)
 	}
 
 	// 处理每个用户的订单
