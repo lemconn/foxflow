@@ -648,10 +648,10 @@ func (e *OKXExchange) CreateOrder(ctx context.Context, order *Order) (*Order, er
 	}
 
 	reqBody := oxkOrderRequest{
-		InstID:        order.Symbol,
-		TdMode:        order.MarginType,
-		Side:          order.Side,
-		PosSide:       order.PosSide,
+		InstID: order.Symbol,
+		TdMode: order.MarginType,
+		Side:   order.Side,
+		//PosSide:       order.PosSide,
 		OrdType:       order.Type,
 		TradeQuoteCcy: "USDT", // tradeQuoteCcy 对于特定国家和地区的用户，下单成功需要填写该参数，否则会取 `instId` 的计价币种为默认值，报错 51000。
 	}
@@ -678,8 +678,10 @@ func (e *OKXExchange) CreateOrder(ctx context.Context, order *Order) (*Order, er
 	if err != nil {
 		return nil, fmt.Errorf("okx create order err: %w", err)
 	}
+
 	if result.Code != "0" {
-		return nil, fmt.Errorf("okx create order error: %s, code:%s", result.Msg, result.Code)
+		dataByte, _ := json.Marshal(result.Data)
+		return nil, fmt.Errorf("okx create order error: %s, code:%s, data:%s", result.Msg, result.Code, string(dataByte))
 	}
 
 	// 解析返回，写回订单ID
