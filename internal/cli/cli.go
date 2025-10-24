@@ -149,6 +149,71 @@ func parseArgs(line string) []string {
 	var current strings.Builder
 	inQuotes := false
 	quoteChar := '"'
+	withFound := false
+
+	// 首先检查是否包含 "with" 关键字
+	words := strings.Fields(line)
+	for _, word := range words {
+		if strings.ToLower(word) == "with" {
+			withFound = true
+			break
+		}
+	}
+
+	// 如果没有找到 "with"，使用原来的解析逻辑
+	if !withFound {
+		return parseArgsOriginal(line)
+	}
+
+	// 如果找到 "with"，特殊处理
+	for i, char := range line {
+		switch char {
+		case '"', '\'':
+			if !inQuotes {
+				inQuotes = true
+				quoteChar = char
+			} else if char == quoteChar {
+				inQuotes = false
+			} else {
+				current.WriteRune(char)
+			}
+		case ' ':
+			if !inQuotes {
+				if current.Len() > 0 {
+					args = append(args, current.String())
+					current.Reset()
+					
+					// 如果当前参数是 "with"，则后续所有内容作为一个整体
+					if strings.ToLower(args[len(args)-1]) == "with" {
+						// 获取 "with" 后面的所有内容
+						remaining := strings.TrimSpace(line[i+1:])
+						if remaining != "" {
+							args = append(args, remaining)
+						}
+						return args
+					}
+				}
+			} else {
+				current.WriteRune(char)
+			}
+		default:
+			current.WriteRune(char)
+		}
+	}
+
+	if current.Len() > 0 {
+		args = append(args, current.String())
+	}
+
+	return args
+}
+
+// parseArgsOriginal 原始的参数解析逻辑
+func parseArgsOriginal(line string) []string {
+	var args []string
+	var current strings.Builder
+	inQuotes := false
+	quoteChar := '"'
 
 	for _, char := range line {
 		switch char {
