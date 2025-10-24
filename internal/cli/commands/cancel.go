@@ -72,6 +72,10 @@ func (c *CancelCommand) Execute(ctx command.Context, args []string) error {
 		return fmt.Errorf("order not found: %s:%s:%s", symbol, direction, orderParts[2])
 	}
 
+	if targetOrder.Status != "waiting" {
+		return fmt.Errorf("order %s status is not waiting", symbol)
+	}
+
 	// 更新订单状态
 	targetOrder.Status = "cancelled"
 	if err := repository.SaveSSOrder(targetOrder); err != nil {

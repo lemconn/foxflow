@@ -55,8 +55,10 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 	}
 
 	if posSide != "long" && posSide != "short" {
-		// 校验是否存在U的后缀
 		return fmt.Errorf("direction 参数错误，只能为 long 或 short")
+	}
+	if margin != "isolated" && margin != "cross" {
+		return fmt.Errorf("margin 参数错误，只能为 isolated 或 cross")
 	}
 
 	if amount == "" {

@@ -127,14 +127,21 @@ func RenderOrders(orders []exchange.Order) string {
 func RenderPositions(positions []exchange.Position) string {
 	pt := utils.NewPrettyTable()
 	pt.SetTitle("📊 仓位列表")
-	pt.SetHeaders([]interface{}{"交易对", "仓位方向", "数量", "均价", "未实现盈亏"})
+	pt.SetHeaders([]interface{}{"交易对", "仓位方向", "保证金模式", "数量", "均价", "未实现盈亏"})
 
 	for _, pos := range positions {
 		posSide := pos.PosSide
-		if posSide == "long" {
-			posSide = "📈 多头"
-		} else if posSide == "short" {
-			posSide = "📉 空头"
+		if pos.Size > 0 {
+			posSide = "📈 long"
+		} else if pos.Size < 0 {
+			posSide = "📉 short"
+		}
+
+		var margin string
+		if pos.MarginType == "isolated" {
+			margin = fmt.Sprintf("%s（逐仓）", pos.MarginType)
+		} else if pos.MarginType == "cross" {
+			margin = fmt.Sprintf("%s（全仓）", pos.MarginType)
 		}
 
 		pnlColor := "🟢"
@@ -147,6 +154,7 @@ func RenderPositions(positions []exchange.Position) string {
 		pt.AddRow([]interface{}{
 			pos.Symbol,
 			posSide,
+			margin,
 			fmt.Sprintf("%.4f", pos.Size),
 			fmt.Sprintf("%.2f", pos.AvgPrice),
 			fmt.Sprintf("%s %.2f", pnlColor, pos.UnrealPnl),

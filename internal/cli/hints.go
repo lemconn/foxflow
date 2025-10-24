@@ -1015,7 +1015,7 @@ func handleCancelCommandCompletion(ctx *Context, d prompt.Document, w string, fi
 func getCancelOrderList(ctx *Context) []prompt.Suggest {
 
 	// 只获取未完成的订单
-	accountOrderList, err := repository.ListSSOrders(ctx.GetAccountInstance().ID, []string{"waiting", "pending"})
+	accountOrderList, err := repository.ListSSOrders(ctx.GetAccountInstance().ID, []string{"waiting"})
 	if err != nil {
 		return []prompt.Suggest{}
 	}
