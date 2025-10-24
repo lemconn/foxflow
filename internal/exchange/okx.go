@@ -425,7 +425,7 @@ func (e *OKXExchange) GetPositions(ctx context.Context) ([]Position, error) {
 		position := Position{
 			Symbol:     positionInfo.InstId,
 			PosSide:    positionInfo.PosSide,
-			MarginType: positionInfo.Margin,
+			MarginType: positionInfo.MgnMode,
 		}
 		floatSize, err := strconv.ParseFloat(positionInfo.Pos, 64)
 		if err != nil {
@@ -461,25 +461,15 @@ type oxkClosePositionsRequest struct {
 	Tag     string `json:"tag,omitempty"`     // 订单标签 (1-16位)
 }
 
-type okxClosePositionsResponse struct {
-	InstId  string `json:"instId"`            // 产品ID
-	PosSide string `json:"posSide"`           // 持仓方向
-	ClOrdId string `json:"clOrdId,omitempty"` // 客户自定义订单ID
-	Tag     string `json:"tag,omitempty"`     // 订单标签
-}
-
-func (e *OKXExchange) ClosePositions(ctx context.Context, symbol, posSide, mgnMode, ccy string) error {
+func (e *OKXExchange) ClosePosition(ctx context.Context, closePosition *ClosePosition) error {
 	if e.account == nil || e.account.AccessKey == "" || e.account.SecretKey == "" || e.account.Passphrase == "" {
 		return fmt.Errorf("account information is missing, account: %+v ", e.account)
 	}
 
 	reqBody := oxkClosePositionsRequest{
-		InstId:  symbol,
-		PosSide: posSide,
-		MgnMode: mgnMode,
-	}
-	if len(ccy) > 0 {
-		reqBody.Ccy = ccy
+		InstId:  closePosition.Symbol,
+		PosSide: closePosition.PosSide,
+		MgnMode: closePosition.Margin,
 	}
 
 	reqBodyByte, err := json.Marshal(reqBody)
@@ -499,14 +489,6 @@ func (e *OKXExchange) ClosePositions(ctx context.Context, symbol, posSide, mgnMo
 	}
 	if result.Code != "0" {
 		return fmt.Errorf("okx close positions error: %s, code:%s", result.Msg, result.Code)
-	}
-
-	// 解析响应数据
-	closePositionsResp := make([]okxClosePositionsResponse, 0)
-	resultByte, _ := json.Marshal(result.Data)
-	err = json.Unmarshal(resultByte, &closePositionsResp)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal close positions response: %w", err)
 	}
 
 	return nil
@@ -648,10 +630,9 @@ func (e *OKXExchange) CreateOrder(ctx context.Context, order *Order) (*Order, er
 	}
 
 	reqBody := oxkOrderRequest{
-		InstID: order.Symbol,
-		TdMode: order.MarginType,
-		Side:   order.Side,
-		//PosSide:       order.PosSide,
+		InstID:        order.Symbol,
+		TdMode:        order.MarginType,
+		Side:          order.Side,
 		OrdType:       order.Type,
 		TradeQuoteCcy: "USDT", // tradeQuoteCcy 对于特定国家和地区的用户，下单成功需要填写该参数，否则会取 `instId` 的计价币种为默认值，报错 51000。
 	}

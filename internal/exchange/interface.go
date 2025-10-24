@@ -117,6 +117,12 @@ type SymbolLeverageMarginType struct {
 	Margin  string  `json:"margin"`
 }
 
+type ClosePosition struct {
+	Symbol  string `json:"symbol"`            // 产品ID，如 BTC-USDT-SWAP
+	Margin  string `json:"margin"`            // 保证金模式: cross, isolated
+	PosSide string `json:"posSide,omitempty"` // 持仓方向: long, short, net
+}
+
 // Exchange 交易所接口
 type Exchange interface {
 	// 基础信息
@@ -132,9 +138,10 @@ type Exchange interface {
 	SetAccount(ctx context.Context, account *models.FoxAccount) error
 	GetAccount(ctx context.Context) (*models.FoxAccount, error)
 
-	// 账户信息
+	// 资产/仓位信息
 	GetBalance(ctx context.Context) ([]Asset, error)
 	GetPositions(ctx context.Context) ([]Position, error)
+	ClosePosition(ctx context.Context, closePosition *ClosePosition) error
 
 	// 订单管理
 	GetOrders(ctx context.Context, symbol string, status string) ([]Order, error)
