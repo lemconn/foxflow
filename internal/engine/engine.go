@@ -227,15 +227,21 @@ func (e *Engine) submitOrder(exchangeInstance exchange.Exchange, order *models.F
 	// 提交订单
 	result, err := exchangeInstance.CreateOrder(e.ctx, exchangeOrder)
 	if err != nil {
-		return fmt.Errorf("failed to create order: %w", err)
+		order.Msg = err.Error()
+		order.Status = "failed"
+		if err := database.GetDB().Save(order).Error; err != nil {
+			return fmt.Errorf("failed to update order: %w", err)
+		}
+
+		log.Printf("订单提交失败: ID=%d, OrderID=%s, Error=%s", order.ID, order.OrderID, err.Error())
+		return fmt.Errorf("failed to submit order: %w", err)
 	}
 
 	// 更新数据库
 	order.OrderID = result.ID
 	order.Status = "pending"
 
-	db := database.GetDB()
-	if err := db.Save(order).Error; err != nil {
+	if err := database.GetDB().Save(order).Error; err != nil {
 		return fmt.Errorf("failed to update order: %w", err)
 	}
 
