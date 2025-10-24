@@ -109,12 +109,9 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 	// 校验策略
 	var stategry string
 	if len(args) >= 6 {
-		// 拼接with后面所有的条件
-		stategry = strings.Join(args[5:], " ")
-
 		engineClient := syntax.NewEngine()
 		// 解析语法表达式
-		node, err := engineClient.Parse(stategry)
+		node, err := engineClient.Parse(args[5])
 		if err != nil {
 			return fmt.Errorf("failed to parse strategy syntax: %w", err)
 		}
