@@ -26,7 +26,7 @@ func (FoxAccount) TableName() string {
 type FoxSymbol struct {
 	ID         uint   `gorm:"primaryKey" json:"id"`
 	Name       string `gorm:"not null;default:''" json:"name"`
-	UserID     uint   `gorm:"not null;default:0" json:"user_id"`
+	AccountID  uint   `gorm:"not null;default:0" json:"account_id"`
 	Exchange   string `gorm:"not null;default:'okx';check:exchange IN ('okx', 'binance', 'gate')" json:"exchange"`
 	Leverage   int    `gorm:"not null;default:1" json:"leverage"`
 	MarginType string `gorm:"not null;default:'isolated';check:margin_type IN ('isolated', 'cross')" json:"margin_type"`
@@ -56,7 +56,7 @@ func (FoxContractMultiplier) TableName() string {
 type FoxSS struct {
 	ID         uint    `gorm:"primaryKey" json:"id"`
 	Exchange   string  `gorm:"not null;default:'okx';check:exchange IN ('okx', 'binance', 'gate')" json:"exchange"` // 交易所
-	UserID     uint    `gorm:"not null;default:0" json:"user_id"`
+	AccountID  uint    `gorm:"not null;default:0" json:"account_id"`
 	Symbol     string  `gorm:"not null;default:''" json:"symbol"`
 	Side       string  `gorm:"not null;default:'';check:side IN ('buy', 'sell')" json:"side"`
 	PosSide    string  `gorm:"not null;default:'';check:pos_side IN ('long', 'short')" json:"pos_side"`
@@ -68,7 +68,7 @@ type FoxSS struct {
 	Strategy   string  `gorm:"not null;default:''" json:"strategy"`
 	OrderID    string  `gorm:"not null;default:''" json:"order_id"`
 	Type       string  `gorm:"not null;default:'open';check:type IN ('open', 'close')" json:"type"`
-	Status     string  `gorm:"not null;default:'waiting';check:status IN ('waiting', 'pending', 'filled', 'cancelled')" json:"status"`
+	Status     string  `gorm:"not null;default:'waiting';check:status IN ('waiting', 'pending', 'filled', 'failed', 'cancelled')" json:"status"`
 	Msg        string  `gorm:"not null;default:''" json:"msg"` // 订单描述（引擎处理结果）
 	CreatedAt  string  `gorm:"not null;default:''" json:"created_at"`
 	UpdatedAt  string  `gorm:"not null;default:''" json:"updated_at"`

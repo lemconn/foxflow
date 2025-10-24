@@ -125,7 +125,7 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 	// 解析参数
 	order := &models.FoxSS{
 		Exchange:   ctx.GetExchangeName(),
-		UserID:     ctx.GetAccountInstance().ID,
+		AccountID:  ctx.GetAccountInstance().ID,
 		Symbol:     symbolName,
 		PosSide:    posSide,
 		MarginType: margin,

@@ -242,6 +242,8 @@ func RenderStrategyOrders(orders []*models.FoxSS) string {
 			status = "✅ 已成交"
 		case "cancelled":
 			status = "❌ 已取消"
+		case "failed":
+			status = "❌ 失败"
 		}
 
 		var amount string

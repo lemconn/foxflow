@@ -9,12 +9,12 @@ import (
 )
 
 // ListWaitingSSOrders 列出等待中的策略订单，可按用户过滤
-func ListWaitingSSOrders(userID uint) ([]models.FoxSS, error) {
+func ListWaitingSSOrders(accountID uint) ([]models.FoxSS, error) {
 	db := database.GetDB()
 	var ss []models.FoxSS
 	query := db.Where("status = ?", "waiting")
-	if userID != 0 {
-		query = query.Where("user_id = ?", userID)
+	if accountID != 0 {
+		query = query.Where("account_id = ?", accountID)
 	}
 	if err := query.Find(&ss).Error; err != nil {
 		return nil, err
@@ -22,11 +22,11 @@ func ListWaitingSSOrders(userID uint) ([]models.FoxSS, error) {
 	return ss, nil
 }
 
-func ListSSOrders(userID uint, status []string) ([]*models.FoxSS, error) {
+func ListSSOrders(accountID uint, status []string) ([]*models.FoxSS, error) {
 	var ss []*models.FoxSS
 
 	db := database.GetDB()
-	query := db.Where("user_id = ?", userID)
+	query := db.Where("account_id = ?", accountID)
 	if len(status) > 0 {
 		query = query.Where("status in ?", status)
 	}
@@ -45,11 +45,11 @@ func CreateSSOrder(order *models.FoxSS) error {
 }
 
 // FindSSOrderByIDForUser 查找用户策略订单
-func FindSSOrderByIDForUser(userID uint, id uint64) (*models.FoxSS, error) {
+func FindSSOrderByIDForUser(accountID uint, id uint64) (*models.FoxSS, error) {
 	var order models.FoxSS
 
 	db := database.GetDB()
-	err := db.Where("id = ? AND user_id = ?", id, userID).First(&order).Error
+	err := db.Where("id = ? AND account_id = ?", id, accountID).First(&order).Error
 	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
