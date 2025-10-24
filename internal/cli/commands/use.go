@@ -103,35 +103,29 @@ func (c *UseCommand) HandleAccountCommand(ctx command.Context, name string) erro
 		return fmt.Errorf("failed to deactivate accounts: %w", err)
 	}
 
-	// 如果用户属于不同的交易所，需要切换交易所
-	if ctx.GetExchangeName() != "" && ctx.GetExchangeName() != account.Exchange {
-		// 将所有交易所设置为非激活状态
-		if err = repository.SetAllExchangesInactive(); err != nil {
-			return fmt.Errorf("failed to deactivate exchanges: %w", err)
-		}
-
-		// 断开当前交易所连接
-		exchange.GetManager().DisconnectAccount(ctx.GetExchangeName())
-
-		// 切换到用户所属的交易所
-		var ex *models.FoxExchange
-		ex, err = repository.GetExchange(account.Exchange)
-		if err != nil {
-			return fmt.Errorf("failed to get exchange: %w", err)
-		}
-
-		if ex == nil || ex.ID == 0 {
-			return fmt.Errorf("exchange `%s` not found", account.Exchange)
-		}
-
-		// 激活用户所属的交易所
-		if err = repository.ActivateExchange(account.Exchange); err != nil {
-			return fmt.Errorf("failed to activate exchange: %w", err)
-		}
-
-		ctx.SetExchangeName(account.Exchange)
-		ctx.SetExchangeInstance(ex)
+	// 将所有交易所设置为非激活状态
+	if err = repository.SetAllExchangesInactive(); err != nil {
+		return fmt.Errorf("failed to deactivate exchanges: %w", err)
 	}
+
+	// 切换到用户所属的交易所
+	var ex *models.FoxExchange
+	ex, err = repository.GetExchange(account.Exchange)
+	if err != nil {
+		return fmt.Errorf("failed to get exchange: %w", err)
+	}
+
+	if ex == nil || ex.ID == 0 {
+		return fmt.Errorf("exchange `%s` not found", account.Exchange)
+	}
+
+	// 激活用户所属的交易所
+	if err = repository.ActivateExchange(account.Exchange); err != nil {
+		return fmt.Errorf("failed to activate exchange: %w", err)
+	}
+
+	ctx.SetExchangeName(account.Exchange)
+	ctx.SetExchangeInstance(ex)
 
 	// 激活选中的用户
 	if err = repository.ActivateAccountByName(name); err != nil {
