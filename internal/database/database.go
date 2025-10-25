@@ -41,7 +41,7 @@ func migrateTables() error {
 		&models.FoxAccount{},
 		&models.FoxSymbol{},
 		&models.FoxContractMultiplier{},
-		&models.FoxSS{},
+		&models.FoxOrder{},
 		&models.FoxExchange{},
 		&models.FoxStrategy{},
 	); err != nil {

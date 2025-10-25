@@ -143,12 +143,12 @@ func (c *ShowCommand) handleOrderCommand(ctx command.Context) error {
 		return errors.New("请先选择交易所和用户")
 	}
 
-	ss, err := repository.ListSSOrders(ctx.GetAccountInstance().ID, []string{"waiting", "pending"})
+	order, err := repository.ListSSOrders(ctx.GetAccountInstance().ID, []string{})
 	if err != nil {
 		return fmt.Errorf("failed to get strategy orders: %w", err)
 	}
 
-	fmt.Println(cliRender.RenderStrategyOrders(ss))
+	fmt.Println(cliRender.RenderStrategyOrders(order))
 	return nil
 }
 

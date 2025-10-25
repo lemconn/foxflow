@@ -3,8 +3,10 @@ package exchange
 import (
 	"context"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -194,6 +196,35 @@ func (e *OKXExchange) getAssetValuation(ctx context.Context) (float64, error) {
 	}
 
 	return floatNum, nil
+}
+
+func (e *OKXExchange) GetClientOrderId(ctx context.Context) string {
+	// 获取当前时间戳到毫秒，例如 20251025153456789 -> 长度 17
+	timestamp := time.Now().Format("20060102150405.000")
+	timestamp = strings.ReplaceAll(timestamp, ".", "") // 移除小数点 -> 17位
+
+	// 随机 8 字节 -> 16 hex 字符
+	b := make([]byte, 8)
+	rand.Read(b)
+	randomPart := strings.ToUpper(hex.EncodeToString(b)) // 16位大写字母数字
+
+	// 拼接 prefix + 时间戳 + 随机部分
+	id := fmt.Sprintf("%s%s%s", "fox", timestamp, randomPart)
+
+	// 去掉非字母数字字符，并截断或填充到32位
+	id = strings.Map(func(r rune) rune {
+		if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			return r
+		}
+		return -1
+	}, id)
+
+	if len(id) > 32 {
+		id = id[:32]
+	} else if len(id) < 32 {
+		id = id + strings.Repeat("X", 32-len(id)) // 补充字符防止不足32
+	}
+	return id
 }
 
 type okxAccountBalanceResp struct {
@@ -630,11 +661,17 @@ func (e *OKXExchange) CreateOrder(ctx context.Context, order *Order) (*Order, er
 	}
 
 	reqBody := oxkOrderRequest{
+		ClOrdID:       order.OrderID,
 		InstID:        order.Symbol,
 		TdMode:        order.MarginType,
 		Side:          order.Side,
 		OrdType:       order.Type,
 		TradeQuoteCcy: "USDT", // tradeQuoteCcy 对于特定国家和地区的用户，下单成功需要填写该参数，否则会取 `instId` 的计价币种为默认值，报错 51000。
+	}
+
+	// 平仓时仅减仓（不做反向建仓）
+	if order.Side == "sell" {
+		reqBody.ReduceOnly = true
 	}
 
 	// 按类型填充价格与数量
@@ -1087,13 +1124,6 @@ func (e *OKXExchange) SetMarginType(ctx context.Context, symbol string, marginTy
 	}
 
 	return nil
-}
-
-// 使用结构体组装查询参数
-type okxLeverageMarginTypeReq struct {
-	MgnMode string `json:"mgnMode"`
-	InstId  string `json:"instId"`
-	Ccy     string `json:"ccy"`
 }
 
 type okxLeverageMarginTypeResp struct {

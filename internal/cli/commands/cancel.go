@@ -60,9 +60,9 @@ func (c *CancelCommand) Execute(ctx command.Context, args []string) error {
 		return fmt.Errorf("get orders error: %s", err)
 	}
 
-	var targetOrder *models.FoxSS
+	var targetOrder *models.FoxOrder
 	for _, order := range orders {
-		if order.Symbol == symbol && order.Side == direction && order.Sz == amount && order.SzType == amountType {
+		if order.Symbol == symbol && order.Side == direction && order.Size == amount && order.SizeType == amountType {
 			targetOrder = order
 			break
 		}
@@ -82,6 +82,6 @@ func (c *CancelCommand) Execute(ctx command.Context, args []string) error {
 		return fmt.Errorf("failed to update order: %w", err)
 	}
 
-	fmt.Println(utils.RenderSuccess(fmt.Sprintf("订单已取消: %s:%s:%.4f", targetOrder.Symbol, targetOrder.Side, targetOrder.Sz)))
+	fmt.Println(utils.RenderSuccess(fmt.Sprintf("订单已取消: %s:%s:%.4f", targetOrder.Symbol, targetOrder.Side, targetOrder.Size)))
 	return nil
 }

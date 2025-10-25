@@ -237,7 +237,7 @@ func RenderSymbols(symbols []RenderSymbolsInfo) string {
 }
 
 // RenderStrategyOrders 渲染策略订单列表
-func RenderStrategyOrders(orders []*models.FoxSS) string {
+func RenderStrategyOrders(orders []*models.FoxOrder) string {
 	pt := utils.NewPrettyTable()
 	pt.SetTitle("🎯 策略订单列表")
 	pt.SetHeaders([]interface{}{"ID", "交易对", "方向", "仓位", "价格", "数量/金额", "状态", "策略", "结果"})
@@ -257,10 +257,10 @@ func RenderStrategyOrders(orders []*models.FoxSS) string {
 
 		status := "⏳ 等待中"
 		switch order.Status {
-		case "pending":
-			status = "🔄 处理中"
-		case "filled":
-			status = "✅ 已成交"
+		case "opened":
+			status = "✅ 开仓成功"
+		case "closed":
+			status = "✅ 平仓成功"
 		case "cancelled":
 			status = "❌ 已取消"
 		case "failed":
@@ -268,11 +268,11 @@ func RenderStrategyOrders(orders []*models.FoxSS) string {
 		}
 
 		var amount string
-		switch order.SzType {
+		switch order.SizeType {
 		case "USDT":
-			amount = fmt.Sprintf("%fU", order.Sz)
+			amount = fmt.Sprintf("%fU", order.Size)
 		default:
-			amount = fmt.Sprintf("%f", order.Sz)
+			amount = fmt.Sprintf("%f", order.Size)
 		}
 
 		pt.AddRow([]interface{}{
@@ -280,7 +280,7 @@ func RenderStrategyOrders(orders []*models.FoxSS) string {
 			order.Symbol,
 			side,
 			posSide,
-			fmt.Sprintf("%.2f", order.Px),
+			fmt.Sprintf("%.2f", order.Price),
 			amount,
 			status,
 			order.Strategy,

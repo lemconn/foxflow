@@ -6,6 +6,7 @@ import (
 
 	"github.com/lemconn/foxflow/internal/cli/command"
 	"github.com/lemconn/foxflow/internal/engine/syntax"
+	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/models"
 	"github.com/lemconn/foxflow/internal/repository"
 	"github.com/lemconn/foxflow/internal/utils"
@@ -63,8 +64,15 @@ func (c *CloseCommand) Execute(ctx command.Context, args []string) error {
 		side = "buy"
 	}
 
+	// 激活交易所
+	exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeName())
+	if err != nil {
+		return fmt.Errorf("get exchange client error: %w", err)
+	}
+
 	// 解析参数
-	order := &models.FoxSS{
+	order := &models.FoxOrder{
+		OrderID:    exchangeClient.GetClientOrderId(ctx.GetContext()),
 		Exchange:   ctx.GetExchangeName(),
 		AccountID:  ctx.GetAccountInstance().ID,
 		Symbol:     symbolName,

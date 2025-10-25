@@ -1018,10 +1018,10 @@ func getCancelOrderList(ctx *Context) []prompt.Suggest {
 	for _, order := range accountOrderList {
 
 		var amount string
-		if order.SzType == "USDT" {
-			amount = fmt.Sprintf("%sU", strconv.FormatFloat(order.Sz, 'g', -1, 64))
+		if order.SizeType == "USDT" {
+			amount = fmt.Sprintf("%sU", strconv.FormatFloat(order.Size, 'g', -1, 64))
 		} else {
-			amount = fmt.Sprintf("%s", strconv.FormatFloat(order.Sz, 'g', -1, 64))
+			amount = fmt.Sprintf("%s", strconv.FormatFloat(order.Size, 'g', -1, 64))
 		}
 
 		// 构建订单标识：symbol:direction:amount

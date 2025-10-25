@@ -125,14 +125,15 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 	}
 
 	// 解析参数
-	order := &models.FoxSS{
+	order := &models.FoxOrder{
+		OrderID:    exchangeClient.GetClientOrderId(ctx.GetContext()),
 		Exchange:   ctx.GetExchangeName(),
 		AccountID:  ctx.GetAccountInstance().ID,
 		Symbol:     symbolName,
 		PosSide:    posSide,
 		MarginType: margin,
-		Sz:         amountValue,
-		SzType:     amountType,
+		Size:       amountValue,
+		SizeType:   amountType,
 		Side:       side,
 		OrderType:  "market",
 		Strategy:   stategry,
