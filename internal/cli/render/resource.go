@@ -212,9 +212,14 @@ type RenderSymbolsInfo struct {
 func RenderSymbols(symbols []RenderSymbolsInfo) string {
 	pt := utils.NewPrettyTable()
 	pt.SetTitle("💱 交易对列表")
-	pt.SetHeaders([]interface{}{"#", "交易对", "价格", "24小时最高价", "24小时最低价", "24小时成交量（标的）", "最大杠杆倍数", "最小下单张数", "最小下单标的数量"})
+	pt.SetHeaders([]interface{}{"#", "交易对", "最新价格", "24小时最高价", "24小时最低价", "24小时成交量（标的）", "最大杠杆倍数", "最小下单张数", "最小下单标的数量"})
 
 	for i, symbol := range symbols {
+		var maxLeverage string
+		if symbol.MaxLeverage > 0 {
+			maxLeverage = fmt.Sprintf("%sx", strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.MaxLeverage, 'f', -1, 64), "0"), "."))
+		}
+
 		pt.AddRow([]interface{}{
 			i + 1,
 			symbol.Name,
@@ -222,7 +227,7 @@ func RenderSymbols(symbols []RenderSymbolsInfo) string {
 			strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.High, 'f', -1, 64), "0"), "."),
 			strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.Low, 'f', -1, 64), "0"), "."),
 			strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.Volume, 'f', -1, 64), "0"), "."),
-			fmt.Sprintf("%sx", strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.MaxLeverage, 'f', -1, 64), "0"), ".")),
+			maxLeverage,
 			strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.MinSize, 'f', -1, 64), "0"), "."),
 			strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.Contract*symbol.MinSize, 'f', -1, 64), "0"), "."),
 		})

@@ -981,6 +981,11 @@ func (e *OKXExchange) GetAllSymbols(ctx context.Context, instType string) ([]Sym
 			Quote: okxSymbolInfo.QuoteCcy,
 		}
 
+		// 过滤异常数据
+		if okxSymbolInfo.Lever == "" || okxSymbolInfo.MinSz == "" || okxSymbolInfo.CtVal == "" {
+			continue
+		}
+
 		if okxSymbolInfo.Lever != "" {
 			symbol.MaxLever, err = strconv.ParseFloat(okxSymbolInfo.Lever, 64)
 			if err != nil {
