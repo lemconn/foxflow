@@ -87,7 +87,7 @@ var accounts []models.FoxAccount
 db.Find(&accounts)
 
 // 获取所有订单
-var orders []models.FoxSS
+var orders []models.FoxOrder
 db.Find(&orders)
 
 // 按用户统计订单
@@ -95,7 +95,7 @@ var userOrderStats []struct {
     UserID uint
     Count  int64
 }
-db.Model(&models.FoxSS{}).Select("user_id, count(*) as count").Group("user_id").Scan(&userOrderStats)
+db.Model(&models.FoxOrder{}).Select("user_id, count(*) as count").Group("user_id").Scan(&userOrderStats)
 ```
 
 ## 功能测试建议

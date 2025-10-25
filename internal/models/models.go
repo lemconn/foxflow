@@ -52,8 +52,8 @@ func (FoxContractMultiplier) TableName() string {
 	return "fox_contract_multiplier"
 }
 
-// FoxSS 策略订单表
-type FoxSS struct {
+// FoxOrder 策略订单表
+type FoxOrder struct {
 	ID         uint    `gorm:"primaryKey" json:"id"`
 	Exchange   string  `gorm:"not null;default:'okx';check:exchange IN ('okx', 'binance', 'gate')" json:"exchange"` // 交易所
 	AccountID  uint    `gorm:"not null;default:0" json:"account_id"`
@@ -61,21 +61,21 @@ type FoxSS struct {
 	Side       string  `gorm:"not null;default:'';check:side IN ('buy', 'sell')" json:"side"`
 	PosSide    string  `gorm:"not null;default:'';check:pos_side IN ('long', 'short')" json:"pos_side"`
 	MarginType string  `gorm:"not null;default:'';check:margin_type IN ('isolated', 'cross')" json:"margin_type"`
-	Px         float64 `gorm:"not null;default:0" json:"px"`
-	Sz         float64 `gorm:"not null;default:0" json:"sz"`
-	SzType     string  `gorm:"not null;default:''" json:"sz_type"` // 用户购买的单位，U表示sz是购买金额，而不是标的数量。空表示sz是标的数量
+	Price      float64 `gorm:"not null;default:0" json:"price"`      // 限价单时的金额
+	Size       float64 `gorm:"not null;default:0" json:"size"`       // 用户填写购买数量/金额
+	SizeType   string  `gorm:"not null;default:''" json:"size_type"` // 用户购买的单位，USDT表示size是购买金额，而不是标的数量。空表示size是标的数量
 	OrderType  string  `gorm:"not null;default:'limit';check:order_type IN ('limit', 'market')" json:"order_type"`
 	Strategy   string  `gorm:"not null;default:''" json:"strategy"`
 	OrderID    string  `gorm:"not null;default:''" json:"order_id"`
 	Type       string  `gorm:"not null;default:'open';check:type IN ('open', 'close')" json:"type"`
-	Status     string  `gorm:"not null;default:'waiting';check:status IN ('waiting', 'pending', 'filled', 'failed', 'cancelled')" json:"status"`
+	Status     string  `gorm:"not null;default:'waiting';check:status IN ('waiting', 'opened', 'closed', 'failed', 'cancelled')" json:"status"`
 	Msg        string  `gorm:"not null;default:''" json:"msg"` // 订单描述（引擎处理结果）
 	CreatedAt  string  `gorm:"not null;default:''" json:"created_at"`
 	UpdatedAt  string  `gorm:"not null;default:''" json:"updated_at"`
 }
 
-func (FoxSS) TableName() string {
-	return "fox_ss"
+func (FoxOrder) TableName() string {
+	return "fox_order"
 }
 
 // FoxExchange 交易所配置表
@@ -113,7 +113,7 @@ func InitDB(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&FoxAccount{},
 		&FoxContractMultiplier{},
-		&FoxSS{},
+		&FoxOrder{},
 		&FoxExchange{},
 		&FoxStrategy{},
 	)

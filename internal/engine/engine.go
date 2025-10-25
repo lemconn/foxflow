@@ -106,13 +106,13 @@ func (e *Engine) checkStrategies() error {
 	db := database.GetDB()
 
 	// 获取所有等待中的策略订单
-	var orders []models.FoxSS
+	var orders []models.FoxOrder
 	if err := db.Where("status = ?", "waiting").Find(&orders).Error; err != nil {
 		return fmt.Errorf("failed to get waiting orders: %w", err)
 	}
 
 	// 按用户分组处理
-	userOrders := make(map[uint][]models.FoxSS)
+	userOrders := make(map[uint][]models.FoxOrder)
 	for _, order := range orders {
 		userOrders[order.AccountID] = append(userOrders[order.AccountID], order)
 	}
@@ -128,7 +128,7 @@ func (e *Engine) checkStrategies() error {
 }
 
 // processUserOrders 处理单个用户的订单
-func (e *Engine) processUserOrders(userID uint, orders []models.FoxSS) error {
+func (e *Engine) processUserOrders(userID uint, orders []models.FoxOrder) error {
 	if len(orders) == 0 {
 		return nil
 	}
@@ -162,7 +162,7 @@ func (e *Engine) processUserOrders(userID uint, orders []models.FoxSS) error {
 }
 
 // processOrder 处理单个订单
-func (e *Engine) processOrder(exchangeInstance exchange.Exchange, order *models.FoxSS) error {
+func (e *Engine) processOrder(exchangeInstance exchange.Exchange, order *models.FoxOrder) error {
 	// 如果没有策略，直接提交订单
 	if order.Strategy == "" {
 		return e.submitOrder(exchangeInstance, order)
@@ -196,11 +196,11 @@ func (e *Engine) processOrder(exchangeInstance exchange.Exchange, order *models.
 }
 
 // submitOrder 提交订单到交易所
-func (e *Engine) submitOrder(exchangeInstance exchange.Exchange, order *models.FoxSS) error {
+func (e *Engine) submitOrder(exchangeInstance exchange.Exchange, order *models.FoxOrder) error {
 	preCheckOrder := &exchange.OrderCostReq{
 		Symbol:     order.Symbol,
-		Amount:     order.Sz,
-		AmountType: order.SzType,
+		Amount:     order.Size,
+		AmountType: order.SizeType,
 		MarginType: order.MarginType,
 	}
 
@@ -238,11 +238,12 @@ func (e *Engine) submitOrder(exchangeInstance exchange.Exchange, order *models.F
 
 	if order.Type == "open" {
 		exchangeOrder := &exchange.Order{
+			OrderID:    order.OrderID,
 			Symbol:     order.Symbol,
 			Side:       order.Side,
 			PosSide:    order.PosSide,
 			MarginType: order.MarginType,
-			Price:      order.Px,
+			Price:      order.Price,
 			Size:       preOrder.Contracts,
 			Type:       order.OrderType,
 		}

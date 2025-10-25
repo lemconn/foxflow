@@ -16,6 +16,7 @@ const (
 // Order 订单信息
 type Order struct {
 	ID             string           `json:"id"`
+	OrderID        string           `json:"order_id"`
 	Symbol         string           `json:"symbol"`
 	Side           string           `json:"side"`
 	PosSide        string           `json:"pos_side"`
@@ -144,6 +145,7 @@ type Exchange interface {
 	ClosePosition(ctx context.Context, closePosition *ClosePosition) error
 
 	// 订单管理
+	GetClientOrderId(ctx context.Context) string
 	GetOrders(ctx context.Context, symbol string, status string) ([]Order, error)
 	CreateOrder(ctx context.Context, order *Order) (*Order, error)
 	CancelOrder(ctx context.Context, order *Order) error
