@@ -661,12 +661,12 @@ func (e *OKXExchange) CreateOrder(ctx context.Context, order *Order) (*Order, er
 	}
 
 	reqBody := oxkOrderRequest{
-		ClOrdID:       order.OrderID,
-		InstID:        order.Symbol,
-		TdMode:        order.MarginType,
-		Side:          order.Side,
-		OrdType:       order.Type,
-		TradeQuoteCcy: "USDT", // tradeQuoteCcy 对于特定国家和地区的用户，下单成功需要填写该参数，否则会取 `instId` 的计价币种为默认值，报错 51000。
+		ClOrdID: order.OrderID,
+		InstID:  order.Symbol,
+		TdMode:  order.MarginType,
+		Side:    order.Side,
+		OrdType: order.Type,
+		PosSide: order.PosSide,
 	}
 
 	// 平仓时仅减仓（不做反向建仓）

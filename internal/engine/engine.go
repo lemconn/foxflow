@@ -197,22 +197,6 @@ func (e *Engine) processOrder(exchangeInstance exchange.Exchange, order *models.
 
 // submitOrder 提交订单到交易所
 func (e *Engine) submitOrder(exchangeInstance exchange.Exchange, order *models.FoxOrder) error {
-	preCheckOrder := &exchange.OrderCostReq{
-		Symbol:     order.Symbol,
-		Amount:     order.Size,
-		AmountType: order.SizeType,
-		MarginType: order.MarginType,
-	}
-
-	preOrder, err := exchangeInstance.CalcOrderCost(e.ctx, preCheckOrder)
-	if err != nil {
-		return fmt.Errorf("failed to pre-check order cost: %w", err)
-	}
-
-	if !preOrder.CanBuyWithTaker {
-		return fmt.Errorf("insufficient balance to place order")
-	}
-
 	if order.Type == "close" {
 		closeExchangeOrder := &exchange.ClosePosition{
 			Symbol:  order.Symbol,
@@ -237,6 +221,22 @@ func (e *Engine) submitOrder(exchangeInstance exchange.Exchange, order *models.F
 	}
 
 	if order.Type == "open" {
+		preCheckOrder := &exchange.OrderCostReq{
+			Symbol:     order.Symbol,
+			Amount:     order.Size,
+			AmountType: order.SizeType,
+			MarginType: order.MarginType,
+		}
+
+		preOrder, err := exchangeInstance.CalcOrderCost(e.ctx, preCheckOrder)
+		if err != nil {
+			return fmt.Errorf("failed to pre-check order cost: %w", err)
+		}
+
+		if !preOrder.CanBuyWithTaker {
+			return fmt.Errorf("insufficient balance to place order")
+		}
+
 		exchangeOrder := &exchange.Order{
 			OrderID:    order.OrderID,
 			Symbol:     order.Symbol,
