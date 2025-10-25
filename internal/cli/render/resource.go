@@ -132,13 +132,6 @@ func RenderPositions(positions []exchange.Position) string {
 	pt.SetHeaders([]interface{}{"交易对", "仓位方向", "保证金模式", "数量", "均价", "未实现盈亏"})
 
 	for _, pos := range positions {
-		posSide := pos.PosSide
-		if pos.Size > 0 {
-			posSide = "📈 long"
-		} else if pos.Size < 0 {
-			posSide = "📉 short"
-		}
-
 		var margin string
 		if pos.MarginType == "isolated" {
 			margin = fmt.Sprintf("%s（逐仓）", pos.MarginType)
@@ -155,7 +148,7 @@ func RenderPositions(positions []exchange.Position) string {
 
 		pt.AddRow([]interface{}{
 			pos.Symbol,
-			posSide,
+			pos.PosSide,
 			margin,
 			fmt.Sprintf("%.4f", pos.Size),
 			fmt.Sprintf("%.2f", pos.AvgPrice),

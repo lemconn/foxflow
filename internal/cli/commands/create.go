@@ -95,6 +95,33 @@ func (c *CreateCommand) createAccount(ctx command.Context, args []string) error 
 		return fmt.Errorf("connect exchange error: %w", err)
 	}
 
+	// 获取账户配置信息
+	accountConfig, err := exchangeClient.GetAccountConfig(ctx.GetContext())
+	if err != nil {
+		return fmt.Errorf("get account config err: %w", err)
+	}
+	if accountConfig == nil {
+		return fmt.Errorf("account config is nil")
+	}
+
+	// 校验账户模式
+	if accountConfig.AccountMode <= 1 {
+		return fmt.Errorf("当前账户不支持合约交易，请前往“交易设置 > 账户模式”进行切换")
+	}
+
+	// 校验账户权限
+	if !strings.Contains(strings.ToLower(accountConfig.Permission), "trade") {
+		return fmt.Errorf("当前账户不支持交易，请重新生成API key，生成时请注意权限选择“交易”")
+	}
+
+	// 如果仓位模式非双向仓位，则需要更新仓位模式为双向模式
+	if accountConfig.PositionMode != "long_short_mode" {
+		err = exchangeClient.SetPositionMode(ctx.GetContext(), "long_short_mode")
+		if err != nil {
+			return fmt.Errorf("set position mode err: %w", err)
+		}
+	}
+
 	if err = repository.CreateAccount(account); err != nil {
 		return fmt.Errorf("failed to create account: %w", err)
 	}
