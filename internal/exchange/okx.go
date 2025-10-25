@@ -3,10 +3,8 @@ package exchange
 import (
 	"context"
 	"crypto/hmac"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -26,6 +24,8 @@ const (
 	okxUriSetLeverage               = "/api/v5/account/set-leverage"
 	okxUriGetLeverageInfo           = "/api/v5/account/leverage-info"
 	okxUriGetTradeFee               = "/api/v5/account/trade-fee"
+	okxUriGetAccountConfig          = "/api/v5/account/config"
+	okxUriSetPositionMode           = "/api/v5/account/set-position-mode"
 
 	okxUriUserAssetValuation   = "/api/v5/asset/asset-valuation"
 	okxUriUserBalance          = "/api/v5/account/balance"
@@ -199,31 +199,13 @@ func (e *OKXExchange) getAssetValuation(ctx context.Context) (float64, error) {
 }
 
 func (e *OKXExchange) GetClientOrderId(ctx context.Context) string {
-	// 获取当前时间戳到毫秒，例如 20251025153456789 -> 长度 17
+	// 获取当前时间戳到毫秒
 	timestamp := time.Now().Format("20060102150405.000")
 	timestamp = strings.ReplaceAll(timestamp, ".", "") // 移除小数点 -> 17位
 
-	// 随机 8 字节 -> 16 hex 字符
-	b := make([]byte, 8)
-	rand.Read(b)
-	randomPart := strings.ToUpper(hex.EncodeToString(b)) // 16位大写字母数字
+	// 拼接 prefix + 时间戳
+	id := fmt.Sprintf("%s%s", "FOX", timestamp)
 
-	// 拼接 prefix + 时间戳 + 随机部分
-	id := fmt.Sprintf("%s%s%s", "fox", timestamp, randomPart)
-
-	// 去掉非字母数字字符，并截断或填充到32位
-	id = strings.Map(func(r rune) rune {
-		if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
-			return r
-		}
-		return -1
-	}, id)
-
-	if len(id) > 32 {
-		id = id[:32]
-	} else if len(id) < 32 {
-		id = id + strings.Repeat("X", 32-len(id)) // 补充字符防止不足32
-	}
 	return id
 }
 
@@ -1254,6 +1236,151 @@ func (e *OKXExchange) GetTradeFee(ctx context.Context, instType, instId, uly, in
 	}
 
 	return &tradeFeeData[0], nil
+}
+
+// okxAccountConfigResp 账户配置响应结构
+type okxAccountConfigResp struct {
+	Uid            string `json:"uid"`            // 账户ID
+	AcctLv         string `json:"acctLv"`         // 账户层级 1：简单交易模式 2：单币种保证金模式 3：跨币种保证金模式 4：组合保证金模式
+	AcctStpMode    string `json:"acctStpMode"`    // 账户STP模式 cancel_maker：只取消Maker订单 cancel_taker：只取消Taker订单 cancel_both：同时取消Maker和Taker订单 ""：表示未设置STP模式
+	PosMode        string `json:"posMode"`        // 持仓方式 long_short_mode：双向持仓 net_mode：单向持仓
+	AutoLoan       bool   `json:"autoLoan"`       // 是否自动借币 true：自动借币 false：不自动借币
+	GreeksType     string `json:"greeksType"`     // 当前希腊字母展示方式 PA：币本位 BS：美金本位
+	Level          string `json:"level"`          // 当前账户的手续费等级 lv1 lv2 ... lv50
+	LevelTmp       string `json:"levelTmp"`       // 特约商户临时体验的手续费等级 lv1 lv2 ... lv50
+	CtIsoMode      string `json:"ctIsoMode"`      // 合约逐仓保证金模式 automatic：开仓自动划转 autonomy：自主划转
+	MgnIsoMode     string `json:"mgnIsoMode"`     // 币币杠杆逐仓保证金模式 automatic：开仓自动划转 autonomy：自主划转
+	SpotOffsetType string `json:"spotOffsetType"` // 现货对冲类型 1：现货对冲U模式 2：现货对冲币模式 3：衍生品对冲模式 适用于组合保证金模式
+	RoleType       string `json:"roleType"`       // 用户角色类型 0：普通用户 1：领航员 2：跟单员 3：跟投员
+	TraderInsts    []struct {
+		InstId string `json:"instId"` // 产品ID
+	} `json:"traderInsts"` // 领航员交易产品列表，适用于领航员
+	SpotTraderInsts []struct {
+		InstId string `json:"instId"` // 产品ID
+	} `json:"spotTraderInsts"`                  // 领航员现货交易产品列表，适用于领航员
+	OpAuth        string `json:"opAuth"`        // 操作权限 0：禁止交易，1：只能平仓，2：可以交易
+	KycLv         string `json:"kycLv"`         // 用户KYC等级 0：未认证 1：L1 2：L2 3：L3
+	Label         string `json:"label"`         // API key的备注名称
+	Ip            string `json:"ip"`            // API key的IP白名单
+	Perm          string `json:"perm"`          // API key的权限 read_only：只读 trade：交易 withdraw：提现
+	MainUid       string `json:"mainUid"`       // 主账号UID，当前API key所属的主账号UID，如果是主账号，返回""
+	EnableSpotBuy bool   `json:"enableSpotBuy"` // 是否启用现货买入 true：启用 false：禁用
+	SpotRoleType  string `json:"spotRoleType"`  // 现货领航员角色类型 0：普通用户 1：领航员 2：跟单员 3：跟投员
+}
+
+// GetAccountConfig 获取账户配置
+// 获取当前账户的配置信息，包括账户层级、持仓方式、手续费等级等
+func (e *OKXExchange) GetAccountConfig(ctx context.Context) (*AccountConfig, error) {
+	if e.account == nil || e.account.AccessKey == "" || e.account.SecretKey == "" || e.account.Passphrase == "" {
+		return nil, fmt.Errorf("account information is missing, account: %+v ", e.account)
+	}
+
+	// 发送请求
+	result, err := e.sendRequest(ctx, "GET", okxUriGetAccountConfig, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get account config err: %w", err)
+	}
+
+	if result.Code != "0" {
+		return nil, fmt.Errorf("okx GetAccountConfig error: %s, code: %s", result.Msg, result.Code)
+	}
+
+	// 解析响应数据
+	var accountConfigData []okxAccountConfigResp
+	resultBytes, err := json.Marshal(result.Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result data: %w", err)
+	}
+
+	if err := json.Unmarshal(resultBytes, &accountConfigData); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal account config data: %w", err)
+	}
+
+	if len(accountConfigData) == 0 {
+		return nil, fmt.Errorf("no account config data found")
+	}
+
+	acctLv, _ := strconv.Atoi(accountConfigData[0].AcctLv)
+
+	res := &AccountConfig{
+		AccountID:    accountConfigData[0].Uid,
+		AccountMode:  acctLv,
+		PositionMode: accountConfigData[0].PosMode,
+		Permission:   accountConfigData[0].Perm,
+	}
+
+	return res, nil
+}
+
+// okxSetPositionModeReq 设置持仓模式请求结构
+type okxSetPositionModeReq struct {
+	PosMode string `json:"posMode"` // 持仓模式 long_short_mode：双向持仓 net_mode：单向持仓
+}
+
+// okxSetPositionModeResp 设置持仓模式响应结构
+type okxSetPositionModeResp struct {
+	PosMode string `json:"posMode"` // 持仓模式
+}
+
+// SetPositionMode 设置持仓模式
+// posMode: 持仓模式 long_short_mode：双向持仓 net_mode：单向持仓
+func (e *OKXExchange) SetPositionMode(ctx context.Context, positionMode string) error {
+	if e.account == nil || e.account.AccessKey == "" || e.account.SecretKey == "" || e.account.Passphrase == "" {
+		return fmt.Errorf("account information is missing, account: %+v ", e.account)
+	}
+
+	// 验证持仓模式参数
+	if positionMode != "long_short_mode" && positionMode != "net_mode" {
+		return fmt.Errorf("invalid position mode: %s, must be 'long_short_mode' or 'net_mode'", positionMode)
+	}
+
+	// 构建请求体
+	reqBody := okxSetPositionModeReq{
+		PosMode: positionMode,
+	}
+
+	jsonBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	var bodyMap map[string]interface{}
+	err = json.Unmarshal(jsonBytes, &bodyMap)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal request body: %w", err)
+	}
+
+	// 发送请求
+	result, err := e.sendRequest(ctx, "POST", okxUriSetPositionMode, bodyMap)
+	if err != nil {
+		return fmt.Errorf("failed to set position mode err: %w", err)
+	}
+
+	if result.Code != "0" {
+		return fmt.Errorf("okx SetPositionMode error: %s, code: %s", result.Msg, result.Code)
+	}
+
+	// 解析响应数据
+	var positionModeData []okxSetPositionModeResp
+	resultBytes, err := json.Marshal(result.Data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal result data: %w", err)
+	}
+
+	if err := json.Unmarshal(resultBytes, &positionModeData); err != nil {
+		return fmt.Errorf("failed to unmarshal position mode data: %w", err)
+	}
+
+	if len(positionModeData) == 0 {
+		return fmt.Errorf("no position mode data found")
+	}
+
+	// 验证设置结果
+	if positionModeData[0].PosMode != positionMode {
+		return fmt.Errorf("set position mode failed, expected: %s, got: %s", positionMode, positionModeData[0].PosMode)
+	}
+
+	return nil
 }
 
 // CalcOrderCost 计算订单成本、费率以及判断用户是否可以购买

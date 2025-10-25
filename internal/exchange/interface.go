@@ -124,6 +124,13 @@ type ClosePosition struct {
 	PosSide string `json:"posSide,omitempty"` // 持仓方向: long, short, net
 }
 
+type AccountConfig struct {
+	AccountID    string `json:"account_id"`    // 账户ID
+	AccountMode  int    `json:"account_mode"`  // 账户模式 1：现货模式 2：合约模式 3：跨币种保证金模式 4：组合保证金模式
+	PositionMode string `json:"position_mode"` // 持仓方式 long_short_mode：开平仓模式 net_mode：买卖模式 仅适用交割/永续
+	Permission   string `json:"permission"`    // 当前请求的 API key 或 Access token 的权限 read_only：读取 trade：交易 withdraw：提币
+}
+
 // Exchange 交易所接口
 type Exchange interface {
 	// 基础信息
@@ -138,11 +145,13 @@ type Exchange interface {
 	// 设置用户信息
 	SetAccount(ctx context.Context, account *models.FoxAccount) error
 	GetAccount(ctx context.Context) (*models.FoxAccount, error)
+	GetAccountConfig(ctx context.Context) (*AccountConfig, error)
 
 	// 资产/仓位信息
 	GetBalance(ctx context.Context) ([]Asset, error)
 	GetPositions(ctx context.Context) ([]Position, error)
 	ClosePosition(ctx context.Context, closePosition *ClosePosition) error
+	SetPositionMode(ctx context.Context, positionMode string) error
 
 	// 订单管理
 	GetClientOrderId(ctx context.Context) string

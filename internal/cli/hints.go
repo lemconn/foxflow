@@ -947,31 +947,6 @@ func handleCloseCommandCompletion(ctx *Context, d prompt.Document, w string, fie
 		return filtered
 	}
 
-	// 输入amount后，可以选择with策略（选填）
-	if len(fields) == 4 && strings.HasSuffix(w, " ") {
-		return []prompt.Suggest{
-			{Text: "with", Description: "[选填] 添加策略条件"},
-		}
-	}
-
-	// 输入with后，显示策略提示
-	if len(fields) == 6 && strings.HasSuffix(w, " ") && fields[5] == "with" {
-		return getStrategyList()
-	}
-
-	// 正在输入策略名称时显示提示
-	if len(fields) == 7 && !strings.HasSuffix(w, " ") && fields[5] == "with" {
-		prefix := strings.ToLower(d.GetWordBeforeCursor())
-		strategies := getStrategyList()
-		var filtered []prompt.Suggest
-		for _, strategy := range strategies {
-			if strings.Contains(strings.ToLower(strategy.Text), prefix) {
-				filtered = append(filtered, strategy)
-			}
-		}
-		return filtered
-	}
-
 	return nil
 }
 
@@ -1084,10 +1059,10 @@ func getMarginModeList(ctx *Context, symbol string) []prompt.Suggest {
 // getStrategyList 获取策略列表
 func getStrategyList() []prompt.Suggest {
 	return []prompt.Suggest{
-		{Text: "avg", Description: "均价策略 - 在指定价格区间内分批买入"},
-		{Text: "limit", Description: "限价策略 - 在指定价格时执行"},
-		{Text: "stop", Description: "止损策略 - 价格触发时执行"},
-		{Text: "time", Description: "时间策略 - 在指定时间执行"},
+		//{Text: "avg", Description: "均价策略 - 在指定价格区间内分批买入"},
+		//{Text: "limit", Description: "限价策略 - 在指定价格时执行"},
+		//{Text: "stop", Description: "止损策略 - 价格触发时执行"},
+		//{Text: "time", Description: "时间策略 - 在指定时间执行"},
 	}
 }
 
