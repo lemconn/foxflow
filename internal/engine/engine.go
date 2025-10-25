@@ -213,39 +213,55 @@ func (e *Engine) submitOrder(exchangeInstance exchange.Exchange, order *models.F
 		return fmt.Errorf("insufficient balance to place order")
 	}
 
-	// 构建订单对象
-	exchangeOrder := &exchange.Order{
-		Symbol:     order.Symbol,
-		Side:       order.Side,
-		PosSide:    order.PosSide,
-		MarginType: order.MarginType,
-		Price:      order.Px,
-		Size:       preOrder.Contracts,
-		Type:       order.OrderType,
-	}
-
-	// 提交订单
-	result, err := exchangeInstance.CreateOrder(e.ctx, exchangeOrder)
-	if err != nil {
-		order.Msg = err.Error()
-		order.Status = "failed"
+	if order.Type == "close" {
+		closeExchangeOrder := &exchange.ClosePosition{
+			Symbol:  order.Symbol,
+			Margin:  order.MarginType,
+			PosSide: order.PosSide,
+		}
+		err := exchangeInstance.ClosePosition(e.ctx, closeExchangeOrder)
+		if err != nil {
+			order.Msg = err.Error()
+			order.Status = "failed"
+			if err := database.GetDB().Save(order).Error; err != nil {
+				return fmt.Errorf("failed to update order: %w", err)
+			}
+			log.Printf("平仓失败: ID=%d, OrderID=%s, Error=%s", order.ID, order.OrderID, err.Error())
+			return fmt.Errorf("failed to close position: %w", err)
+		}
+		order.Status = "closed"
 		if err := database.GetDB().Save(order).Error; err != nil {
 			return fmt.Errorf("failed to update order: %w", err)
 		}
-
-		log.Printf("订单提交失败: ID=%d, OrderID=%s, Error=%s", order.ID, order.OrderID, err.Error())
-		return fmt.Errorf("failed to submit order: %w", err)
+		log.Printf("平仓成功: ID=%d, OrderID=%s", order.ID, order.OrderID)
 	}
 
-	// 更新数据库
-	order.OrderID = result.ID
-	order.Status = "pending"
-
-	if err := database.GetDB().Save(order).Error; err != nil {
-		return fmt.Errorf("failed to update order: %w", err)
+	if order.Type == "open" {
+		exchangeOrder := &exchange.Order{
+			Symbol:     order.Symbol,
+			Side:       order.Side,
+			PosSide:    order.PosSide,
+			MarginType: order.MarginType,
+			Price:      order.Px,
+			Size:       preOrder.Contracts,
+			Type:       order.OrderType,
+		}
+		result, err := exchangeInstance.CreateOrder(e.ctx, exchangeOrder)
+		if err != nil {
+			order.Msg = err.Error()
+			order.Status = "failed"
+			if err := database.GetDB().Save(order).Error; err != nil {
+				return fmt.Errorf("failed to update order: %w", err)
+			}
+			log.Printf("开仓失败: ID=%d, OrderID=%s, Error=%s", order.ID, order.OrderID, err.Error())
+			return fmt.Errorf("failed to open position: %w", err)
+		}
+		order.Status = "opened"
+		if err := database.GetDB().Save(order).Error; err != nil {
+			return fmt.Errorf("failed to update order: %w", err)
+		}
+		log.Printf("开仓成功: ID=%d, OrderID=%s", order.ID, result.ID)
 	}
-
-	log.Printf("订单已提交: ID=%d, OrderID=%s", order.ID, result.ID)
 	return nil
 }
 
