@@ -791,8 +791,69 @@ func (e *OKXExchange) GetTicker(ctx context.Context, symbol string) (*Ticker, er
 }
 
 func (e *OKXExchange) GetTickers(ctx context.Context) ([]Ticker, error) {
+	// 构建查询参数
+	params := url.Values{}
+	params.Set("instType", "SWAP")
 
-	return nil, nil
+	// 构建完整URL
+	fullURL := fmt.Sprintf("%s?%s", "/api/v5/market/tickers", params.Encode())
+
+	// 发送请求（公共接口，不需要认证）
+	result, err := e.sendRequest(ctx, "GET", fullURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tickers data error: %w", err)
+	}
+
+	if result.Code != "0" {
+		return nil, fmt.Errorf("okx GetTicker error: %s, code: %s", result.Msg, result.Code)
+	}
+
+	// 解析返回数据
+	var tickerDataList []okxTickerData
+	resultBytes, err := json.Marshal(result.Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal result data: %w", err)
+	}
+
+	if err := json.Unmarshal(resultBytes, &tickerDataList); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal ticker data: %w", err)
+	}
+
+	if len(tickerDataList) == 0 {
+		return nil, fmt.Errorf("no tickers data found")
+	}
+
+	// 转换数据格式
+	var tickers []Ticker
+	for _, tickerData := range tickerDataList {
+		ticker := Ticker{
+			Symbol: tickerData.InstId,
+		}
+
+		// 解析价格数据
+		if last, err := strconv.ParseFloat(tickerData.Last, 64); err == nil {
+			ticker.Price = last
+		}
+
+		// 解析24小时最高价
+		if high, err := strconv.ParseFloat(tickerData.High24h, 64); err == nil {
+			ticker.High = high
+		}
+
+		// 解析24小时最低价
+		if low, err := strconv.ParseFloat(tickerData.Low24h, 64); err == nil {
+			ticker.Low = low
+		}
+
+		// 解析24小时成交量（以币为单位）
+		if volume, err := strconv.ParseFloat(tickerData.VolCcy24h, 64); err == nil {
+			ticker.Volume = volume
+		}
+
+		tickers = append(tickers, ticker)
+	}
+
+	return tickers, nil
 }
 
 type okxSymbol struct {

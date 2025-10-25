@@ -2,6 +2,8 @@ package render
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
@@ -195,6 +197,10 @@ type RenderSymbolsInfo struct {
 	Exchange    string  `json:"exchange"`
 	Type        string  `json:"type"`
 	Name        string  `json:"name"`
+	Price       float64 `json:"price"`
+	Volume      float64 `json:"volume"`
+	High        float64 `json:"high"`
+	Low         float64 `json:"low"`
 	Base        string  `json:"base"`
 	Quote       string  `json:"quote"`
 	MaxLeverage float64 `json:"max_leverage"`
@@ -206,17 +212,19 @@ type RenderSymbolsInfo struct {
 func RenderSymbols(symbols []RenderSymbolsInfo) string {
 	pt := utils.NewPrettyTable()
 	pt.SetTitle("💱 交易对列表")
-	pt.SetHeaders([]interface{}{"#", "产品类型", "交易所", "交易对", "最大杠杆倍数", "最小下单张数", "最小下单标的数量"})
+	pt.SetHeaders([]interface{}{"#", "交易对", "价格", "24小时最高价", "24小时最低价", "24小时成交量（标的）", "最大杠杆倍数", "最小下单张数", "最小下单标的数量"})
 
 	for i, symbol := range symbols {
 		pt.AddRow([]interface{}{
 			i + 1,
-			symbol.Type,
-			symbol.Exchange,
 			symbol.Name,
-			symbol.MaxLeverage,
-			symbol.MinSize,
-			symbol.Contract * symbol.MinSize,
+			strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.Price, 'f', -1, 64), "0"), "."),
+			strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.High, 'f', -1, 64), "0"), "."),
+			strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.Low, 'f', -1, 64), "0"), "."),
+			strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.Volume, 'f', -1, 64), "0"), "."),
+			fmt.Sprintf("%sx", strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.MaxLeverage, 'f', -1, 64), "0"), ".")),
+			strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.MinSize, 'f', -1, 64), "0"), "."),
+			strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.Contract*symbol.MinSize, 'f', -1, 64), "0"), "."),
 		})
 	}
 

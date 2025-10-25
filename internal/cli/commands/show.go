@@ -72,6 +72,20 @@ func (c *ShowCommand) handleSymbolCommand(ctx command.Context, args []string) er
 		return fmt.Errorf("exchange %s not found", exchangeName)
 	}
 
+	exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeInstance().Name)
+	if err != nil {
+		return fmt.Errorf("failed to get exchange client: %w", err)
+	}
+
+	tickerList, err := exchangeClient.GetTickers(ctx.GetContext())
+	if err != nil {
+		return fmt.Errorf("failed to get ticker list: %w", err)
+	}
+	tickerListSymbolMap := make(map[string]exchange.Ticker)
+	for _, ticker := range tickerList {
+		tickerListSymbolMap[ticker.Symbol] = ticker
+	}
+
 	symbolInfoList := make([]cliRender.RenderSymbolsInfo, 0)
 	for _, symbolInfo := range symbolList {
 
@@ -89,6 +103,13 @@ func (c *ShowCommand) handleSymbolCommand(ctx command.Context, args []string) er
 			MaxLeverage: symbolInfo.MaxLever,
 			MinSize:     symbolInfo.MinSize,
 			Contract:    symbolInfo.Contract,
+		}
+
+		if ticker, ok := tickerListSymbolMap[symbolInfo.Name]; ok {
+			renderSymbolsInfo.Price = ticker.Price
+			renderSymbolsInfo.Volume = ticker.Volume
+			renderSymbolsInfo.High = ticker.High
+			renderSymbolsInfo.Low = ticker.Low
 		}
 
 		symbolInfoList = append(symbolInfoList, renderSymbolsInfo)
