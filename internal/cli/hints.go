@@ -947,14 +947,8 @@ func handleCloseCommandCompletion(ctx *Context, d prompt.Document, w string, fie
 		return filtered
 	}
 
-	// 选择保证金模式后，输入amount（不显示下拉提示，等待用户输入）
-	if len(fields) == 4 && strings.HasSuffix(w, " ") {
-		// 返回nil表示没有补全建议，让用户直接输入amount
-		return nil
-	}
-
 	// 输入amount后，可以选择with策略（选填）
-	if len(fields) == 5 && strings.HasSuffix(w, " ") {
+	if len(fields) == 4 && strings.HasSuffix(w, " ") {
 		return []prompt.Suggest{
 			{Text: "with", Description: "[选填] 添加策略条件"},
 		}
