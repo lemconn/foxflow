@@ -17,20 +17,7 @@ type UseCommand struct{}
 func (c *UseCommand) GetName() string        { return "use" }
 func (c *UseCommand) GetDescription() string { return "激活交易所或用户" }
 func (c *UseCommand) GetUsage() string {
-	return `
-Usage: use <type> <name>
-
-Description:
-  Can activate exchanges or users
-
-Types[Required]:
-  exchanges    - activate designated exchange
-  users        - activate a specified user
-
-Name[Required]：
-  - If the type is 'exchanges', Currently supported options include 'okx', 'binance', and 'gate'.
-  - If the type is 'users', the user needs to specify the user name.
-`
+	return `use <type> <name> \n  types: exchange（激活交易所）, account（激活交易账户）\n `
 }
 
 func (c *UseCommand) Execute(ctx command.Context, args []string) error {
