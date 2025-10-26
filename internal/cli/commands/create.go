@@ -118,7 +118,7 @@ func (c *CreateCommand) createAccount(ctx command.Context, args []string) error 
 	if accountConfig.PositionMode != "long_short_mode" {
 		err = exchangeClient.SetPositionMode(ctx.GetContext(), "long_short_mode")
 		if err != nil {
-			return fmt.Errorf("set position mode err: %w", err)
+			return fmt.Errorf("账户双向仓位切换失败，请前往“交易设置 > 仓位模式”进行手动切换，异常信息: %w", err)
 		}
 	}
 
