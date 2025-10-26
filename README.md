@@ -2,7 +2,7 @@
 
 FoxFlow 是一个基于 Go 语言开发的专业级策略交易系统，支持多交易所接入、智能策略引擎和自动化交易执行。
 
-## ✨ 核心特性
+## 核心特性
 
 - **多交易所支持**: 支持 OKX、Binance 等主流交易所
 - **智能策略引擎**: 基于 DSL 的策略表达式系统，支持复杂条件组合
@@ -13,7 +13,7 @@ FoxFlow 是一个基于 Go 语言开发的专业级策略交易系统，支持�
 - **数据持久化**: 使用 SQLite 数据库存储账户、订单、策略等数据
 - **安全认证**: 支持模拟盘和实盘交易，API 密钥安全管理
 
-## 📁 系统架构
+## 系统架构
 
 ```
 foxflow/
@@ -45,12 +45,11 @@ foxflow/
 │   └── utils/            # 工具函数
 ├── scripts/              # 脚本和SQL文件
 │   ├── build.sh          # 构建脚本
-│   ├── foxflow.sql       # 数据库结构
 │   └── test_*.sh         # 测试脚本
 └── docs/                 # 文档
 ```
 
-## 🚀 快速开始
+## 快速开始
 
 ### 1. 环境要求
 
@@ -99,7 +98,7 @@ go build -o bin/foxflow-engine ./cmd/engine
 ./bin/foxflow-engine
 ```
 
-## 📖 使用指南
+## 使用指南
 
 ### CLI 命令大全
 
@@ -129,8 +128,6 @@ foxflow > show exchange
 
 # 激活 OKX 交易所
 foxflow > use exchange okx
-✓ 已激活交易所: okx
-foxflow [okx] > 
 ```
 
 #### 2. 创建和管理账户
@@ -147,8 +144,6 @@ foxflow [okx] > show account
 
 # 激活账户
 foxflow [okx] > use account demo
-✓ 已激活用户: demo
-foxflow [okx:demo] > 
 
 # 更新账户信息
 foxflow [okx:demo] > update account demo mock name=demo2 apiKey=new_key secretKey=new_secret passphrase=new_pass
@@ -178,7 +173,6 @@ foxflow [okx:demo] > show news 20
 ```bash
 # 设置标的杠杆和保证金模式
 foxflow [okx:demo] > update symbol BTC-USDT-SWAP margin=cross leverage=10
-✓ 更新标的杠杆成功: BTC-USDT-SWAP:cross:10
 ```
 
 #### 5. 策略订单
@@ -213,7 +207,7 @@ foxflow [okx:demo] > close BTC-USDT-SWAP short cross
 
 ```
 
-## 🎯 策略表达式系统
+## 策略表达式系统
 
 FoxFlow 使用强大的 DSL（领域特定语言）来定义策略条件，支持复杂的逻辑组合。
 
@@ -340,7 +334,7 @@ has(news.title, "Bitcoin") and market.price < kline.close[1h, 1]
 has(news.title[10], "bullish")
 ```
 
-## 🔧 配置说明
+## 配置说明
 
 ### 环境变量
 
@@ -369,7 +363,7 @@ ENGINE_CHECK_INTERVAL=5s
 - API 地址
 - 代理地址（可选）
 
-## 🗄️ 数据库结构
+## 数据库结构
 
 系统使用 SQLite 数据库存储以下数据：
 
@@ -381,7 +375,7 @@ ENGINE_CHECK_INTERVAL=5s
 | `fox_symbols` | 交易对配置（杠杆、保证金等） |
 
 
-## 📊 开发指南
+## 开发指南
 
 ### 添加新交易所
 
@@ -408,7 +402,7 @@ ENGINE_CHECK_INTERVAL=5s
 2. 实现 `Command` 接口（GetName, GetDescription, GetUsage, Execute）
 3. 在 `internal/cli/cli.go` 中注册新命令
 
-## 🧪 测试
+## 测试
 
 ```bash
 # 测试 CLI 程序
@@ -418,7 +412,7 @@ ENGINE_CHECK_INTERVAL=5s
 ./scripts/test_engine.sh
 ```
 
-## ⚠️ 注意事项
+## 注意事项
 
 1. **风险提示**
    - 本系统仅用于学习和研究目的
@@ -442,15 +436,15 @@ ENGINE_CHECK_INTERVAL=5s
    - 控制仓位大小
    - 分散投资风险
 
-## 📄 许可证
+## 许可证
 
 本项目采用 MIT 许可证，详见 [LICENSE](LICENSE) 文件。
 
-## 🤝 贡献
+## 贡献
 
 欢迎提交 Issue 和 Pull Request 来改进项目。
 
-## 📮 联系方式
+## 联系方式
 
 如有问题或建议，请通过 GitHub Issues 联系我们。
 
