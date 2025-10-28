@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package generated;
+
+option go_package = "github.com/lemconn/foxflow/proto/generated";
+
+// 简化的 FoxFlow gRPC 服务定义
+service FoxFlowService {
+  // 认证
+  rpc Authenticate(AuthRequest) returns (AuthResponse);
+  
+  // 命令传递
+  rpc SendCommand(CommandRequest) returns (CommandResponse);
+}
+
+// 认证请求
+message AuthRequest {
+  string username = 1;
+  string password = 2;
+}
+
+// 认证响应
+message AuthResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// 命令请求
+message CommandRequest {
+  string command = 1;
+  repeated string args = 2;
+  string exchange = 3;
+  string account = 4;
+}
+
+// 命令响应
+message CommandResponse {
+  bool success = 1;
+  string message = 2;
+}
