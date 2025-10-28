@@ -12,6 +12,7 @@ import (
 	cliCmds "github.com/lemconn/foxflow/internal/cli/commands"
 	"github.com/lemconn/foxflow/internal/cli/render"
 	"github.com/lemconn/foxflow/internal/config"
+	"github.com/lemconn/foxflow/internal/grpc"
 	"github.com/lemconn/foxflow/internal/repository"
 	"github.com/lemconn/foxflow/internal/utils"
 
@@ -20,8 +21,9 @@ import (
 
 // CLI 命令行界面
 type CLI struct {
-	ctx      *Context
-	commands map[string]command.Command
+	ctx        *Context
+	commands   map[string]command.Command
+	grpcClient *grpc.Client
 }
 
 // NewCLI 创建新的CLI实例
@@ -50,6 +52,11 @@ func NewCLI() (*CLI, error) {
 		ctx:      ctx,
 		commands: cmdMap,
 	}, nil
+}
+
+// SetGRPCClient 设置gRPC客户端
+func (c *CLI) SetGRPCClient(client *grpc.Client) {
+	c.grpcClient = client
 }
 
 // Run 运行CLI
@@ -140,7 +147,23 @@ func (c *CLI) executeCommand(args []string) error {
 		return fmt.Errorf("未知命令: %s", args[0])
 	}
 
-	return command.Execute(c.ctx, args[1:])
+	// 执行本地命令
+	err := command.Execute(c.ctx, args[1:])
+
+	// 如果gRPC客户端存在，发送命令到服务端
+	if c.grpcClient != nil {
+		exchangeName := c.ctx.GetExchangeName()
+		accountName := c.ctx.GetAccountName()
+
+		// 发送命令到gRPC服务端（异步，不等待结果）
+		go func() {
+			if err := c.grpcClient.SendCommand(commandName, args[1:], exchangeName, accountName); err != nil {
+				log.Printf("发送命令到gRPC服务端失败: %v", err)
+			}
+		}()
+	}
+
+	return err
 }
 
 // parseArgs 解析命令行参数
@@ -182,7 +205,7 @@ func parseArgs(line string) []string {
 				if current.Len() > 0 {
 					args = append(args, current.String())
 					current.Reset()
-					
+
 					// 如果当前参数是 "with"，则后续所有内容作为一个整体
 					if strings.ToLower(args[len(args)-1]) == "with" {
 						// 获取 "with" 后面的所有内容
