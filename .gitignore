@@ -7,3 +7,4 @@
 bin/
 .foxflow.db
 .foxflow.history
+proto/generated
