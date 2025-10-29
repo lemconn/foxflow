@@ -64,47 +64,77 @@ func TestServer_Authenticate(t *testing.T) {
 func TestServer_SendCommand(t *testing.T) {
 	server := NewServer(1259)
 
+	// 先生成一个有效的 token
+	authManager := server.authManager
+	token, _, err := authManager.GenerateToken("foxflow")
+	if err != nil {
+		t.Fatalf("Failed to generate token: %v", err)
+	}
+
 	tests := []struct {
-		name     string
-		command  string
-		args     []string
-		exchange string
-		account  string
-		want     bool
+		name        string
+		command     string
+		args        []string
+		exchange    string
+		account     string
+		accessToken string
+		want        bool
 	}{
 		{
-			name:     "valid command",
-			command:  "show",
-			args:     []string{"exchange"},
-			exchange: "okx",
-			account:  "test-user",
-			want:     true,
+			name:        "valid command with token",
+			command:     "show",
+			args:        []string{"exchange"},
+			exchange:    "okx",
+			account:     "test-user",
+			accessToken: token,
+			want:        true,
 		},
 		{
-			name:     "empty command",
-			command:  "",
-			args:     []string{},
-			exchange: "",
-			account:  "",
-			want:     true,
+			name:        "empty command with token",
+			command:     "",
+			args:        []string{},
+			exchange:    "",
+			account:     "",
+			accessToken: token,
+			want:        true,
 		},
 		{
-			name:     "command with multiple args",
-			command:  "create",
-			args:     []string{"account", "mock", "name=test"},
-			exchange: "okx",
-			account:  "test-user",
-			want:     true,
+			name:        "command with multiple args and token",
+			command:     "create",
+			args:        []string{"account", "mock", "name=test"},
+			exchange:    "okx",
+			account:     "test-user",
+			accessToken: token,
+			want:        true,
+		},
+		{
+			name:        "command without token",
+			command:     "show",
+			args:        []string{"exchange"},
+			exchange:    "okx",
+			account:     "test-user",
+			accessToken: "",
+			want:        false,
+		},
+		{
+			name:        "command with invalid token",
+			command:     "show",
+			args:        []string{"exchange"},
+			exchange:    "okx",
+			account:     "test-user",
+			accessToken: "invalid-token",
+			want:        false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := &pb.CommandRequest{
-				Command:  tt.command,
-				Args:     tt.args,
-				Exchange: tt.exchange,
-				Account:  tt.account,
+				Command:     tt.command,
+				Args:        tt.args,
+				Exchange:    tt.exchange,
+				Account:     tt.account,
+				AccessToken: tt.accessToken,
 			}
 
 			resp, err := server.SendCommand(context.Background(), req)

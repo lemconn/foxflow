@@ -2,7 +2,9 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/lemconn/foxflow/internal/database"
 	"github.com/lemconn/foxflow/internal/exchange"
@@ -19,6 +21,7 @@ type Context struct {
 	exchange         exchange.Exchange
 	exchangeInstance *models.FoxExchange
 	grpcClient       *grpc.Client
+	tokenExpiresAt   int64 // Token 过期时间
 }
 
 // NewContext 创建新的CLI上下文
@@ -122,4 +125,48 @@ func (c *Context) SetGRPCClient(client *grpc.Client) {
 // GetGRPCClient 获取 gRPC 客户端
 func (c *Context) GetGRPCClient() *grpc.Client {
 	return c.grpcClient
+}
+
+// SetTokenExpiry 设置 token 过期时间
+func (c *Context) SetTokenExpiry(expiresAt int64) {
+	c.tokenExpiresAt = expiresAt
+}
+
+// GetTokenExpiry 获取 token 过期时间
+func (c *Context) GetTokenExpiry() int64 {
+	return c.tokenExpiresAt
+}
+
+// IsTokenExpired 检查 token 是否过期
+func (c *Context) IsTokenExpired() bool {
+	if c.tokenExpiresAt == 0 {
+		return true
+	}
+	return time.Now().Unix() >= c.tokenExpiresAt
+}
+
+// GetTokenStatus 获取 token 状态信息
+func (c *Context) GetTokenStatus() string {
+	if c.grpcClient == nil {
+		return "本地模式"
+	}
+
+	if c.tokenExpiresAt == 0 {
+		return "未认证"
+	}
+
+	expiresAt := time.Unix(c.tokenExpiresAt, 0)
+	now := time.Now()
+
+	if now.After(expiresAt) {
+		return "已过期"
+	}
+
+	// 检查是否在 1 小时内过期
+	oneHourFromNow := now.Add(1 * time.Hour)
+	if expiresAt.Before(oneHourFromNow) {
+		return fmt.Sprintf("即将过期 (%s)", expiresAt.Format("15:04:05"))
+	}
+
+	return fmt.Sprintf("有效至 %s", expiresAt.Format("15:04:05"))
 }

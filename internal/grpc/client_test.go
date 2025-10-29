@@ -14,16 +14,58 @@ import (
 // mockServer 用于测试的模拟服务端
 type mockServer struct {
 	pb.UnimplementedFoxFlowServiceServer
+	authManager *AuthManager
 }
 
 func (m *mockServer) Authenticate(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
 	if req.Username == "foxflow" && req.Password == "foxflow" {
-		return &pb.AuthResponse{Success: true, Message: "认证成功"}, nil
+		// 生成测试 token
+		token, expiresAt, err := m.authManager.GenerateToken(req.Username)
+		if err != nil {
+			return &pb.AuthResponse{Success: false, Message: "生成 token 失败"}, nil
+		}
+		return &pb.AuthResponse{
+			Success:     true,
+			Message:     "认证成功",
+			AccessToken: token,
+			ExpiresAt:   expiresAt,
+		}, nil
 	}
 	return &pb.AuthResponse{Success: false, Message: "认证失败"}, nil
 }
 
+func (m *mockServer) RefreshToken(ctx context.Context, req *pb.RefreshTokenRequest) (*pb.RefreshTokenResponse, error) {
+	// 验证当前 token
+	_, err := m.authManager.ValidateToken(req.AccessToken)
+	if err != nil {
+		return &pb.RefreshTokenResponse{Success: false, Message: "无效的 token"}, nil
+	}
+
+	// 生成新的 token
+	newToken, expiresAt, err := m.authManager.GenerateToken("foxflow")
+	if err != nil {
+		return &pb.RefreshTokenResponse{Success: false, Message: "生成新 token 失败"}, nil
+	}
+
+	return &pb.RefreshTokenResponse{
+		Success:     true,
+		Message:     "Token 刷新成功",
+		AccessToken: newToken,
+		ExpiresAt:   expiresAt,
+	}, nil
+}
+
 func (m *mockServer) SendCommand(ctx context.Context, req *pb.CommandRequest) (*pb.CommandResponse, error) {
+	// 验证 access token
+	if req.AccessToken == "" {
+		return &pb.CommandResponse{Success: false, Message: "缺少 access token"}, nil
+	}
+
+	_, err := m.authManager.ValidateToken(req.AccessToken)
+	if err != nil {
+		return &pb.CommandResponse{Success: false, Message: "无效的 access token"}, nil
+	}
+
 	return &pb.CommandResponse{Success: true, Message: "命令已接收"}, nil
 }
 
@@ -35,7 +77,10 @@ func startMockServer(t *testing.T) (string, func()) {
 	}
 
 	grpcServer := grpc.NewServer()
-	pb.RegisterFoxFlowServiceServer(grpcServer, &mockServer{})
+	mockServer := &mockServer{
+		authManager: NewAuthManager(),
+	}
+	pb.RegisterFoxFlowServiceServer(grpcServer, mockServer)
 
 	go func() {
 		if err := grpcServer.Serve(lis); err != nil {
@@ -122,6 +167,12 @@ func TestClient_SendCommand(t *testing.T) {
 
 	client.conn = conn
 	client.client = pb.NewFoxFlowServiceClient(conn)
+
+	// 先进行认证
+	err = client.Authenticate("foxflow", "foxflow")
+	if err != nil {
+		t.Fatalf("Authenticate() error = %v", err)
+	}
 
 	tests := []struct {
 		name     string

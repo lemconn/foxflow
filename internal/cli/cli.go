@@ -58,6 +58,16 @@ func NewCLI() (*CLI, error) {
 func (c *CLI) SetGRPCClient(client *grpc.Client) {
 	c.grpcClient = client
 	c.ctx.SetGRPCClient(client)
+
+	// 从客户端获取 token 过期时间（如果可用）
+	if client != nil {
+		c.ctx.SetTokenExpiry(client.GetTokenExpiry())
+	}
+}
+
+// GetContext 获取 CLI 上下文
+func (c *CLI) GetContext() *Context {
+	return c.ctx
 }
 
 // Run 运行CLI
@@ -336,21 +346,25 @@ func (c *CLI) useActiveAccount() error {
 func (c *CLI) printStatus() {
 	exchangeName := c.ctx.GetExchangeName()
 	account := c.ctx.GetAccountInstance()
+	tokenStatus := c.ctx.GetTokenStatus()
 
 	if exchangeName == "" {
 		fmt.Println(utils.MessageGreen("foxflow ") +
-			utils.MessagePurple("["+time.Now().Format(config.DateFormat)+"]"))
+			utils.MessagePurple("["+time.Now().Format(config.DateFormat)+"] ") +
+			utils.MessageCyan("["+tokenStatus+"]"))
 		return
 	}
 
 	if account == nil || account.Name == "" {
 		fmt.Println(utils.MessageGreen("foxflow ") +
 			utils.MessageYellow("["+exchangeName+"] ") +
-			utils.MessagePurple("["+time.Now().Format(config.DateFormat)+"]"))
+			utils.MessagePurple("["+time.Now().Format(config.DateFormat)+"] ") +
+			utils.MessageCyan("["+tokenStatus+"]"))
 		return
 	}
 
 	fmt.Println(utils.MessageGreen("foxflow ") +
 		utils.MessageYellow("["+exchangeName+":"+account.TradeType+"@"+account.Name+"] ") +
-		utils.MessagePurple("["+time.Now().Format(config.DateFormat)+"]"))
+		utils.MessagePurple("["+time.Now().Format(config.DateFormat)+"] ") +
+		utils.MessageCyan("["+tokenStatus+"]"))
 }
