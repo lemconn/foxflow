@@ -9,6 +9,9 @@ service FoxFlowService {
   // 认证
   rpc Authenticate(AuthRequest) returns (AuthResponse);
   
+  // Token 刷新
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+  
   // 命令传递
   rpc SendCommand(CommandRequest) returns (CommandResponse);
   
@@ -26,6 +29,8 @@ message AuthRequest {
 message AuthResponse {
   bool success = 1;
   string message = 2;
+  string access_token = 3;    // JWT access token
+  int64 expires_at = 4;       // Token 过期时间 (Unix 时间戳)
 }
 
 // 命令请求
@@ -34,6 +39,7 @@ message CommandRequest {
   repeated string args = 2;
   string exchange = 3;
   string account = 4;
+  string access_token = 5;    // JWT access token
 }
 
 // 命令响应
@@ -46,6 +52,7 @@ message CommandResponse {
 message GetNewsRequest {
   int32 count = 1;        // 获取新闻数量
   string source = 2;      // 新闻源名称（可选）
+  string access_token = 3; // JWT access token
 }
 
 // 新闻项
@@ -65,4 +72,17 @@ message GetNewsResponse {
   bool success = 1;
   string message = 2;
   repeated NewsItem news = 3;       // 新闻列表
+}
+
+// Token 刷新请求
+message RefreshTokenRequest {
+  string access_token = 1;          // 当前的 access token
+}
+
+// Token 刷新响应
+message RefreshTokenResponse {
+  bool success = 1;
+  string message = 2;
+  string access_token = 3;          // 新的 JWT access token
+  int64 expires_at = 4;             // 新的过期时间 (Unix 时间戳)
 }

@@ -15,14 +15,16 @@ import (
 // Server gRPC服务端
 type Server struct {
 	pb.UnimplementedFoxFlowServiceServer
-	port   int
-	engine *engine.Engine
+	port        int
+	engine      *engine.Engine
+	authManager *AuthManager
 }
 
 // NewServer 创建新的gRPC服务端
 func NewServer(port int) *Server {
 	return &Server{
-		port: port,
+		port:        port,
+		authManager: NewAuthManager(),
 	}
 }
 
@@ -57,10 +59,22 @@ func (s *Server) Authenticate(ctx context.Context, req *pb.AuthRequest) (*pb.Aut
 	validPassword := "foxflow"
 
 	if req.Username == validUsername && req.Password == validPassword {
+		// 生成 JWT token
+		token, expiresAt, err := s.authManager.GenerateToken(req.Username)
+		if err != nil {
+			log.Printf("生成 token 失败: %v", err)
+			return &pb.AuthResponse{
+				Success: false,
+				Message: "生成 token 失败",
+			}, nil
+		}
+
 		log.Printf("用户认证成功: %s", req.Username)
 		return &pb.AuthResponse{
-			Success: true,
-			Message: "认证成功",
+			Success:     true,
+			Message:     "认证成功",
+			AccessToken: token,
+			ExpiresAt:   expiresAt,
 		}, nil
 	}
 
@@ -71,8 +85,45 @@ func (s *Server) Authenticate(ctx context.Context, req *pb.AuthRequest) (*pb.Aut
 	}, nil
 }
 
+// RefreshToken Token 刷新方法
+func (s *Server) RefreshToken(ctx context.Context, req *pb.RefreshTokenRequest) (*pb.RefreshTokenResponse, error) {
+	if req.AccessToken == "" {
+		return &pb.RefreshTokenResponse{
+			Success: false,
+			Message: "缺少 access token",
+		}, nil
+	}
+
+	// 刷新 token
+	newToken, expiresAt, err := s.authManager.RefreshToken(req.AccessToken)
+	if err != nil {
+		log.Printf("刷新 token 失败: %v", err)
+		return &pb.RefreshTokenResponse{
+			Success: false,
+			Message: fmt.Sprintf("刷新 token 失败: %v", err),
+		}, nil
+	}
+
+	log.Printf("Token 刷新成功")
+	return &pb.RefreshTokenResponse{
+		Success:     true,
+		Message:     "Token 刷新成功",
+		AccessToken: newToken,
+		ExpiresAt:   expiresAt,
+	}, nil
+}
+
 // SendCommand 接收命令方法
 func (s *Server) SendCommand(ctx context.Context, req *pb.CommandRequest) (*pb.CommandResponse, error) {
+	// 验证 access token
+	if err := s.validateToken(req.AccessToken); err != nil {
+		log.Printf("Token 验证失败: %v", err)
+		return &pb.CommandResponse{
+			Success: false,
+			Message: fmt.Sprintf("认证失败: %v", err),
+		}, nil
+	}
+
 	// 打印接收到的命令到标准输出
 	log.Printf("收到命令: %s %v (交易所: %s, 账户: %s)",
 		req.Command, req.Args, req.Exchange, req.Account)
@@ -89,6 +140,15 @@ func (s *Server) SendCommand(ctx context.Context, req *pb.CommandRequest) (*pb.C
 
 // GetNews 获取新闻方法
 func (s *Server) GetNews(ctx context.Context, req *pb.GetNewsRequest) (*pb.GetNewsResponse, error) {
+	// 验证 access token
+	if err := s.validateToken(req.AccessToken); err != nil {
+		log.Printf("Token 验证失败: %v", err)
+		return &pb.GetNewsResponse{
+			Success: false,
+			Message: fmt.Sprintf("认证失败: %v", err),
+		}, nil
+	}
+
 	if s.engine == nil {
 		return &pb.GetNewsResponse{
 			Success: false,
@@ -146,4 +206,18 @@ func (s *Server) GetNews(ctx context.Context, req *pb.GetNewsRequest) (*pb.GetNe
 		Message: fmt.Sprintf("成功获取 %d 条新闻", len(pbNews)),
 		News:    pbNews,
 	}, nil
+}
+
+// validateToken 验证 access token
+func (s *Server) validateToken(token string) error {
+	if token == "" {
+		return fmt.Errorf("缺少 access token")
+	}
+
+	_, err := s.authManager.ValidateToken(token)
+	if err != nil {
+		return fmt.Errorf("token 验证失败: %w", err)
+	}
+
+	return nil
 }
