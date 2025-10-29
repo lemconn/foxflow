@@ -209,6 +209,35 @@ func (c *ShowCommand) handleNewsCommand(ctx command.Context, args []string) erro
 		}
 	}
 
+	// 检查是否有 gRPC 客户端
+	grpcClient := ctx.GetGRPCClient()
+	if grpcClient == nil {
+		// 如果没有 gRPC 客户端，使用本地模式
+		return c.handleNewsCommandLocal(ctx, count)
+	}
+
+	// 使用 gRPC 获取新闻
+	fmt.Println(utils.RenderInfo(fmt.Sprintf("正在通过 gRPC 获取最新 %d 条新闻...", count)))
+	newsList, err := grpcClient.GetNews(count, "blockbeats")
+	if err != nil {
+		// 如果 gRPC 失败，回退到本地模式
+		fmt.Println(utils.RenderWarning(fmt.Sprintf("gRPC 获取新闻失败，回退到本地模式: %v", err)))
+		return c.handleNewsCommandLocal(ctx, count)
+	}
+
+	if len(newsList) == 0 {
+		fmt.Println(utils.RenderWarning("暂无新闻数据"))
+		return nil
+	}
+
+	// 渲染新闻
+	fmt.Println(cliRender.RenderNews(newsList))
+
+	return nil
+}
+
+// handleNewsCommandLocal 本地模式处理新闻命令
+func (c *ShowCommand) handleNewsCommandLocal(ctx command.Context, count int) error {
 	// 创建新闻管理器
 	manager := news.NewManager()
 
@@ -221,7 +250,7 @@ func (c *ShowCommand) handleNewsCommand(ctx command.Context, args []string) erro
 	defer cancel()
 
 	// 获取新闻
-	fmt.Println(utils.RenderInfo(fmt.Sprintf("正在获取最新 %d 条新闻...", count)))
+	fmt.Println(utils.RenderInfo(fmt.Sprintf("正在本地获取最新 %d 条新闻...", count)))
 	newsList, err := manager.GetNewsFromSource(newsCtx, "blockbeats", count)
 	if err != nil {
 		return fmt.Errorf("获取新闻失败: %w", err)

@@ -11,6 +11,9 @@ service FoxFlowService {
   
   // 命令传递
   rpc SendCommand(CommandRequest) returns (CommandResponse);
+  
+  // 新闻查询
+  rpc GetNews(GetNewsRequest) returns (GetNewsResponse);
 }
 
 // 认证请求
@@ -37,4 +40,29 @@ message CommandRequest {
 message CommandResponse {
   bool success = 1;
   string message = 2;
+}
+
+// 新闻查询请求
+message GetNewsRequest {
+  int32 count = 1;        // 获取新闻数量
+  string source = 2;      // 新闻源名称（可选）
+}
+
+// 新闻项
+message NewsItem {
+  string id = 1;                    // 新闻唯一标识
+  string title = 2;                 // 新闻标题
+  string content = 3;               // 新闻内容
+  string url = 4;                   // 新闻链接
+  string source = 5;                // 新闻源名称
+  int64 published_at = 6;           // 发布时间（Unix时间戳）
+  repeated string tags = 7;         // 标签列表
+  string image_url = 8;             // 图片链接
+}
+
+// 新闻查询响应
+message GetNewsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated NewsItem news = 3;       // 新闻列表
 }

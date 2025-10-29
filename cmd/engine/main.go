@@ -32,7 +32,8 @@ func main() {
 	}
 
 	// 启动gRPC服务端
-	grpcServer := grpc.NewServer(1259) // 默认端口1259
+	grpcServer := grpc.NewServer(1259)   // 默认端口1259
+	grpcServer.SetEngine(engineInstance) // 设置引擎实例
 	go func() {
 		if err := grpcServer.Start(); err != nil {
 			log.Printf("gRPC服务端启动失败: %v", err)

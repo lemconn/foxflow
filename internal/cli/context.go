@@ -6,6 +6,7 @@ import (
 
 	"github.com/lemconn/foxflow/internal/database"
 	"github.com/lemconn/foxflow/internal/exchange"
+	"github.com/lemconn/foxflow/internal/grpc"
 	"github.com/lemconn/foxflow/internal/models"
 )
 
@@ -17,6 +18,7 @@ type Context struct {
 	accountInstance  *models.FoxAccount
 	exchange         exchange.Exchange
 	exchangeInstance *models.FoxExchange
+	grpcClient       *grpc.Client
 }
 
 // NewContext 创建新的CLI上下文
@@ -110,4 +112,14 @@ func (c *Context) IsReady() bool {
 // GetContext 获取底层context
 func (c *Context) GetContext() context.Context {
 	return c.ctx
+}
+
+// SetGRPCClient 设置 gRPC 客户端
+func (c *Context) SetGRPCClient(client *grpc.Client) {
+	c.grpcClient = client
+}
+
+// GetGRPCClient 获取 gRPC 客户端
+func (c *Context) GetGRPCClient() *grpc.Client {
+	return c.grpcClient
 }
