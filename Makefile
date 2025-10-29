@@ -66,12 +66,12 @@ proto:
 	fi
 	@if ! command -v protoc-gen-go &> /dev/null; then \
 		echo "错误: protoc-gen-go 未安装"; \
-		echo "安装方法: go install google.golang.org/protobuf/cmd/protoc-gen-go@latest"; \
+		echo "安装方法: go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.31.0"; \
 		exit 1; \
 	fi
 	@if ! command -v protoc-gen-go-grpc &> /dev/null; then \
 		echo "错误: protoc-gen-go-grpc 未安装"; \
-		echo "安装方法: go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest"; \
+		echo "安装方法: go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0"; \
 		exit 1; \
 	fi
 	@mkdir -p proto/generated
