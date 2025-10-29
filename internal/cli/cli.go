@@ -57,6 +57,7 @@ func NewCLI() (*CLI, error) {
 // SetGRPCClient 设置gRPC客户端
 func (c *CLI) SetGRPCClient(client *grpc.Client) {
 	c.grpcClient = client
+	c.ctx.SetGRPCClient(client)
 }
 
 // Run 运行CLI

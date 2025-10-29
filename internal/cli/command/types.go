@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 
+	"github.com/lemconn/foxflow/internal/grpc"
 	"github.com/lemconn/foxflow/internal/models"
 )
 
@@ -39,6 +40,9 @@ type Context interface {
 
 	GetAccountInstance() *models.FoxAccount
 	SetAccountInstance(user *models.FoxAccount)
+
+	// gRPC 客户端
+	GetGRPCClient() *grpc.Client
 }
 
 // Command 命令接口（供各业务命令实现）

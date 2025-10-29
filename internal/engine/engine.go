@@ -11,6 +11,7 @@ import (
 	"github.com/lemconn/foxflow/internal/engine/syntax"
 	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/news"
 )
 
 // Engine 策略引擎
@@ -20,6 +21,7 @@ type Engine struct {
 	wg            sync.WaitGroup
 	exchangeMgr   *exchange.Manager
 	syntaxEngine  *syntax.Engine
+	newsManager   *news.Manager
 	checkInterval time.Duration
 	running       bool
 	mu            sync.RWMutex
@@ -32,11 +34,17 @@ func NewEngine() *Engine {
 	// 创建新的语法引擎（不再需要数据管理器）
 	syntaxEngine := syntax.NewEngine()
 
+	// 创建新闻管理器并注册新闻源
+	newsManager := news.NewManager()
+	blockBeats := news.NewBlockBeats()
+	newsManager.RegisterSource(blockBeats)
+
 	return &Engine{
 		ctx:           ctx,
 		cancel:        cancel,
 		exchangeMgr:   exchange.GetManager(),
 		syntaxEngine:  syntaxEngine,
+		newsManager:   newsManager,
 		checkInterval: 5 * time.Second, // 每5秒检查一次
 	}
 }
@@ -283,4 +291,9 @@ func (e *Engine) SetCheckInterval(interval time.Duration) {
 	defer e.mu.Unlock()
 
 	e.checkInterval = interval
+}
+
+// GetNewsManager 获取新闻管理器
+func (e *Engine) GetNewsManager() *news.Manager {
+	return e.newsManager
 }

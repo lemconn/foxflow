@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lemconn/foxflow/internal/news"
 	pb "github.com/lemconn/foxflow/proto/generated"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -100,4 +101,39 @@ func (c *Client) SendCommand(command string, args []string, exchange, account st
 	}
 
 	return nil
+}
+
+// GetNews 获取新闻
+func (c *Client) GetNews(count int, source string) ([]news.NewsItem, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := c.client.GetNews(ctx, &pb.GetNewsRequest{
+		Count:  int32(count),
+		Source: source,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get news: %w", err)
+	}
+
+	if !resp.Success {
+		return nil, fmt.Errorf("get news failed: %s", resp.Message)
+	}
+
+	// 转换为内部格式
+	var newsList []news.NewsItem
+	for _, item := range resp.News {
+		newsList = append(newsList, news.NewsItem{
+			ID:          item.Id,
+			Title:       item.Title,
+			Content:     item.Content,
+			URL:         item.Url,
+			Source:      item.Source,
+			PublishedAt: time.Unix(item.PublishedAt, 0),
+			Tags:        item.Tags,
+			ImageURL:    item.ImageUrl,
+		})
+	}
+
+	return newsList, nil
 }

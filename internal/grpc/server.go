@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 
+	"github.com/lemconn/foxflow/internal/engine"
 	pb "github.com/lemconn/foxflow/proto/generated"
 	"google.golang.org/grpc"
 )
@@ -13,7 +15,8 @@ import (
 // Server gRPC服务端
 type Server struct {
 	pb.UnimplementedFoxFlowServiceServer
-	port int
+	port   int
+	engine *engine.Engine
 }
 
 // NewServer 创建新的gRPC服务端
@@ -21,6 +24,11 @@ func NewServer(port int) *Server {
 	return &Server{
 		port: port,
 	}
+}
+
+// SetEngine 设置引擎实例
+func (s *Server) SetEngine(engine *engine.Engine) {
+	s.engine = engine
 }
 
 // Start 启动gRPC服务端
@@ -76,5 +84,66 @@ func (s *Server) SendCommand(ctx context.Context, req *pb.CommandRequest) (*pb.C
 	return &pb.CommandResponse{
 		Success: true,
 		Message: "命令已接收",
+	}, nil
+}
+
+// GetNews 获取新闻方法
+func (s *Server) GetNews(ctx context.Context, req *pb.GetNewsRequest) (*pb.GetNewsResponse, error) {
+	if s.engine == nil {
+		return &pb.GetNewsResponse{
+			Success: false,
+			Message: "引擎未初始化",
+		}, nil
+	}
+
+	// 设置默认值
+	count := int(req.Count)
+	if count <= 0 {
+		count = 10
+	}
+	if count > 100 {
+		count = 100 // 限制最大数量
+	}
+
+	source := req.Source
+	if source == "" {
+		source = "blockbeats" // 默认使用 blockbeats
+	}
+
+	// 创建带超时的上下文
+	newsCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	// 获取新闻
+	newsManager := s.engine.GetNewsManager()
+	newsList, err := newsManager.GetNewsFromSource(newsCtx, source, count)
+	if err != nil {
+		log.Printf("获取新闻失败: %v", err)
+		return &pb.GetNewsResponse{
+			Success: false,
+			Message: fmt.Sprintf("获取新闻失败: %v", err),
+		}, nil
+	}
+
+	// 转换为 protobuf 格式
+	var pbNews []*pb.NewsItem
+	for _, item := range newsList {
+		pbNews = append(pbNews, &pb.NewsItem{
+			Id:          item.ID,
+			Title:       item.Title,
+			Content:     item.Content,
+			Url:         item.URL,
+			Source:      item.Source,
+			PublishedAt: item.PublishedAt.Unix(),
+			Tags:        item.Tags,
+			ImageUrl:    item.ImageURL,
+		})
+	}
+
+	log.Printf("成功获取 %d 条新闻", len(pbNews))
+	return &pb.GetNewsResponse{
+		Success: true,
+		Message: fmt.Sprintf("成功获取 %d 条新闻", len(pbNews)),
+		News:    pbNews,
 	}, nil
 }
