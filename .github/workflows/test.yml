@@ -21,24 +21,18 @@ jobs:
       - name: Show Go version
         run: go version
 
-      - name: Install dependencies
+      - name: Run build and test
         run: |
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler
           go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-          echo "GOPATH=$(go env GOPATH)"
-          echo "${{ runner.temp }}"
-          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
           which protoc
           which protoc-gen-go
           which protoc-gen-go-grpc
           protoc --version
           protoc-gen-go --version
           protoc-gen-go-grpc --version
+          make build
+          make test
 
-      - name: Run build
-        run: make build
-
-      - name: Run unit tests
-        run: make test
