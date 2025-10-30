@@ -21,7 +21,7 @@ jobs:
       - name: Show Go version
         run: go version
 
-      - name: Run build and test
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler
@@ -33,6 +33,9 @@ jobs:
           protoc --version
           protoc-gen-go --version
           protoc-gen-go-grpc --version
-          make build
-          make test
 
+      - name: Run build
+        run: make build
+
+      - name: Run unit tests
+        run: make test
