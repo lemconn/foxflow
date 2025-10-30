@@ -219,6 +219,11 @@ func TestMarketProviderGetDataWithContext(t *testing.T) {
 	ctx := context.Background()
 	data, err := provider.GetData(ctx, "okx", "BTC.price")
 	if err != nil {
+		// 如果是限流错误，跳过测试
+		if strings.Contains(err.Error(), "Too Many Requests") {
+			t.Skipf("跳过测试：API 限流 - %v", err)
+			return
+		}
 		t.Errorf("使用 context 获取数据失败: %v", err)
 		return
 	}
@@ -244,6 +249,11 @@ func TestMarketProviderGetDataWithContextTODO(t *testing.T) {
 	// 测试使用 context.TODO() 获取数据
 	data, err := provider.GetData(context.TODO(), "okx", "BTC.price")
 	if err != nil {
+		// 如果是限流错误，跳过测试
+		if strings.Contains(err.Error(), "Too Many Requests") {
+			t.Skipf("跳过测试：API 限流 - %v", err)
+			return
+		}
 		t.Errorf("使用 context.TODO() 获取数据失败: %v", err)
 		return
 	}

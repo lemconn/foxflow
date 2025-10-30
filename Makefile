@@ -45,6 +45,7 @@ run-engine: engine
 test:
 	@echo "运行所有测试..."
 	@go test -v ./internal/grpc/...
+	@go test -v ./internal/engine/...
 
 # 清理构建文件
 clean:
