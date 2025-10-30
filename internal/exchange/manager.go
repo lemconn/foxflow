@@ -60,9 +60,9 @@ func (m *Manager) initExchanges() {
 
 // initDefaultExchanges 初始化默认交易所
 func (m *Manager) initDefaultExchanges() {
-	m.exchanges["okx"] = NewOKXExchange("https://www.okx.com", "http://127.0.0.1:7890")
-	//m.exchanges["binance"] = NewBinanceExchange("https://api.binance.com", "http://127.0.0.1:7890")
-	//m.exchanges["gate"] = NewGateExchange("https://api.gateio.ws", "http://127.0.0.1:7890")
+	m.exchanges["okx"] = NewOKXExchange("https://www.okx.com", "")
+	//m.exchanges["binance"] = NewBinanceExchange("https://api.binance.com", "")
+	//m.exchanges["gate"] = NewGateExchange("https://api.gateio.ws", "")
 }
 
 // GetExchange 获取交易所实例
