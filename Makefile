@@ -56,7 +56,7 @@ clean:
 # 生成 proto 代码
 proto:
 	@echo "生成 gRPC 代码..."
-	@if ! command -v protoc &> /dev/null; then \
+	@if ! type protoc >/dev/null 2>&1; then \
 		echo "错误: protoc 未安装，请先安装 Protocol Buffers 编译器"; \
 		echo "安装方法:"; \
 		echo "  macOS: brew install protobuf"; \
@@ -64,12 +64,12 @@ proto:
 		echo "  或访问: https://grpc.io/docs/protoc-installation/"; \
 		exit 1; \
 	fi
-	@if ! command -v protoc-gen-go &> /dev/null; then \
+	@if ! type protoc-gen-go >/dev/null 2>&1; then \
 		echo "错误: protoc-gen-go 未安装"; \
 		echo "安装方法: go install google.golang.org/protobuf/cmd/protoc-gen-go@latest"; \
 		exit 1; \
 	fi
-	@if ! command -v protoc-gen-go-grpc &> /dev/null; then \
+	@if ! type protoc-gen-go-grpc >/dev/null 2>&1; then \
 		echo "错误: protoc-gen-go-grpc 未安装"; \
 		echo "安装方法: go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest"; \
 		exit 1; \

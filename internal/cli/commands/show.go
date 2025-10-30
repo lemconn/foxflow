@@ -66,7 +66,12 @@ func (c *ShowCommand) handleSymbolCommand(ctx command.Context, args []string) er
 		return errors.New("请先选择交易所")
 	}
 
-	exchangeName := ctx.GetExchangeInstance().Name
+	exchangeInstance := ctx.GetExchangeInstance()
+	if exchangeInstance == nil {
+		return errors.New("交易所实例未正确初始化，请重新选择交易所")
+	}
+
+	exchangeName := exchangeInstance.Name
 	symbolList, exists := config.ExchangeSymbolList[exchangeName]
 	if !exists {
 		return fmt.Errorf("exchange %s not found", exchangeName)

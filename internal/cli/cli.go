@@ -315,6 +315,12 @@ func (c *CLI) setDefaultExchange() {
 	err = useCommand.Execute(c.ctx, []string{"exchange", exchangeName})
 	if err != nil {
 		log.Printf("set default exchange execute error: %v\n", err)
+		// 如果设置默认交易所失败，至少设置交易所名称，避免完全无法使用
+		c.ctx.SetExchangeName(exchangeName)
+		// 尝试从数据库获取交易所信息作为备用
+		if exchangeInfo, dbErr := repository.GetExchange(exchangeName); dbErr == nil && exchangeInfo != nil {
+			c.ctx.SetExchangeInstance(exchangeInfo)
+		}
 	}
 }
 
@@ -335,7 +341,15 @@ func (c *CLI) useActiveAccount() error {
 	useCommand := &cliCmds.UseCommand{}
 	err = useCommand.Execute(c.ctx, []string{"account", activeAccount.Name})
 	if err != nil {
-		log.Printf("set default exchange execute error: %v\n", err)
+		log.Printf("set default account execute error: %v\n", err)
+		// 如果设置账户失败，至少设置交易所名称和账户信息，避免完全无法使用
+		c.ctx.SetExchangeName(activeAccount.Exchange)
+		c.ctx.SetAccountName(activeAccount.Name)
+		c.ctx.SetAccountInstance(activeAccount)
+		// 尝试从数据库获取交易所信息作为备用
+		if exchangeInfo, dbErr := repository.GetExchange(activeAccount.Exchange); dbErr == nil && exchangeInfo != nil {
+			c.ctx.SetExchangeInstance(exchangeInfo)
+		}
 		return err
 	}
 
