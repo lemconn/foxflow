@@ -1,12 +1,15 @@
-name: Run Go Tests
+name: Run Tests
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
 
 jobs:
-  test:
+  unit-tests:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,9 +30,6 @@ jobs:
           sudo apt-get install -y protobuf-compiler
           go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-          which protoc
-          which protoc-gen-go
-          which protoc-gen-go-grpc
           protoc --version
           protoc-gen-go --version
           protoc-gen-go-grpc --version
