@@ -21,5 +21,8 @@ jobs:
       - name: Show Go version
         run: go version
 
+      - name: Run build
+        run: make build
+
       - name: Run unit tests
         run: make test
