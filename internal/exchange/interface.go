@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/lemconn/foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/pkg/dao/model"
 )
 
 const (
@@ -139,12 +139,12 @@ type Exchange interface {
 	GetProxyURL() string
 
 	// 连接管理
-	Connect(ctx context.Context, account *models.FoxAccount) error
+	Connect(ctx context.Context, account *model.FoxAccount) error
 	Disconnect() error
 
 	// 设置用户信息
-	SetAccount(ctx context.Context, account *models.FoxAccount) error
-	GetAccount(ctx context.Context) (*models.FoxAccount, error)
+	SetAccount(ctx context.Context, account *model.FoxAccount) error
+	GetAccount(ctx context.Context) (*model.FoxAccount, error)
 	GetAccountConfig(ctx context.Context) (*AccountConfig, error)
 
 	// 资产/仓位信息

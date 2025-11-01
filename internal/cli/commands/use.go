@@ -6,7 +6,7 @@ import (
 
 	"github.com/lemconn/foxflow/internal/cli/command"
 	"github.com/lemconn/foxflow/internal/exchange"
-	"github.com/lemconn/foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/pkg/dao/model"
 	"github.com/lemconn/foxflow/internal/repository"
 	"github.com/lemconn/foxflow/internal/utils"
 )
@@ -68,8 +68,8 @@ func (c *UseCommand) HandleExchangeCommand(ctx command.Context, exchangeName str
 	// 设置新的交易所
 	ctx.SetExchangeName(exchangeName)
 	ctx.SetExchangeInstance(exchangeInfo)
-	ctx.SetAccountName("")                       // 清除当前用户
-	ctx.SetAccountInstance(&models.FoxAccount{}) // 清楚当前用户信息
+	ctx.SetAccountName("")                      // 清除当前用户
+	ctx.SetAccountInstance(&model.FoxAccount{}) // 清楚当前用户信息
 	fmt.Println(utils.RenderSuccess(fmt.Sprintf("已激活交易所: %s", utils.MessageGreen(exchangeName))))
 
 	return nil
@@ -96,8 +96,7 @@ func (c *UseCommand) HandleAccountCommand(ctx command.Context, name string) erro
 	}
 
 	// 切换到用户所属的交易所
-	var ex *models.FoxExchange
-	ex, err = repository.GetExchange(account.Exchange)
+	ex, err := repository.GetExchange(account.Exchange)
 	if err != nil {
 		return fmt.Errorf("failed to get exchange: %w", err)
 	}

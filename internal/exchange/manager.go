@@ -2,11 +2,13 @@ package exchange
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
 	"github.com/lemconn/foxflow/internal/database"
-	"github.com/lemconn/foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/pkg/dao/model"
+	"gorm.io/gorm"
 )
 
 // Manager 交易所管理器
@@ -33,17 +35,15 @@ func GetManager() *Manager {
 
 // initExchanges 初始化交易所
 func (m *Manager) initExchanges() {
-	db := database.GetDB()
+	db := database.Adapter()
 	if db == nil {
 		// 如果数据库未初始化，使用默认配置
 		m.initDefaultExchanges()
 		return
 	}
 
-	var exchanges []models.FoxExchange
-
-	// 从数据库加载所有交易所配置
-	if err := db.Find(&exchanges).Error; err != nil {
+	exchanges, err := database.Adapter().FoxExchange.Find()
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		// 如果数据库中没有配置，使用默认配置
 		m.initDefaultExchanges()
 		return
@@ -92,7 +92,7 @@ func (m *Manager) GetAvailableExchanges() []string {
 }
 
 // ConnectAccount 连接用户到指定交易所
-func (m *Manager) ConnectAccount(ctx context.Context, exchangeName string, account *models.FoxAccount) error {
+func (m *Manager) ConnectAccount(ctx context.Context, exchangeName string, account *model.FoxAccount) error {
 	exchange, err := m.GetExchange(exchangeName)
 	if err != nil {
 		return err

@@ -9,7 +9,7 @@ import (
 	"github.com/lemconn/foxflow/internal/database"
 	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/grpc"
-	"github.com/lemconn/foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/pkg/dao/model"
 )
 
 // Context CLI上下文
@@ -17,9 +17,9 @@ type Context struct {
 	ctx              context.Context
 	currentExchange  string
 	currentAccount   string
-	accountInstance  *models.FoxAccount
+	accountInstance  *model.FoxAccount
 	exchange         exchange.Exchange
-	exchangeInstance *models.FoxExchange
+	exchangeInstance *model.FoxExchange
 	grpcClient       *grpc.Client
 	tokenExpiresAt   int64 // Token 过期时间
 }
@@ -38,12 +38,11 @@ func NewContext(ctx context.Context) *Context {
 
 // restoreActiveState 从数据库恢复激活状态
 func (c *Context) restoreActiveState() {
-	db := database.GetDB()
 	exchangeManager := exchange.GetManager()
 
 	// 查找激活的交易所
-	var activeExchange models.FoxExchange
-	if err := db.Where("is_active = ?", true).First(&activeExchange).Error; err == nil {
+	activeExchange, err := database.Adapter().FoxExchange.Where(database.Adapter().FoxExchange.IsActive.Eq(1)).First()
+	if err == nil && activeExchange != nil {
 		c.currentExchange = activeExchange.Name
 
 		// 获取交易所实例
@@ -52,12 +51,15 @@ func (c *Context) restoreActiveState() {
 		}
 
 		// 查找激活的用户
-		var activeAccount models.FoxAccount
-		if err := db.Where("is_active = ? AND exchange = ?", true, activeExchange.Name).First(&activeAccount).Error; err == nil {
+		activeAccount, err := database.Adapter().FoxAccount.Where(
+			database.Adapter().FoxAccount.IsActive.Eq(1),
+			database.Adapter().FoxAccount.Exchange.Eq(activeExchange.Name),
+		).First()
+		if err == nil {
 			c.currentAccount = activeAccount.Name
 
 			// 连接用户到交易所
-			if err := exchangeManager.ConnectAccount(c.ctx, activeExchange.Name, &activeAccount); err == nil {
+			if err := exchangeManager.ConnectAccount(c.ctx, activeExchange.Name, activeAccount); err == nil {
 				// 连接成功，更新交易所实例
 				if ex, err := exchangeManager.GetExchange(activeExchange.Name); err == nil {
 					c.exchange = ex
@@ -88,22 +90,22 @@ func (c *Context) GetAccountName() string {
 }
 
 // SetExchangeInstance 设置交易所实例
-func (c *Context) SetExchangeInstance(ex *models.FoxExchange) {
+func (c *Context) SetExchangeInstance(ex *model.FoxExchange) {
 	c.exchangeInstance = ex
 }
 
 // GetExchangeInstance 获取交易所实例
-func (c *Context) GetExchangeInstance() *models.FoxExchange {
+func (c *Context) GetExchangeInstance() *model.FoxExchange {
 	return c.exchangeInstance
 }
 
 // SetAccountInstance 设置当前用户
-func (c *Context) SetAccountInstance(account *models.FoxAccount) {
+func (c *Context) SetAccountInstance(account *model.FoxAccount) {
 	c.accountInstance = account
 }
 
 // GetAccountInstance 获取当前用户
-func (c *Context) GetAccountInstance() *models.FoxAccount {
+func (c *Context) GetAccountInstance() *model.FoxAccount {
 	return c.accountInstance
 }
 

@@ -12,7 +12,7 @@ import (
 type DeleteCommand struct{}
 
 func (c *DeleteCommand) GetName() string        { return "delete" }
-func (c *DeleteCommand) GetDescription() string { return "删除用户或标的" }
+func (c *DeleteCommand) GetDescription() string { return "删除用户" }
 func (c *DeleteCommand) GetUsage() string       { return "delete <type> <name>" }
 
 func (c *DeleteCommand) Execute(ctx command.Context, args []string) error {

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/lemconn/foxflow/internal/grpc"
-	"github.com/lemconn/foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/pkg/dao/model"
 )
 
 const (
@@ -35,11 +35,11 @@ type Context interface {
 	GetAccountName() string
 	SetAccountName(user string)
 
-	GetExchangeInstance() *models.FoxExchange
-	SetExchangeInstance(ex *models.FoxExchange)
+	GetExchangeInstance() *model.FoxExchange
+	SetExchangeInstance(ex *model.FoxExchange)
 
-	GetAccountInstance() *models.FoxAccount
-	SetAccountInstance(user *models.FoxAccount)
+	GetAccountInstance() *model.FoxAccount
+	SetAccountInstance(user *model.FoxAccount)
 
 	// gRPC 客户端
 	GetGRPCClient() *grpc.Client

@@ -304,7 +304,7 @@ func (c *CLI) setDefaultExchange() {
 		}
 
 		// 已经激活的交易所优先级最高
-		if exchange.IsActive {
+		if exchange.IsActive == 1 {
 			exchangeName = exchange.Name
 			break
 		}
@@ -325,14 +325,13 @@ func (c *CLI) setDefaultExchange() {
 }
 
 func (c *CLI) useActiveAccount() error {
-
 	activeAccount, err := repository.ActiveAccount()
 	if err != nil {
 		log.Printf("Failed to obtain activation account: %v\n", err)
 		return err
 	}
 
-	if activeAccount.Name == "" {
+	if activeAccount == nil || activeAccount.Name == "" {
 		log.Printf("No active account found")
 		return nil
 	}

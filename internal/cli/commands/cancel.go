@@ -6,8 +6,7 @@ import (
 	"strings"
 
 	"github.com/lemconn/foxflow/internal/cli/command"
-	"github.com/lemconn/foxflow/internal/models"
-	"github.com/lemconn/foxflow/internal/repository"
+	"github.com/lemconn/foxflow/internal/database"
 	"github.com/lemconn/foxflow/internal/utils"
 )
 
@@ -16,7 +15,7 @@ type CancelCommand struct{}
 
 func (c *CancelCommand) GetName() string        { return "cancel" }
 func (c *CancelCommand) GetDescription() string { return "取消订单" }
-func (c *CancelCommand) GetUsage() string       { return "cancel order <symbol>:<direction>:<amount>" }
+func (c *CancelCommand) GetUsage() string       { return "cancel order <symbol>:<side>:<posSide>:<amount>" }
 
 func (c *CancelCommand) Execute(ctx command.Context, args []string) error {
 	if !ctx.IsReady() {
@@ -35,13 +34,14 @@ func (c *CancelCommand) Execute(ctx command.Context, args []string) error {
 	}
 
 	orderParts := strings.Split(args[1], ":")
-	if len(orderParts) != 3 {
-		return fmt.Errorf("invalid order format, expected: symbol:direction:amount")
+	if len(orderParts) != 4 {
+		return fmt.Errorf("invalid order format, expected: symbol:side:posSide:amount")
 	}
 
 	symbol := strings.ToUpper(orderParts[0])
-	direction := orderParts[1]
-	amountStr := orderParts[2]
+	side := orderParts[1]
+	posSide := orderParts[2]
+	amountStr := orderParts[3]
 
 	amountType := ""
 	if strings.HasSuffix(amountStr, "U") {
@@ -54,22 +54,17 @@ func (c *CancelCommand) Execute(ctx command.Context, args []string) error {
 		return fmt.Errorf("invalid amount: %s", amountStr)
 	}
 
-	// 根据 symbol、direction、amount 查找订单
-	orders, err := repository.ListSSOrders(ctx.GetAccountInstance().ID, nil)
-	if err != nil {
-		return fmt.Errorf("get orders error: %s", err)
-	}
-
-	var targetOrder *models.FoxOrder
-	for _, order := range orders {
-		if order.Symbol == symbol && order.Side == direction && order.Size == amount && order.SizeType == amountType {
-			targetOrder = order
-			break
-		}
-	}
-
+	// 根据 symbol、side、posSide、amount 查找订单
+	targetOrder, err := database.Adapter().FoxOrder.Where(
+		database.Adapter().FoxOrder.Status.Eq("waiting"),
+		database.Adapter().FoxOrder.Symbol.Eq(symbol),
+		database.Adapter().FoxOrder.Side.Eq(side),
+		database.Adapter().FoxOrder.PosSide.Eq(posSide),
+		database.Adapter().FoxOrder.Size.Eq(amount),
+		database.Adapter().FoxOrder.SizeType.Eq(amountType),
+	).First()
 	if targetOrder == nil {
-		return fmt.Errorf("order not found: %s:%s:%s", symbol, direction, orderParts[2])
+		return fmt.Errorf("order not found: %s:%s:%s:%s", symbol, side, posSide, orderParts[2])
 	}
 
 	if targetOrder.Status != "waiting" {
@@ -78,10 +73,10 @@ func (c *CancelCommand) Execute(ctx command.Context, args []string) error {
 
 	// 更新订单状态
 	targetOrder.Status = "cancelled"
-	if err := repository.SaveSSOrder(targetOrder); err != nil {
+	if err := database.Adapter().FoxOrder.Save(targetOrder); err != nil {
 		return fmt.Errorf("failed to update order: %w", err)
 	}
 
-	fmt.Println(utils.RenderSuccess(fmt.Sprintf("订单已取消: %s:%s:%.4f", targetOrder.Symbol, targetOrder.Side, targetOrder.Size)))
+	fmt.Println(utils.RenderSuccess(fmt.Sprintf("订单（%s）取消成功", args[1])))
 	return nil
 }

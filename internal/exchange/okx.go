@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lemconn/foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/pkg/dao/model"
 )
 
 const (
@@ -92,7 +92,7 @@ type OKXExchange struct {
 	apiURL   string
 	proxyURL string
 	client   *http.Client
-	account  *models.FoxAccount
+	account  *model.FoxAccount
 }
 
 // NewOKXExchange 创建OKX交易所实例
@@ -131,7 +131,7 @@ func (e *OKXExchange) GetProxyURL() string {
 	return e.proxyURL
 }
 
-func (e *OKXExchange) Connect(ctx context.Context, account *models.FoxAccount) error {
+func (e *OKXExchange) Connect(ctx context.Context, account *model.FoxAccount) error {
 	e.account = account
 
 	// 这里可以添加连接测试逻辑（获取当前用户的资产估值数据）
@@ -148,12 +148,12 @@ func (e *OKXExchange) Disconnect() error {
 	return nil
 }
 
-func (e *OKXExchange) SetAccount(ctx context.Context, account *models.FoxAccount) error {
+func (e *OKXExchange) SetAccount(ctx context.Context, account *model.FoxAccount) error {
 	e.account = account
 	return nil
 }
 
-func (e *OKXExchange) GetAccount(ctx context.Context) (*models.FoxAccount, error) {
+func (e *OKXExchange) GetAccount(ctx context.Context) (*model.FoxAccount, error) {
 	if e.account == nil {
 		return nil, nil
 	}
@@ -1257,7 +1257,7 @@ type okxAccountConfigResp struct {
 	} `json:"traderInsts"` // 领航员交易产品列表，适用于领航员
 	SpotTraderInsts []struct {
 		InstId string `json:"instId"` // 产品ID
-	} `json:"spotTraderInsts"`                  // 领航员现货交易产品列表，适用于领航员
+	} `json:"spotTraderInsts"` // 领航员现货交易产品列表，适用于领航员
 	OpAuth        string `json:"opAuth"`        // 操作权限 0：禁止交易，1：只能平仓，2：可以交易
 	KycLv         string `json:"kycLv"`         // 用户KYC等级 0：未认证 1：L1 2：L2 3：L3
 	Label         string `json:"label"`         // API key的备注名称
