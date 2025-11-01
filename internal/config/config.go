@@ -29,11 +29,21 @@ type SymbolInfo struct {
 var ExchangeSymbolList map[string][]SymbolInfo
 
 type Config struct {
-	DBPath   string
+	DBConfig MysqlConfig
 	ProxyURL string
 	LogLevel string
 	LogFile  string
 	WorkDir  string
+}
+type MysqlConfig struct {
+	Host         string
+	Port         string
+	DbName       string
+	Username     string
+	Password     string
+	Config       string
+	MaxIdleConns string
+	MaxOpenConns string
 }
 
 var GlobalConfig *Config
@@ -52,7 +62,16 @@ func LoadConfig() error {
 	}
 
 	GlobalConfig = &Config{
-		DBPath:   getEnv("DB_PATH", ".foxflow.db"),
+		DBConfig: MysqlConfig{
+			Host:         getEnv("MYSQL_HOST", "127.0.0.1"),
+			Port:         getEnv("MYSQL_PORT", "3306"),
+			DbName:       getEnv("MYSQL_DATABASE", "foxflow"),
+			Username:     getEnv("MYSQL_USERNAME", "root"),
+			Password:     getEnv("MYSQL_PASSWORD", "password"),
+			Config:       getEnv("MYSQL_CONFIG", "charset=utf8&parseTime=True&loc=Local&timeout=5s"),
+			MaxIdleConns: getEnv("MYSQL_MAX_IDLE_CONNS", "10"),
+			MaxOpenConns: getEnv("MYSQL_MAX_OPEN_CONNS", "50"),
+		},
 		ProxyURL: getEnv("PROXY_URL", "http://127.0.0.1:7890"),
 		LogLevel: getEnv("LOG_LEVEL", "info"),
 		LogFile:  getEnv("LOG_FILE", "logs/foxflow.log"),
@@ -73,15 +92,4 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
-}
-
-func GetDBPath() string {
-	if GlobalConfig == nil {
-		return ".foxflow.db"
-	}
-	return filepath.Join(GlobalConfig.WorkDir, GlobalConfig.DBPath)
-}
-
-func SetConfigExchangeSymbolList(config map[string][]SymbolInfo) {
-	ExchangeSymbolList = config
 }

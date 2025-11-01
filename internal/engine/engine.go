@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -10,8 +11,9 @@ import (
 	"github.com/lemconn/foxflow/internal/database"
 	"github.com/lemconn/foxflow/internal/engine/syntax"
 	"github.com/lemconn/foxflow/internal/exchange"
-	"github.com/lemconn/foxflow/internal/models"
 	"github.com/lemconn/foxflow/internal/news"
+	"github.com/lemconn/foxflow/internal/pkg/dao/model"
+	"gorm.io/gorm"
 )
 
 // Engine 策略引擎
@@ -111,16 +113,17 @@ func (e *Engine) run() {
 
 // checkStrategies 检查所有等待中的策略订单
 func (e *Engine) checkStrategies() error {
-	db := database.GetDB()
-
 	// 获取所有等待中的策略订单
-	var orders []models.FoxOrder
-	if err := db.Where("status = ?", "waiting").Find(&orders).Error; err != nil {
+	orders, err := database.Adapter().FoxOrder.Where(
+		database.Adapter().FoxOrder.Status.Eq("waiting"),
+	).Find()
+
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return fmt.Errorf("failed to get waiting orders: %w", err)
 	}
 
 	// 按用户分组处理
-	userOrders := make(map[uint][]models.FoxOrder)
+	userOrders := make(map[int64][]*model.FoxOrder)
 	for _, order := range orders {
 		userOrders[order.AccountID] = append(userOrders[order.AccountID], order)
 	}
@@ -136,15 +139,14 @@ func (e *Engine) checkStrategies() error {
 }
 
 // processUserOrders 处理单个用户的订单
-func (e *Engine) processUserOrders(userID uint, orders []models.FoxOrder) error {
+func (e *Engine) processUserOrders(userID int64, orders []*model.FoxOrder) error {
 	if len(orders) == 0 {
 		return nil
 	}
 
 	// 获取用户信息
-	db := database.GetDB()
-	var user models.FoxAccount
-	if err := db.Where("id = ?", userID).First(&user).Error; err != nil {
+	user, err := database.Adapter().FoxAccount.Where(database.Adapter().FoxAccount.ID.Eq(userID)).First()
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return fmt.Errorf("failed to get user: %w", err)
 	}
 
@@ -155,13 +157,13 @@ func (e *Engine) processUserOrders(userID uint, orders []models.FoxOrder) error 
 	}
 
 	// 连接用户到交易所
-	if err := exchangeInstance.Connect(e.ctx, &user); err != nil {
+	if err := exchangeInstance.Connect(e.ctx, user); err != nil {
 		return fmt.Errorf("failed to connect user to exchange: %w", err)
 	}
 
 	// 处理每个订单
 	for _, order := range orders {
-		if err := e.processOrder(exchangeInstance, &order); err != nil {
+		if err := e.processOrder(exchangeInstance, order); err != nil {
 			log.Printf("处理订单 %d 时出错: %v", order.ID, err)
 		}
 	}
@@ -170,7 +172,7 @@ func (e *Engine) processUserOrders(userID uint, orders []models.FoxOrder) error 
 }
 
 // processOrder 处理单个订单
-func (e *Engine) processOrder(exchangeInstance exchange.Exchange, order *models.FoxOrder) error {
+func (e *Engine) processOrder(exchangeInstance exchange.Exchange, order *model.FoxOrder) error {
 	// 如果没有策略，直接提交订单
 	if order.Strategy == "" {
 		return e.submitOrder(exchangeInstance, order)
@@ -204,7 +206,7 @@ func (e *Engine) processOrder(exchangeInstance exchange.Exchange, order *models.
 }
 
 // submitOrder 提交订单到交易所
-func (e *Engine) submitOrder(exchangeInstance exchange.Exchange, order *models.FoxOrder) error {
+func (e *Engine) submitOrder(exchangeInstance exchange.Exchange, order *model.FoxOrder) error {
 	if order.Type == "close" {
 		closeExchangeOrder := &exchange.ClosePosition{
 			Symbol:  order.Symbol,
@@ -215,14 +217,14 @@ func (e *Engine) submitOrder(exchangeInstance exchange.Exchange, order *models.F
 		if err != nil {
 			order.Msg = err.Error()
 			order.Status = "failed"
-			if err := database.GetDB().Save(order).Error; err != nil {
+			if err := database.Adapter().FoxOrder.Save(order); err != nil {
 				return fmt.Errorf("failed to update order: %w", err)
 			}
 			log.Printf("平仓失败: ID=%d, OrderID=%s, Error=%s", order.ID, order.OrderID, err.Error())
 			return fmt.Errorf("failed to close position: %w", err)
 		}
 		order.Status = "closed"
-		if err := database.GetDB().Save(order).Error; err != nil {
+		if err := database.Adapter().FoxOrder.Save(order); err != nil {
 			return fmt.Errorf("failed to update order: %w", err)
 		}
 		log.Printf("平仓成功: ID=%d, OrderID=%s", order.ID, order.OrderID)
@@ -259,14 +261,14 @@ func (e *Engine) submitOrder(exchangeInstance exchange.Exchange, order *models.F
 		if err != nil {
 			order.Msg = err.Error()
 			order.Status = "failed"
-			if err := database.GetDB().Save(order).Error; err != nil {
+			if err := database.Adapter().FoxOrder.Save(order); err != nil {
 				return fmt.Errorf("failed to update order: %w", err)
 			}
 			log.Printf("开仓失败: ID=%d, OrderID=%s, Error=%s", order.ID, order.OrderID, err.Error())
 			return fmt.Errorf("failed to open position: %w", err)
 		}
 		order.Status = "opened"
-		if err := database.GetDB().Save(order).Error; err != nil {
+		if err := database.Adapter().FoxOrder.Save(order); err != nil {
 			return fmt.Errorf("failed to update order: %w", err)
 		}
 		log.Printf("开仓成功: ID=%d, OrderID=%s", order.ID, result.ID)

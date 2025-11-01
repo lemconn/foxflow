@@ -999,8 +999,8 @@ func getCancelOrderList(ctx *Context) []prompt.Suggest {
 			amount = fmt.Sprintf("%s", strconv.FormatFloat(order.Size, 'g', -1, 64))
 		}
 
-		// 构建订单标识：symbol:direction:amount
-		orderText := fmt.Sprintf("%s:%s:%s", order.Symbol, order.Side, amount)
+		// 构建订单标识：symbol:side:posSide:amount
+		orderText := fmt.Sprintf("%s:%s:%s:%s", order.Symbol, order.Side, order.PosSide, amount)
 
 		// 构建描述信息
 		var description string

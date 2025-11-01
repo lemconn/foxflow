@@ -6,9 +6,9 @@ import (
 
 	"github.com/lemconn/foxflow/internal/config"
 	"github.com/lemconn/foxflow/internal/exchange"
+	"github.com/lemconn/foxflow/internal/pkg/dao/model"
 
 	"github.com/lemconn/foxflow/internal/cli/command"
-	"github.com/lemconn/foxflow/internal/models"
 	"github.com/lemconn/foxflow/internal/repository"
 )
 
@@ -37,7 +37,7 @@ func (c *CreateCommand) createAccount(ctx command.Context, args []string) error 
 		return fmt.Errorf("usage: create account <trade_type> name=<name> apiKey=<key> secretKey=<secret> [passphrase=<passphrase>]")
 	}
 
-	account := &models.FoxAccount{}
+	account := &model.FoxAccount{}
 
 	account.TradeType = args[0]
 	for _, arg := range args {

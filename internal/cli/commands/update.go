@@ -8,7 +8,7 @@ import (
 	"github.com/lemconn/foxflow/internal/cli/command"
 	"github.com/lemconn/foxflow/internal/config"
 	"github.com/lemconn/foxflow/internal/exchange"
-	"github.com/lemconn/foxflow/internal/models"
+	"github.com/lemconn/foxflow/internal/pkg/dao/model"
 	"github.com/lemconn/foxflow/internal/repository"
 	"github.com/lemconn/foxflow/internal/utils"
 )
@@ -126,7 +126,7 @@ func (c *UpdateCommand) handleAccountCommand(ctx command.Context, args []string)
 		return fmt.Errorf("account not found")
 	}
 
-	account := &models.FoxAccount{}
+	account := &model.FoxAccount{}
 	account.Exchange = accountInfo.Exchange
 	account.TradeType = args[1]
 	for _, arg := range args {

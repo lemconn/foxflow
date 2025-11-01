@@ -7,10 +7,10 @@ import (
 
 	"github.com/lemconn/foxflow/internal/cli/command"
 	"github.com/lemconn/foxflow/internal/config"
+	"github.com/lemconn/foxflow/internal/database"
 	"github.com/lemconn/foxflow/internal/engine/syntax"
 	"github.com/lemconn/foxflow/internal/exchange"
-	"github.com/lemconn/foxflow/internal/models"
-	"github.com/lemconn/foxflow/internal/repository"
+	"github.com/lemconn/foxflow/internal/pkg/dao/model"
 	"github.com/lemconn/foxflow/internal/utils"
 )
 
@@ -125,7 +125,7 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 	}
 
 	// 解析参数
-	order := &models.FoxOrder{
+	order := &model.FoxOrder{
 		OrderID:    exchangeClient.GetClientOrderId(ctx.GetContext()),
 		Exchange:   ctx.GetExchangeName(),
 		AccountID:  ctx.GetAccountInstance().ID,
@@ -141,7 +141,7 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 		Status:     "waiting",
 	}
 
-	if err := repository.CreateSSOrder(order); err != nil {
+	if err := database.Adapter().FoxOrder.Create(order); err != nil {
 		return fmt.Errorf("create order error: %w", err)
 	}
 
