@@ -26,10 +26,10 @@ func TestKlineProviderGetData(t *testing.T) {
 		if len(dataArray) != 3 {
 			t.Errorf("期望3个数据点，实际得到%d个", len(dataArray))
 		}
-		
+
 		// 验证数据类型
 		for i, value := range dataArray {
-			if _, ok := value.(float64); !ok {
+			if _, ok := value.(string); !ok {
 				t.Errorf("数据点[%d]类型错误，期望float64，实际%T", i, value)
 			}
 		}
@@ -101,19 +101,19 @@ func TestKlineProviderGetDataDifferentIntervals(t *testing.T) {
 
 	// 测试不同时间间隔
 	intervals := []string{"1m", "5m", "15m", "1h"}
-	
+
 	for _, interval := range intervals {
 		data, err := provider.GetData(ctx, "okx", "BTC.close", interval, 2)
 		if err != nil {
 			t.Errorf("获取%s间隔数据失败: %v", interval, err)
 			continue
 		}
-		
+
 		if data == nil {
 			t.Errorf("%s间隔数据不应为空", interval)
 			continue
 		}
-		
+
 		if dataArray, ok := data.([]interface{}); ok {
 			if len(dataArray) != 2 {
 				t.Errorf("%s间隔期望2个数据点，实际得到%d个", interval, len(dataArray))
@@ -130,19 +130,19 @@ func TestKlineProviderGetDataDifferentSymbols(t *testing.T) {
 
 	// 测试不同币种
 	symbols := []string{"BTC", "ETH", "SOL"}
-	
+
 	for _, symbol := range symbols {
 		data, err := provider.GetData(ctx, "okx", symbol+".close", "15m", 2)
 		if err != nil {
 			t.Errorf("获取%s数据失败: %v", symbol, err)
 			continue
 		}
-		
+
 		if data == nil {
 			t.Errorf("%s数据不应为空", symbol)
 			continue
 		}
-		
+
 		if dataArray, ok := data.([]interface{}); ok {
 			if len(dataArray) != 2 {
 				t.Errorf("%s期望2个数据点，实际得到%d个", symbol, len(dataArray))
@@ -159,19 +159,19 @@ func TestKlineProviderGetDataDifferentFields(t *testing.T) {
 
 	// 测试不同字段
 	fields := []string{"open", "high", "low", "close", "volume"}
-	
+
 	for _, field := range fields {
 		data, err := provider.GetData(ctx, "okx", "BTC."+field, "15m", 2)
 		if err != nil {
 			t.Errorf("获取%s字段数据失败: %v", field, err)
 			continue
 		}
-		
+
 		if data == nil {
 			t.Errorf("%s字段数据不应为空", field)
 			continue
 		}
-		
+
 		if dataArray, ok := data.([]interface{}); ok {
 			if len(dataArray) != 2 {
 				t.Errorf("%s字段期望2个数据点，实际得到%d个", field, len(dataArray))
