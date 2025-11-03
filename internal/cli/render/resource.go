@@ -2,8 +2,6 @@ package render
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
@@ -11,6 +9,7 @@ import (
 	"github.com/lemconn/foxflow/internal/news"
 	"github.com/lemconn/foxflow/internal/pkg/dao/model"
 	"github.com/lemconn/foxflow/internal/utils"
+	"github.com/shopspring/decimal"
 )
 
 // RenderExchangesWithStatus 渲染带状态的交易所列表
@@ -135,18 +134,18 @@ func RenderStrategies() string {
 }
 
 type RenderSymbolsInfo struct {
-	Exchange    string  `json:"exchange"`
-	Type        string  `json:"type"`
-	Name        string  `json:"name"`
-	Price       float64 `json:"price"`
-	Volume      float64 `json:"volume"`
-	High        float64 `json:"high"`
-	Low         float64 `json:"low"`
-	Base        string  `json:"base"`
-	Quote       string  `json:"quote"`
-	MaxLeverage float64 `json:"max_leverage"`
-	MinSize     float64 `json:"min_size"`
-	Contract    float64 `json:"contract"`
+	Exchange    string `json:"exchange"`
+	Type        string `json:"type"`
+	Name        string `json:"name"`
+	Price       string `json:"price"`
+	Volume      string `json:"volume"`
+	High        string `json:"high"`
+	Low         string `json:"low"`
+	Base        string `json:"base"`
+	Quote       string `json:"quote"`
+	MaxLeverage int64  `json:"max_leverage"`
+	MinSize     string `json:"min_size"`
+	Contract    string `json:"contract"`
 }
 
 // RenderSymbols 渲染交易对列表
@@ -156,21 +155,19 @@ func RenderSymbols(symbols []RenderSymbolsInfo) string {
 	pt.SetHeaders([]interface{}{"#", "交易对", "最新价格", "24小时最高价", "24小时最低价", "24小时成交量（标的）", "最大杠杆倍数", "最小下单张数", "最小下单标的数量"})
 
 	for i, symbol := range symbols {
-		var maxLeverage string
-		if symbol.MaxLeverage > 0 {
-			maxLeverage = fmt.Sprintf("%sx", strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.MaxLeverage, 'f', -1, 64), "0"), "."))
-		}
+		symbolContract, _ := decimal.NewFromString(symbol.Contract)
+		symbolMinSize, _ := decimal.NewFromString(symbol.MinSize)
 
 		pt.AddRow([]interface{}{
 			i + 1,
 			symbol.Name,
-			strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.Price, 'f', -1, 64), "0"), "."),
-			strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.High, 'f', -1, 64), "0"), "."),
-			strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.Low, 'f', -1, 64), "0"), "."),
-			strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.Volume, 'f', -1, 64), "0"), "."),
-			maxLeverage,
-			strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.MinSize, 'f', -1, 64), "0"), "."),
-			strings.TrimSuffix(strings.TrimRight(strconv.FormatFloat(symbol.Contract*symbol.MinSize, 'f', -1, 64), "0"), "."),
+			symbol.Price,
+			symbol.High,
+			symbol.Low,
+			symbol.Volume,
+			symbol.MaxLeverage,
+			symbol.MinSize,
+			symbolContract.Mul(symbolMinSize),
 		})
 	}
 
@@ -213,14 +210,14 @@ func RenderStrategyOrders(orders []*model.FoxOrder) string {
 		var amount string
 		switch order.SizeType {
 		case "USDT":
-			amount = fmt.Sprintf("%sU", strconv.FormatFloat(order.Size, 'g', -1, 64))
+			amount = fmt.Sprintf("%sU", order.Size.String())
 		default:
-			amount = fmt.Sprintf("%s", strconv.FormatFloat(order.Size, 'g', -1, 64))
+			amount = order.Size.String()
 		}
 
 		price := "-"
-		if order.Price > 0 {
-			price = strconv.FormatFloat(order.Price, 'g', -1, 64)
+		if order.Price.GreaterThan(decimal.Zero) {
+			price = order.Price.String()
 		}
 
 		strategy := "-"

@@ -77,7 +77,7 @@ func (c *UpdateCommand) handleSymbolCommand(ctx command.Context, args []string) 
 		}
 	}
 
-	leverageValue, err := strconv.Atoi(leverage)
+	leverageValue, err := strconv.ParseInt(leverage, 10, 64)
 	if err != nil {
 		return fmt.Errorf("invalid leverage value")
 	}
@@ -86,7 +86,7 @@ func (c *UpdateCommand) handleSymbolCommand(ctx command.Context, args []string) 
 		return fmt.Errorf("invalid leverage/margin value")
 	}
 
-	if float64(leverageValue) > symbolInfo.MaxLever {
+	if leverageValue > symbolInfo.MaxLever {
 		return fmt.Errorf("leverage value is too large, max leverage is %f", symbolInfo.MaxLever)
 	}
 

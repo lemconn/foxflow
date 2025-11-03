@@ -294,6 +294,11 @@ func (c *CLI) setDefaultExchange() {
 		return
 	}
 
+	if exchangesList == nil || len(exchangesList) == 0 {
+		log.Println("No exchange found")
+		return
+	}
+
 	// 没有默认值则直接使用第一个交易所
 	exchangeName := exchangesList[0].Name
 	for _, exchange := range exchangesList {
@@ -332,8 +337,7 @@ func (c *CLI) useActiveAccount() error {
 	}
 
 	if activeAccount == nil || activeAccount.Name == "" {
-		log.Printf("No active account found")
-		return nil
+		return fmt.Errorf("no active account found")
 	}
 
 	// 初始化设置默认交易所

@@ -2,12 +2,12 @@ package commands
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/lemconn/foxflow/internal/cli/command"
 	"github.com/lemconn/foxflow/internal/database"
 	"github.com/lemconn/foxflow/internal/utils"
+	"github.com/shopspring/decimal"
 )
 
 // CancelCommand 取消命令
@@ -49,9 +49,9 @@ func (c *CancelCommand) Execute(ctx command.Context, args []string) error {
 		amountType = "USDT"
 	}
 
-	amount, err := strconv.ParseFloat(amountStr, 64)
+	amountDecimal, err := decimal.NewFromString(amountStr)
 	if err != nil {
-		return fmt.Errorf("invalid amount: %s", amountStr)
+		return fmt.Errorf("invalid amount decimal: %w", err)
 	}
 
 	// 根据 symbol、side、posSide、amount 查找订单
@@ -60,7 +60,7 @@ func (c *CancelCommand) Execute(ctx command.Context, args []string) error {
 		database.Adapter().FoxOrder.Symbol.Eq(symbol),
 		database.Adapter().FoxOrder.Side.Eq(side),
 		database.Adapter().FoxOrder.PosSide.Eq(posSide),
-		database.Adapter().FoxOrder.Size.Eq(amount),
+		database.Adapter().FoxOrder.Size.Eq(amountDecimal),
 		database.Adapter().FoxOrder.SizeType.Eq(amountType),
 	).First()
 	if targetOrder == nil {

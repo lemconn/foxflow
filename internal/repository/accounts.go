@@ -80,7 +80,7 @@ func SetAllAccountInactive() error {
 func ActivateAccountByName(name string) error {
 	_, err := database.Adapter().FoxAccount.Where(
 		database.Adapter().FoxAccount.Name.Eq(name),
-	).Update(database.Adapter().FoxAccount.IsActive, 0)
+	).Update(database.Adapter().FoxAccount.IsActive, 1)
 	return err
 }
 
