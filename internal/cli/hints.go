@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/c-bata/go-prompt"
@@ -984,7 +983,7 @@ func handleCancelCommandCompletion(ctx *Context, d prompt.Document, w string, fi
 func getCancelOrderList(ctx *Context) []prompt.Suggest {
 
 	// 只获取未完成的订单
-	accountOrderList, err := repository.ListSSOrders(ctx.GetAccountInstance().ID, []string{"waiting"})
+	accountOrderList, err := repository.ListSSOrders(ctx.GetAccountInstance().ID, []string{"waiting"}, []string{})
 	if err != nil {
 		return []prompt.Suggest{}
 	}
@@ -994,9 +993,9 @@ func getCancelOrderList(ctx *Context) []prompt.Suggest {
 
 		var amount string
 		if order.SizeType == "USDT" {
-			amount = fmt.Sprintf("%sU", strconv.FormatFloat(order.Size, 'g', -1, 64))
+			amount = fmt.Sprintf("%sU", order.Size.String())
 		} else {
-			amount = fmt.Sprintf("%s", strconv.FormatFloat(order.Size, 'g', -1, 64))
+			amount = order.Size.String()
 		}
 
 		// 构建订单标识：symbol:side:posSide:amount

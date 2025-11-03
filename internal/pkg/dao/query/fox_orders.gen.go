@@ -35,8 +35,8 @@ func newFoxOrder(db *gorm.DB, opts ...gen.DOOption) foxOrder {
 	_foxOrder.Side = field.NewString(tableName, "side")
 	_foxOrder.PosSide = field.NewString(tableName, "pos_side")
 	_foxOrder.MarginType = field.NewString(tableName, "margin_type")
-	_foxOrder.Price = field.NewFloat64(tableName, "price")
-	_foxOrder.Size = field.NewFloat64(tableName, "size")
+	_foxOrder.Price = field.NewField(tableName, "price")
+	_foxOrder.Size = field.NewField(tableName, "size")
 	_foxOrder.SizeType = field.NewString(tableName, "size_type")
 	_foxOrder.OrderType = field.NewString(tableName, "order_type")
 	_foxOrder.Strategy = field.NewString(tableName, "strategy")
@@ -62,21 +62,21 @@ type foxOrder struct {
 	foxOrderDo
 
 	ALL        field.Asterisk
-	ID         field.Int64   // order id
-	Exchange   field.String  // exchange
-	AccountID  field.Int64   // account id
-	Symbol     field.String  // symbol name
-	Side       field.String  // side
-	PosSide    field.String  // position side
-	MarginType field.String  // margin type
-	Price      field.Float64 // limit price
-	Size       field.Float64 // amount size
-	SizeType   field.String  // amount unit
-	OrderType  field.String  // order type
-	Strategy   field.String  // strategy
-	OrderID    field.String  // order id
-	Type       field.String  // type
-	Status     field.String  // status
+	ID         field.Int64  // order id
+	Exchange   field.String // exchange
+	AccountID  field.Int64  // account id
+	Symbol     field.String // symbol name
+	Side       field.String // side
+	PosSide    field.String // position side
+	MarginType field.String // margin type
+	Price      field.Field  // limit price
+	Size       field.Field  // amount size
+	SizeType   field.String // amount unit
+	OrderType  field.String // order type
+	Strategy   field.String // strategy
+	OrderID    field.String // order id
+	Type       field.String // type
+	Status     field.String // status
 	Msg        field.String
 	CreatedAt  field.Time // create time
 	UpdatedAt  field.Time // update time
@@ -104,8 +104,8 @@ func (f *foxOrder) updateTableName(table string) *foxOrder {
 	f.Side = field.NewString(table, "side")
 	f.PosSide = field.NewString(table, "pos_side")
 	f.MarginType = field.NewString(table, "margin_type")
-	f.Price = field.NewFloat64(table, "price")
-	f.Size = field.NewFloat64(table, "size")
+	f.Price = field.NewField(table, "price")
+	f.Size = field.NewField(table, "size")
 	f.SizeType = field.NewString(table, "size_type")
 	f.OrderType = field.NewString(table, "order_type")
 	f.Strategy = field.NewString(table, "strategy")

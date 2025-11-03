@@ -72,6 +72,7 @@ func main() {
 		"bigint":    func(detailType gorm.ColumnType) (dataType string) { return "int64" },
 		"int":       func(detailType gorm.ColumnType) (dataType string) { return "int64" },
 		"float":     func(detailType gorm.ColumnType) (dataType string) { return "float64" },
+		"decimal":   func(detailType gorm.ColumnType) (dataType string) { return "decimal.Decimal" },
 	}
 
 	// It must be executed before `ApplyBasic`.

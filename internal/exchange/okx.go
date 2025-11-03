@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/lemconn/foxflow/internal/pkg/dao/model"
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -304,15 +304,11 @@ func (e *OKXExchange) GetBalance(ctx context.Context) ([]Asset, error) {
 
 	var assets []Asset
 	for _, detail := range accountBalance[0].Details {
-		balance, _ := strconv.ParseFloat(detail.CashBal, 64)
-		frozen, _ := strconv.ParseFloat(detail.FrozenBal, 64)
-		available, _ := strconv.ParseFloat(detail.AvailBal, 64)
-
 		assets = append(assets, Asset{
 			Currency:  detail.Ccy,
-			Balance:   balance,
-			Frozen:    frozen,
-			Available: available,
+			Balance:   detail.CashBal,
+			Frozen:    detail.FrozenBal,
+			Available: detail.AvailBal,
 		})
 	}
 
@@ -507,47 +503,6 @@ func (e *OKXExchange) ClosePosition(ctx context.Context, closePosition *ClosePos
 	return nil
 }
 
-// GetSizeByQuote 根据报价数量获取可买张数
-func (e *OKXExchange) GetSizeByQuote(ctx context.Context, symbol string, amount float64) (float64, error) {
-	// 获取当前币的价格
-	tickerInfo, err := e.GetTicker(ctx, symbol)
-	if err != nil {
-		return 0, err
-	}
-
-	// 根据币的价格和金额计算出币数量,同时舍弃小数位（这里不做购买最小单位小数位保留）
-	symbolAmount := math.Trunc(amount / tickerInfo.Price)
-
-	// 根据标的数量获取可买张数
-	return e.GetSizeByBase(ctx, symbol, symbolAmount)
-}
-
-// GetSizeByBase 根据标的数量获取可买张数
-func (e *OKXExchange) GetSizeByBase(ctx context.Context, symbol string, amount float64) (float64, error) {
-
-	req := &okxConvertContractCoinReq{
-		okxConvertContractCoin: okxConvertContractCoin{
-			Type:   ConvertTypeCoin2Contract,
-			InstId: symbol,
-			Sz:     strconv.FormatFloat(amount, 'f', -1, 64),
-		},
-	}
-
-	// 获取指定标的指定数量的张数
-	res, err := e.getConvertContractCoin(ctx, req)
-	if err != nil {
-		return 0, err
-	}
-
-	// 将张数转换为float64
-	resAmount, err := strconv.ParseFloat(res.Sz, 64)
-	if err != nil {
-		return 0, fmt.Errorf("failed to parse amount: %w", err)
-	}
-
-	return resAmount, nil
-}
-
 type okxConvertContractCoinReq struct {
 	okxConvertContractCoin
 	OpType string `json:"opType"` // 将要下单的类型 open：开仓时将sz舍位 close：平仓时将sz四舍五入 默认值为close 适用于交割/永续
@@ -658,10 +613,10 @@ func (e *OKXExchange) CreateOrder(ctx context.Context, order *Order) (*Order, er
 
 	// 按类型填充价格与数量
 	if strings.ToLower(order.Type) == "limit" {
-		reqBody.Px = fmt.Sprintf("%f", order.Price)
+		reqBody.Px = order.Price
 	}
 	// OKX合约下单数量字段为 sz，单位张。此处直接使用传入数量
-	reqBody.Sz = fmt.Sprintf("%f", order.Size)
+	reqBody.Sz = order.Size
 
 	reqBodyByte, err := json.Marshal(reqBody)
 	if err != nil {
@@ -784,26 +739,10 @@ func (e *OKXExchange) GetTicker(ctx context.Context, symbol string) (*Ticker, er
 	// 转换数据格式
 	ticker := &Ticker{
 		Symbol: tickerData[0].InstId,
-	}
-
-	// 解析价格数据
-	if last, err := strconv.ParseFloat(tickerData[0].Last, 64); err == nil {
-		ticker.Price = last
-	}
-
-	// 解析24小时最高价
-	if high, err := strconv.ParseFloat(tickerData[0].High24h, 64); err == nil {
-		ticker.High = high
-	}
-
-	// 解析24小时最低价
-	if low, err := strconv.ParseFloat(tickerData[0].Low24h, 64); err == nil {
-		ticker.Low = low
-	}
-
-	// 解析24小时成交量（以币为单位）
-	if volume, err := strconv.ParseFloat(tickerData[0].VolCcy24h, 64); err == nil {
-		ticker.Volume = volume
+		Price:  tickerData[0].Last,
+		High:   tickerData[0].High24h,
+		Low:    tickerData[0].Low24h,
+		Volume: tickerData[0].VolCcy24h,
 	}
 
 	return ticker, nil
@@ -847,26 +786,10 @@ func (e *OKXExchange) GetTickers(ctx context.Context) ([]Ticker, error) {
 	for _, tickerData := range tickerDataList {
 		ticker := Ticker{
 			Symbol: tickerData.InstId,
-		}
-
-		// 解析价格数据
-		if last, err := strconv.ParseFloat(tickerData.Last, 64); err == nil {
-			ticker.Price = last
-		}
-
-		// 解析24小时最高价
-		if high, err := strconv.ParseFloat(tickerData.High24h, 64); err == nil {
-			ticker.High = high
-		}
-
-		// 解析24小时最低价
-		if low, err := strconv.ParseFloat(tickerData.Low24h, 64); err == nil {
-			ticker.Low = low
-		}
-
-		// 解析24小时成交量（以币为单位）
-		if volume, err := strconv.ParseFloat(tickerData.VolCcy24h, 64); err == nil {
-			ticker.Volume = volume
+			Price:  tickerData.Last,
+			High:   tickerData.High24h,
+			Low:    tickerData.Low24h,
+			Volume: tickerData.VolCcy24h,
 		}
 
 		tickers = append(tickers, ticker)
@@ -939,30 +862,18 @@ func (e *OKXExchange) GetSymbols(ctx context.Context, symbol string) (*Symbol, e
 	}
 
 	symbolInfo := &Symbol{
-		Type:  okxSymbolInfos[0].InstType,
-		Name:  okxSymbolInfos[0].InstId,
-		Base:  okxSymbolInfos[0].BaseCcy,
-		Quote: okxSymbolInfos[0].QuoteCcy,
+		Type:          okxSymbolInfos[0].InstType,
+		Name:          okxSymbolInfos[0].InstId,
+		Base:          okxSymbolInfos[0].BaseCcy,
+		Quote:         okxSymbolInfos[0].QuoteCcy,
+		MinSize:       okxSymbolInfos[0].MinSz,
+		ContractValue: okxSymbolInfos[0].CtVal,
 	}
 
 	if okxSymbolInfos[0].Lever != "" {
-		symbolInfo.MaxLever, err = strconv.ParseFloat(okxSymbolInfos[0].Lever, 64)
+		symbolInfo.MaxLever, err = strconv.ParseInt(okxSymbolInfos[0].Lever, 10, 64)
 		if err != nil {
 			symbolInfo.MaxLever = 0
-		}
-	}
-
-	if okxSymbolInfos[0].MinSz != "" {
-		symbolInfo.MinSize, err = strconv.ParseFloat(okxSymbolInfos[0].MinSz, 64)
-		if err != nil {
-			symbolInfo.MinSize = 0
-		}
-	}
-
-	if okxSymbolInfos[0].CtVal != "" {
-		symbolInfo.ContractValue, err = strconv.ParseFloat(okxSymbolInfos[0].CtVal, 64)
-		if err != nil {
-			symbolInfo.ContractValue = 0
 		}
 	}
 
@@ -994,10 +905,12 @@ func (e *OKXExchange) GetAllSymbols(ctx context.Context, instType string) ([]Sym
 	var symbols []Symbol
 	for _, okxSymbolInfo := range okxSymbolInfos {
 		symbol := Symbol{
-			Type:  okxSymbolInfo.InstType,
-			Name:  okxSymbolInfo.InstId,
-			Base:  okxSymbolInfo.BaseCcy,
-			Quote: okxSymbolInfo.QuoteCcy,
+			Type:          okxSymbolInfo.InstType,
+			Name:          okxSymbolInfo.InstId,
+			Base:          okxSymbolInfo.BaseCcy,
+			Quote:         okxSymbolInfo.QuoteCcy,
+			MinSize:       okxSymbolInfo.MinSz,
+			ContractValue: okxSymbolInfo.CtVal,
 		}
 
 		// 过滤异常数据
@@ -1006,23 +919,9 @@ func (e *OKXExchange) GetAllSymbols(ctx context.Context, instType string) ([]Sym
 		}
 
 		if okxSymbolInfo.Lever != "" {
-			symbol.MaxLever, err = strconv.ParseFloat(okxSymbolInfo.Lever, 64)
+			symbol.MaxLever, err = strconv.ParseInt(okxSymbolInfo.Lever, 10, 64)
 			if err != nil {
 				symbol.MaxLever = 0
-			}
-		}
-
-		if okxSymbolInfo.MinSz != "" {
-			symbol.MinSize, err = strconv.ParseFloat(okxSymbolInfo.MinSz, 64)
-			if err != nil {
-				symbol.MinSize = 0
-			}
-		}
-
-		if okxSymbolInfo.CtVal != "" {
-			symbol.ContractValue, err = strconv.ParseFloat(okxSymbolInfo.CtVal, 64)
-			if err != nil {
-				symbol.ContractValue = 0
 			}
 		}
 
@@ -1045,14 +944,14 @@ type okxSetLeverageBody struct {
 	PosSide string `json:"posSide"`
 }
 
-func (e *OKXExchange) SetLeverage(ctx context.Context, symbol string, leverage int, marginType string) error {
+func (e *OKXExchange) SetLeverage(ctx context.Context, symbol string, leverage int64, marginType string) error {
 	if e.account == nil || e.account.AccessKey == "" || e.account.SecretKey == "" || e.account.Passphrase == "" {
 		return fmt.Errorf("account information is missing, account: %+v ", e.account)
 	}
 
 	reqBody := okxSetLeverageBody{
 		InstId:  symbol,
-		Lever:   strconv.Itoa(leverage),
+		Lever:   strconv.Itoa(int(leverage)),
 		MgnMode: marginTypeMap[marginType],
 	}
 
@@ -1156,7 +1055,7 @@ func (e *OKXExchange) GetLeverageMarginType(ctx context.Context, margin, symbols
 		}
 
 		// 将info.Lever转换为float64
-		lever, err := strconv.ParseFloat(info.Lever, 64)
+		lever, err := strconv.ParseInt(info.Lever, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse lever: %w", err)
 		}
@@ -1402,18 +1301,37 @@ func (e *OKXExchange) CalcOrderCost(ctx context.Context, req *OrderCostReq) (*Or
 	}
 
 	// 根据 amountType 计算实际购买的标的数量
-	var coinAmount float64
+	tickerPrice, err := decimal.NewFromString(ticker.Price)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse ticker price: %w", err)
+	}
+	var coinAmount decimal.Decimal
 	if req.AmountType == "USDT" {
 		// 如果是USDT数量，需要先转换为标的数量
-		coinAmount = req.Amount / ticker.Price
+		if tickerPrice.LessThanOrEqual(decimal.Zero) {
+			return nil, fmt.Errorf("ticker price is zero")
+		}
+		coinAmount = req.Amount.Div(tickerPrice)
 	} else {
 		coinAmount = req.Amount
 	}
 
 	// 计算可以购买的张数
-	contracts := coinAmount / symbolInfo.ContractValue
-	if contracts < symbolInfo.MinSize {
-		return nil, fmt.Errorf("contracts is less than min size, contracts: %f, min size: %f", contracts, symbolInfo.MinSize)
+	symbolContractValue, err := decimal.NewFromString(symbolInfo.ContractValue)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse symbol contract value: %w", err)
+	}
+
+	if symbolContractValue.LessThanOrEqual(decimal.Zero) {
+		return nil, fmt.Errorf("invalid symbol contract value: %s", req.Symbol)
+	}
+	contracts := coinAmount.Div(symbolContractValue)
+	symbolInfoMinSize, err := decimal.NewFromString(symbolInfo.MinSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse symbol min size: %w", err)
+	}
+	if contracts.LessThan(symbolInfoMinSize) {
+		return nil, fmt.Errorf("contracts is less than min size, contracts: %s, min size: %s", contracts.String(), symbolInfo.MinSize)
 	}
 
 	// 获取杠杆倍数
@@ -1421,7 +1339,7 @@ func (e *OKXExchange) CalcOrderCost(ctx context.Context, req *OrderCostReq) (*Or
 	if err != nil {
 		return nil, fmt.Errorf("failed to get leverage margin type: %w", err)
 	}
-	var lever float64
+	var lever int64
 	if len(leverList) > 0 {
 		lever = leverList[0].Lever
 	}
@@ -1433,40 +1351,56 @@ func (e *OKXExchange) CalcOrderCost(ctx context.Context, req *OrderCostReq) (*Or
 	}
 
 	// 计算名义价值（实际购买的标的数量 * 当前价格）
-	actualCoinAmount := contracts * symbolInfo.ContractValue
-	notionalValue := actualCoinAmount * ticker.Price
+	actualCoinAmount := contracts.Mul(symbolContractValue)
+	notionalValue := actualCoinAmount.Mul(tickerPrice)
 
 	// 计算所需保证金
-	marginRequired := notionalValue / lever
+	leverDecimal := decimal.NewFromInt(lever)
+	if leverDecimal.LessThanOrEqual(decimal.Zero) {
+		return nil, fmt.Errorf("lever decimal is less than or equal to zero")
+	}
+	marginRequired := notionalValue.Div(decimal.NewFromInt(lever))
 
 	// 手续费计算（这里按照传递的限价计算，没有传递限价则会立即成交，或者卖单时传递价格比现价低或者买入时传递价格比现价多都会立即成交）
-	var feeRate float64
-	if (req.LimitPrice <= 0) || (((req.Side == "buy") && (req.LimitPrice >= ticker.Price)) || (req.Side == "sell") && (req.LimitPrice <= ticker.Price)) {
+	var feeRate decimal.Decimal
+
+	if req.LimitPrice.LessThanOrEqual(decimal.Zero) || (((req.Side == "buy") && (req.LimitPrice.GreaterThanOrEqual(tickerPrice))) || (req.Side == "sell") && (req.LimitPrice.LessThanOrEqual(tickerPrice))) {
 		if feeData.TakerU == "" && feeData.Taker == "" {
-			return nil, fmt.Errorf("no trade fee data found")
+			return nil, fmt.Errorf("no trade fee data found(TakerU/Taker)")
 		}
 		if feeData.TakerU != "" {
-			feeRate, _ = strconv.ParseFloat(feeData.TakerU, 64)
+			feeRate, err = decimal.NewFromString(feeData.TakerU)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse trade fee(TakerU): %w", err)
+			}
 		} else {
-			feeRate, _ = strconv.ParseFloat(feeData.Taker, 64)
+			feeRate, err = decimal.NewFromString(feeData.Taker)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse trade fee(Taker): %w", err)
+			}
 		}
 	} else {
 		if feeData.MakerU == "" && feeData.Maker == "" {
-			return nil, fmt.Errorf("no trade fee data found")
+			return nil, fmt.Errorf("no trade fee data found(MakerU/Maker)")
 		}
-
 		if feeData.MakerU != "" {
-			feeRate, _ = strconv.ParseFloat(feeData.MakerU, 64)
+			feeRate, err = decimal.NewFromString(feeData.MakerU)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse trade fee(MakerU): %w", err)
+			}
 		} else {
-			feeRate, _ = strconv.ParseFloat(feeData.Maker, 64)
+			feeRate, err = decimal.NewFromString(feeData.Maker)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse trade fee(Maker): %w", err)
+			}
 		}
 	}
 
 	// 计算手续费
-	takerFee := math.Abs(notionalValue * feeRate)
+	takerFee := notionalValue.Mul(feeRate).Abs()
 
 	// 计算总成本
-	totalCostWithTaker := marginRequired + takerFee
+	totalCostWithTaker := marginRequired.Add(takerFee)
 
 	// 获取用户可用余额
 	balances, err := e.GetBalance(ctx)
@@ -1475,7 +1409,7 @@ func (e *OKXExchange) CalcOrderCost(ctx context.Context, req *OrderCostReq) (*Or
 	}
 
 	// 提取USDT的余额
-	var availableBalance float64
+	var availableBalance string
 	for _, balance := range balances {
 		if balance.Currency == "USDT" {
 			availableBalance = balance.Available
@@ -1484,7 +1418,11 @@ func (e *OKXExchange) CalcOrderCost(ctx context.Context, req *OrderCostReq) (*Or
 	}
 
 	// 判断是否可以购买
-	canBuyWithTaker := availableBalance >= totalCostWithTaker
+	availableBalanceDecimal, err := decimal.NewFromString(availableBalance)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse available balance: %w", err)
+	}
+	canBuyWithTaker := availableBalanceDecimal.GreaterThanOrEqual(totalCostWithTaker)
 
 	// 组合结果数据
 	return &OrderCostResp{
@@ -1492,11 +1430,11 @@ func (e *OKXExchange) CalcOrderCost(ctx context.Context, req *OrderCostReq) (*Or
 		MarkPrice:       ticker.Price,
 		MarginType:      req.MarginType,
 		Lever:           lever,
-		Contracts:       contracts,
+		Contracts:       contracts.String(),
 		AvailableFunds:  availableBalance,
-		MarginRequired:  marginRequired,
-		Fee:             takerFee,
-		TotalRequired:   totalCostWithTaker,
+		MarginRequired:  marginRequired.String(),
+		Fee:             takerFee.String(),
+		TotalRequired:   totalCostWithTaker.String(),
 		CanBuyWithTaker: canBuyWithTaker,
 	}, nil
 }
@@ -1683,44 +1621,28 @@ func (e *OKXExchange) GetKlineData(ctx context.Context, symbol, interval string,
 
 		// 解析开盘价
 		if openStr, ok := item[1].(string); ok {
-			if open, err := strconv.ParseFloat(openStr, 64); err == nil {
-				kline.Open = open
-			} else {
-				valid = false
-			}
+			kline.Open = openStr
 		} else {
 			valid = false
 		}
 
 		// 解析最高价
 		if highStr, ok := item[2].(string); ok {
-			if high, err := strconv.ParseFloat(highStr, 64); err == nil {
-				kline.High = high
-			} else {
-				valid = false
-			}
+			kline.High = highStr
 		} else {
 			valid = false
 		}
 
 		// 解析最低价
 		if lowStr, ok := item[3].(string); ok {
-			if low, err := strconv.ParseFloat(lowStr, 64); err == nil {
-				kline.Low = low
-			} else {
-				valid = false
-			}
+			kline.Low = lowStr
 		} else {
 			valid = false
 		}
 
 		// 解析收盘价
 		if closeStr, ok := item[4].(string); ok {
-			if close, err := strconv.ParseFloat(closeStr, 64); err == nil {
-				kline.Close = close
-			} else {
-				valid = false
-			}
+			kline.Close = closeStr
 		} else {
 			valid = false
 		}

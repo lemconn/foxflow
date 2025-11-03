@@ -5,6 +5,8 @@ import (
 	"net"
 	"testing"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 // checkNetworkConnectivity 检查网络连接性
@@ -76,34 +78,38 @@ func TestOKXExchange_GetKlineData_RealAPI(t *testing.T) {
 		}
 
 		// 验证价格数据
-		if kline.Open <= 0 {
-			t.Errorf("K线 %d 的开盘价无效: %f", i, kline.Open)
+		openDecimal, _ := decimal.NewFromString(kline.Open)
+		if openDecimal.LessThanOrEqual(decimal.Zero) {
+			t.Errorf("K线 %d 的开盘价无效: %s", i, kline.Open)
 		}
-		if kline.High <= 0 {
-			t.Errorf("K线 %d 的最高价无效: %f", i, kline.High)
+		highDecimal, _ := decimal.NewFromString(kline.High)
+		if highDecimal.LessThanOrEqual(decimal.Zero) {
+			t.Errorf("K线 %d 的最高价无效: %s", i, kline.High)
 		}
-		if kline.Low <= 0 {
-			t.Errorf("K线 %d 的最低价无效: %f", i, kline.Low)
+		lowDecimal, _ := decimal.NewFromString(kline.Low)
+		if lowDecimal.LessThanOrEqual(decimal.Zero) {
+			t.Errorf("K线 %d 的最低价无效: %s", i, kline.Low)
 		}
-		if kline.Close <= 0 {
-			t.Errorf("K线 %d 的收盘价无效: %f", i, kline.Close)
+		closeDecimal, _ := decimal.NewFromString(kline.Close)
+		if closeDecimal.LessThanOrEqual(decimal.Zero) {
+			t.Errorf("K线 %d 的收盘价无效: %s", i, kline.Close)
 		}
 
 		// 验证价格逻辑关系
-		if kline.High < kline.Low {
-			t.Errorf("K线 %d 的最高价低于最低价: H=%f, L=%f", i, kline.High, kline.Low)
+		if highDecimal.LessThan(lowDecimal) {
+			t.Errorf("K线 %d 的最高价低于最低价: H=%s, L=%s", i, kline.High, kline.Low)
 		}
-		if kline.High < kline.Open {
-			t.Errorf("K线 %d 的最高价低于开盘价: H=%f, O=%f", i, kline.High, kline.Open)
+		if highDecimal.LessThan(openDecimal) {
+			t.Errorf("K线 %d 的最高价低于开盘价: H=%s, O=%s", i, kline.High, kline.Open)
 		}
-		if kline.High < kline.Close {
-			t.Errorf("K线 %d 的最高价低于收盘价: H=%f, C=%f", i, kline.High, kline.Close)
+		if highDecimal.LessThan(closeDecimal) {
+			t.Errorf("K线 %d 的最高价低于收盘价: H=%s, C=%s", i, kline.High, kline.Close)
 		}
-		if kline.Low > kline.Open {
-			t.Errorf("K线 %d 的最低价高于开盘价: L=%f, O=%f", i, kline.Low, kline.Open)
+		if lowDecimal.LessThan(openDecimal) {
+			t.Errorf("K线 %d 的最低价高于开盘价: L=%s, O=%s", i, kline.Low, kline.Open)
 		}
-		if kline.Low > kline.Close {
-			t.Errorf("K线 %d 的最低价高于收盘价: L=%f, C=%f", i, kline.Low, kline.Close)
+		if lowDecimal.LessThan(closeDecimal) {
+			t.Errorf("K线 %d 的最低价高于收盘价: L=%s, C=%s", i, kline.Low, kline.Close)
 		}
 
 		// 打印第一条K线的详细信息用于验证
@@ -186,33 +192,37 @@ func TestOKXExchange_GetTicker_RealAPI(t *testing.T) {
 		t.Error("交易对符号为空")
 	}
 
-	if ticker.Price <= 0 {
-		t.Errorf("价格无效: %f", ticker.Price)
+	priceDecimal, _ := decimal.NewFromString(ticker.Price)
+	if priceDecimal.LessThanOrEqual(decimal.Zero) {
+		t.Errorf("价格无效: %s", ticker.Price)
 	}
 
-	if ticker.High <= 0 {
-		t.Errorf("24小时最高价无效: %f", ticker.High)
+	highDecimal, _ := decimal.NewFromString(ticker.High)
+	if highDecimal.LessThanOrEqual(decimal.Zero) {
+		t.Errorf("24小时最高价无效: %s", ticker.High)
 	}
 
-	if ticker.Low <= 0 {
-		t.Errorf("24小时最低价无效: %f", ticker.Low)
+	lowDecimal, _ := decimal.NewFromString(ticker.Low)
+	if lowDecimal.LessThanOrEqual(decimal.Zero) {
+		t.Errorf("24小时最低价无效: %s", ticker.Low)
 	}
 
-	if ticker.Volume < 0 {
-		t.Errorf("24小时成交量无效: %f", ticker.Volume)
+	volumeDecimal, _ := decimal.NewFromString(ticker.Volume)
+	if volumeDecimal.LessThan(decimal.Zero) {
+		t.Errorf("24小时成交量无效: %s", ticker.Volume)
 	}
 
 	// 验证价格逻辑关系
 	if ticker.High < ticker.Low {
-		t.Errorf("24小时最高价低于最低价: H=%f, L=%f", ticker.High, ticker.Low)
+		t.Errorf("24小时最高价低于最低价: H=%s, L=%s", ticker.High, ticker.Low)
 	}
 
 	if ticker.Price > ticker.High {
-		t.Errorf("当前价格高于24小时最高价: P=%f, H=%f", ticker.Price, ticker.High)
+		t.Errorf("当前价格高于24小时最高价: P=%s, H=%s", ticker.Price, ticker.High)
 	}
 
 	if ticker.Price < ticker.Low {
-		t.Errorf("当前价格低于24小时最低价: P=%f, L=%f", ticker.Price, ticker.Low)
+		t.Errorf("当前价格低于24小时最低价: P=%s, L=%s", ticker.Price, ticker.Low)
 	}
 
 	// 打印行情数据详细信息用于验证

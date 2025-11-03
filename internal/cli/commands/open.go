@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/lemconn/foxflow/internal/cli/command"
@@ -12,6 +11,7 @@ import (
 	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/pkg/dao/model"
 	"github.com/lemconn/foxflow/internal/utils"
+	"github.com/shopspring/decimal"
 )
 
 // OpenCommand 退出命令
@@ -71,13 +71,6 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 		amount = strings.TrimSuffix(amount, "U")
 		amountType = "USDT"
 	}
-	amountValue, err := strconv.ParseFloat(amount, 64)
-	if err != nil {
-		return fmt.Errorf("amount 参数错误，只能为数字或者带有U单位，例：100/100U")
-	}
-	if amountValue <= 0 {
-		return fmt.Errorf("amount 参数错误，只能为大于0的数字或者带有U单位，例：100/100U")
-	}
 
 	var side string
 	if posSide == "long" {
@@ -93,19 +86,25 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 	}
 
 	// 校验当前用户提交的数据（按照当前标的价格计算校验）
-	costRes, costErr := exchangeClient.CalcOrderCost(ctx.GetContext(), &exchange.OrderCostReq{
+	orderCostReq := &exchange.OrderCostReq{
 		Side:       side,
 		Symbol:     symbolName,
-		Amount:     amountValue,
 		AmountType: amountType,
 		MarginType: margin,
-	})
+	}
+	amountDecimal, err := decimal.NewFromString(amount)
+	if err != nil {
+		return fmt.Errorf("amount decimal error: %w", err)
+	}
+	orderCostReq.Amount = amountDecimal
+
+	costRes, costErr := exchangeClient.CalcOrderCost(ctx.GetContext(), orderCostReq)
 	if costErr != nil {
 		return costErr
 	}
 
 	if costRes.CanBuyWithTaker == false {
-		return fmt.Errorf("当前暂时暂时不可提交订单，标的价格：%f，期望购买数（张）：%f，可用资金：%f，手续费（%s交易所收取）:%f，需要总资金：%f", costRes.MarkPrice, costRes.Contracts, costRes.AvailableFunds, ctx.GetExchangeName(), costRes.Fee, costRes.TotalRequired)
+		return fmt.Errorf("当前暂时暂时不可提交订单，标的价格：%s，期望购买数（张）：%s，可用资金：%s，手续费（%s交易所收取）:%s，需要总资金：%s", costRes.MarkPrice, costRes.Contracts, costRes.AvailableFunds, ctx.GetExchangeName(), costRes.Fee, costRes.TotalRequired)
 	}
 
 	// 校验策略
@@ -132,7 +131,7 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 		Symbol:     symbolName,
 		PosSide:    posSide,
 		MarginType: margin,
-		Size:       amountValue,
+		Size:       amountDecimal,
 		SizeType:   amountType,
 		Side:       side,
 		OrderType:  "market",

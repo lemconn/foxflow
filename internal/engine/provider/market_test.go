@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/shopspring/decimal"
 )
 
 func TestNewMarketProvider(t *testing.T) {
@@ -51,9 +53,10 @@ func TestMarketProviderGetDataValidFields(t *testing.T) {
 			}
 
 			// 验证数据类型为 float64
-			if value, ok := data.(float64); ok {
+			if value, ok := data.(string); ok {
 				// 验证数值合理性（价格应该大于0）
-				if value <= 0 {
+				valueDecimal, _ := decimal.NewFromString(value)
+				if valueDecimal.LessThanOrEqual(decimal.Zero) {
 					t.Errorf("数值不合理，期望大于0，实际 %v", value)
 				}
 			} else {
@@ -159,9 +162,10 @@ func TestMarketProviderGetDataConcurrency(t *testing.T) {
 				return
 			}
 
-			if value, ok := data.(float64); ok {
+			if value, ok := data.(string); ok {
 				// 验证数值合理性（价格应该大于0）
-				if value <= 0 {
+				valueDecimal, _ := decimal.NewFromString(value)
+				if valueDecimal.LessThanOrEqual(decimal.Zero) {
 					t.Errorf("并发获取的值不合理，期望大于0，实际 %v", value)
 				}
 			} else {
@@ -198,10 +202,11 @@ func TestMarketProviderGetDataAllDataSources(t *testing.T) {
 					return
 				}
 
-				// 验证数据类型 - 所有字段都是 float64 类型
-				if value, ok := data.(float64); ok {
+				// 验证数据类型 - 所有字段都是 string 类型
+				if value, ok := data.(string); ok {
 					// 验证数值合理性（价格应该大于0）
-					if value <= 0 {
+					valueDecimal, _ := decimal.NewFromString(value)
+					if valueDecimal.LessThanOrEqual(decimal.Zero) {
 						t.Errorf("%s.%s 数值不合理，期望大于0，实际 %v", dataSource, field, value)
 					}
 				} else {
@@ -233,9 +238,10 @@ func TestMarketProviderGetDataWithContext(t *testing.T) {
 		return
 	}
 
-	if value, ok := data.(float64); ok {
+	if value, ok := data.(string); ok {
 		// 验证数值合理性（价格应该大于0）
-		if value <= 0 {
+		valueDecimal, _ := decimal.NewFromString(value)
+		if valueDecimal.LessThanOrEqual(decimal.Zero) {
 			t.Errorf("使用 context 获取的值不合理，期望大于0，实际 %v", value)
 		}
 	} else {
@@ -263,9 +269,10 @@ func TestMarketProviderGetDataWithContextTODO(t *testing.T) {
 		return
 	}
 
-	if value, ok := data.(float64); ok {
+	if value, ok := data.(string); ok {
 		// 验证数值合理性（价格应该大于0）
-		if value <= 0 {
+		valueDecimal, _ := decimal.NewFromString(value)
+		if valueDecimal.LessThanOrEqual(decimal.Zero) {
 			t.Errorf("使用 context.TODO() 获取的值不合理，期望大于0，实际 %v", value)
 		}
 	} else {
