@@ -6,5 +6,6 @@
 .env
 bin/
 .foxflow.db
+foxflow.db
 .foxflow.history
 proto/generated

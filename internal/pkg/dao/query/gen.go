@@ -16,11 +16,12 @@ import (
 )
 
 var (
-	Q           = new(Query)
-	FoxAccount  *foxAccount
-	FoxExchange *foxExchange
-	FoxOrder    *foxOrder
-	FoxSymbol   *foxSymbol
+	Q              = new(Query)
+	FoxAccount     *foxAccount
+	FoxExchange    *foxExchange
+	FoxOrder       *foxOrder
+	FoxSymbol      *foxSymbol
+	SqliteSequence *sqliteSequence
 )
 
 func SetDefault(db *gorm.DB, opts ...gen.DOOption) {
@@ -29,36 +30,40 @@ func SetDefault(db *gorm.DB, opts ...gen.DOOption) {
 	FoxExchange = &Q.FoxExchange
 	FoxOrder = &Q.FoxOrder
 	FoxSymbol = &Q.FoxSymbol
+	SqliteSequence = &Q.SqliteSequence
 }
 
 func Use(db *gorm.DB, opts ...gen.DOOption) *Query {
 	return &Query{
-		db:          db,
-		FoxAccount:  newFoxAccount(db, opts...),
-		FoxExchange: newFoxExchange(db, opts...),
-		FoxOrder:    newFoxOrder(db, opts...),
-		FoxSymbol:   newFoxSymbol(db, opts...),
+		db:             db,
+		FoxAccount:     newFoxAccount(db, opts...),
+		FoxExchange:    newFoxExchange(db, opts...),
+		FoxOrder:       newFoxOrder(db, opts...),
+		FoxSymbol:      newFoxSymbol(db, opts...),
+		SqliteSequence: newSqliteSequence(db, opts...),
 	}
 }
 
 type Query struct {
 	db *gorm.DB
 
-	FoxAccount  foxAccount
-	FoxExchange foxExchange
-	FoxOrder    foxOrder
-	FoxSymbol   foxSymbol
+	FoxAccount     foxAccount
+	FoxExchange    foxExchange
+	FoxOrder       foxOrder
+	FoxSymbol      foxSymbol
+	SqliteSequence sqliteSequence
 }
 
 func (q *Query) Available() bool { return q.db != nil }
 
 func (q *Query) clone(db *gorm.DB) *Query {
 	return &Query{
-		db:          db,
-		FoxAccount:  q.FoxAccount.clone(db),
-		FoxExchange: q.FoxExchange.clone(db),
-		FoxOrder:    q.FoxOrder.clone(db),
-		FoxSymbol:   q.FoxSymbol.clone(db),
+		db:             db,
+		FoxAccount:     q.FoxAccount.clone(db),
+		FoxExchange:    q.FoxExchange.clone(db),
+		FoxOrder:       q.FoxOrder.clone(db),
+		FoxSymbol:      q.FoxSymbol.clone(db),
+		SqliteSequence: q.SqliteSequence.clone(db),
 	}
 }
 
@@ -72,27 +77,30 @@ func (q *Query) WriteDB() *Query {
 
 func (q *Query) ReplaceDB(db *gorm.DB) *Query {
 	return &Query{
-		db:          db,
-		FoxAccount:  q.FoxAccount.replaceDB(db),
-		FoxExchange: q.FoxExchange.replaceDB(db),
-		FoxOrder:    q.FoxOrder.replaceDB(db),
-		FoxSymbol:   q.FoxSymbol.replaceDB(db),
+		db:             db,
+		FoxAccount:     q.FoxAccount.replaceDB(db),
+		FoxExchange:    q.FoxExchange.replaceDB(db),
+		FoxOrder:       q.FoxOrder.replaceDB(db),
+		FoxSymbol:      q.FoxSymbol.replaceDB(db),
+		SqliteSequence: q.SqliteSequence.replaceDB(db),
 	}
 }
 
 type queryCtx struct {
-	FoxAccount  IFoxAccountDo
-	FoxExchange IFoxExchangeDo
-	FoxOrder    IFoxOrderDo
-	FoxSymbol   IFoxSymbolDo
+	FoxAccount     IFoxAccountDo
+	FoxExchange    IFoxExchangeDo
+	FoxOrder       IFoxOrderDo
+	FoxSymbol      IFoxSymbolDo
+	SqliteSequence ISqliteSequenceDo
 }
 
 func (q *Query) WithContext(ctx context.Context) *queryCtx {
 	return &queryCtx{
-		FoxAccount:  q.FoxAccount.WithContext(ctx),
-		FoxExchange: q.FoxExchange.WithContext(ctx),
-		FoxOrder:    q.FoxOrder.WithContext(ctx),
-		FoxSymbol:   q.FoxSymbol.WithContext(ctx),
+		FoxAccount:     q.FoxAccount.WithContext(ctx),
+		FoxExchange:    q.FoxExchange.WithContext(ctx),
+		FoxOrder:       q.FoxOrder.WithContext(ctx),
+		FoxSymbol:      q.FoxSymbol.WithContext(ctx),
+		SqliteSequence: q.SqliteSequence.WithContext(ctx),
 	}
 }
 

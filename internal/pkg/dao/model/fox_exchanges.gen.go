@@ -4,21 +4,17 @@
 
 package model
 
-import (
-	"time"
-)
-
 const TableNameFoxExchange = "fox_exchanges"
 
-// FoxExchange exchange table
+// FoxExchange mapped from table <fox_exchanges>
 type FoxExchange struct {
-	ID        int64     `gorm:"column:id;type:int(11) unsigned;primaryKey;autoIncrement:true;comment:exchange id" json:"id"`        // exchange id
-	Name      string    `gorm:"column:name;type:varchar(100);not null;comment:name" json:"name"`                                    // name
-	APIURL    string    `gorm:"column:api_url;type:varchar(512);not null;comment:api url" json:"api_url"`                           // api url
-	ProxyURL  string    `gorm:"column:proxy_url;type:varchar(100);not null;comment:proxy url" json:"proxy_url"`                     // proxy url
-	IsActive  int       `gorm:"column:is_active;type:tinyint(1);not null;comment:active status" json:"is_active"`                   // active status
-	CreatedAt time.Time `gorm:"column:created_at;type:timestamp;default:current_timestamp();comment:create time" json:"created_at"` // create time
-	UpdatedAt time.Time `gorm:"column:updated_at;type:timestamp;default:current_timestamp();comment:update time" json:"updated_at"` // update time
+	ID        int64  `gorm:"column:id;type:integer;primaryKey" json:"id"`
+	Name      string `gorm:"column:name;type:text;not null" json:"name"`
+	APIURL    string `gorm:"column:api_url;type:text;not null" json:"api_url"`
+	ProxyURL  string `gorm:"column:proxy_url;type:text;not null" json:"proxy_url"`
+	IsActive  int64  `gorm:"column:is_active;type:integer;not null" json:"is_active"`
+	CreatedAt string `gorm:"column:created_at;type:text;not null" json:"created_at"`
+	UpdatedAt string `gorm:"column:updated_at;type:text;not null" json:"updated_at"`
 }
 
 // TableName FoxExchange's table name

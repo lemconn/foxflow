@@ -32,27 +32,26 @@ func newFoxExchange(db *gorm.DB, opts ...gen.DOOption) foxExchange {
 	_foxExchange.Name = field.NewString(tableName, "name")
 	_foxExchange.APIURL = field.NewString(tableName, "api_url")
 	_foxExchange.ProxyURL = field.NewString(tableName, "proxy_url")
-	_foxExchange.IsActive = field.NewInt(tableName, "is_active")
-	_foxExchange.CreatedAt = field.NewTime(tableName, "created_at")
-	_foxExchange.UpdatedAt = field.NewTime(tableName, "updated_at")
+	_foxExchange.IsActive = field.NewInt64(tableName, "is_active")
+	_foxExchange.CreatedAt = field.NewString(tableName, "created_at")
+	_foxExchange.UpdatedAt = field.NewString(tableName, "updated_at")
 
 	_foxExchange.fillFieldMap()
 
 	return _foxExchange
 }
 
-// foxExchange exchange table
 type foxExchange struct {
 	foxExchangeDo
 
 	ALL       field.Asterisk
-	ID        field.Int64  // exchange id
-	Name      field.String // name
-	APIURL    field.String // api url
-	ProxyURL  field.String // proxy url
-	IsActive  field.Int    // active status
-	CreatedAt field.Time   // create time
-	UpdatedAt field.Time   // update time
+	ID        field.Int64
+	Name      field.String
+	APIURL    field.String
+	ProxyURL  field.String
+	IsActive  field.Int64
+	CreatedAt field.String
+	UpdatedAt field.String
 
 	fieldMap map[string]field.Expr
 }
@@ -73,9 +72,9 @@ func (f *foxExchange) updateTableName(table string) *foxExchange {
 	f.Name = field.NewString(table, "name")
 	f.APIURL = field.NewString(table, "api_url")
 	f.ProxyURL = field.NewString(table, "proxy_url")
-	f.IsActive = field.NewInt(table, "is_active")
-	f.CreatedAt = field.NewTime(table, "created_at")
-	f.UpdatedAt = field.NewTime(table, "updated_at")
+	f.IsActive = field.NewInt64(table, "is_active")
+	f.CreatedAt = field.NewString(table, "created_at")
+	f.UpdatedAt = field.NewString(table, "updated_at")
 
 	f.fillFieldMap()
 

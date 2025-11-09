@@ -253,7 +253,7 @@ func (e *Engine) submitOrder(exchangeInstance exchange.Exchange, order *model.Fo
 			Side:       order.Side,
 			PosSide:    order.PosSide,
 			MarginType: order.MarginType,
-			Price:      order.Price.String(),
+			Price:      order.Price,
 			Size:       preOrder.Contracts,
 			Type:       order.OrderType,
 		}

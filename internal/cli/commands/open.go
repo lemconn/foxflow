@@ -96,7 +96,7 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("amount decimal error: %w", err)
 	}
-	orderCostReq.Amount = amountDecimal
+	orderCostReq.Amount = amountDecimal.String()
 
 	costRes, costErr := exchangeClient.CalcOrderCost(ctx.GetContext(), orderCostReq)
 	if costErr != nil {
@@ -131,7 +131,7 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 		Symbol:     symbolName,
 		PosSide:    posSide,
 		MarginType: margin,
-		Size:       amountDecimal,
+		Size:       amountDecimal.String(),
 		SizeType:   amountType,
 		Side:       side,
 		OrderType:  "market",

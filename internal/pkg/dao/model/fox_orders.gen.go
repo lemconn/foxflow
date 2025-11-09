@@ -4,35 +4,29 @@
 
 package model
 
-import (
-	"time"
-
-	"github.com/shopspring/decimal"
-)
-
 const TableNameFoxOrder = "fox_orders"
 
-// FoxOrder order table
+// FoxOrder mapped from table <fox_orders>
 type FoxOrder struct {
-	ID         int64           `gorm:"column:id;type:int(11) unsigned;primaryKey;autoIncrement:true;comment:order id" json:"id"`                                        // order id
-	Exchange   string          `gorm:"column:exchange;type:enum('okx','binance','gate');not null;default:okx;comment:exchange" json:"exchange"`                         // exchange
-	AccountID  int64           `gorm:"column:account_id;type:int(11);not null;comment:account id" json:"account_id"`                                                    // account id
-	Symbol     string          `gorm:"column:symbol;type:varchar(100);not null;comment:symbol name" json:"symbol"`                                                      // symbol name
-	Side       string          `gorm:"column:side;type:enum('buy','sell');not null;default:buy;comment:side" json:"side"`                                               // side
-	PosSide    string          `gorm:"column:pos_side;type:enum('long','short');not null;default:long;comment:position side" json:"pos_side"`                           // position side
-	MarginType string          `gorm:"column:margin_type;type:enum('isolated','cross');not null;default:isolated;comment:margin type" json:"margin_type"`               // margin type
-	Price      decimal.Decimal `gorm:"column:price;type:decimal(30,8);default:0.00000000;comment:limit price" json:"price"`                                             // limit price
-	Size       decimal.Decimal `gorm:"column:size;type:decimal(36,18);default:0.000000000000000000;comment:amount size" json:"size"`                                    // amount size
-	SizeType   string          `gorm:"column:size_type;type:varchar(50);not null;comment:amount unit" json:"size_type"`                                                 // amount unit
-	OrderType  string          `gorm:"column:order_type;type:enum('limit','market');not null;default:market;comment:order type" json:"order_type"`                      // order type
-	Strategy   string          `gorm:"column:strategy;type:text;not null;comment:strategy" json:"strategy"`                                                             // strategy
-	OrderID    string          `gorm:"column:order_id;type:varchar(150);not null;comment:order id" json:"order_id"`                                                     // order id
-	Type       string          `gorm:"column:type;type:enum('open','close');not null;default:open;comment:type" json:"type"`                                            // type
-	Status     string          `gorm:"column:status;type:enum('waiting','opened','closed','failed','cancelled');not null;default:waiting;comment:status" json:"status"` // status
-	Msg        string          `gorm:"column:msg;type:text;not null" json:"msg"`
-	CreatedAt  time.Time       `gorm:"column:created_at;type:timestamp;default:current_timestamp();comment:create time" json:"created_at"` // create time
-	UpdatedAt  time.Time       `gorm:"column:updated_at;type:timestamp;default:current_timestamp();comment:update time" json:"updated_at"` // update time
-	Account    FoxAccount      `gorm:"foreignKey:account_id;references:id" json:"account"`
+	ID         int64      `gorm:"column:id;type:integer;primaryKey" json:"id"`
+	Exchange   string     `gorm:"column:exchange;type:text;not null;default:okx" json:"exchange"`
+	AccountID  int64      `gorm:"column:account_id;type:integer;not null" json:"account_id"`
+	Symbol     string     `gorm:"column:symbol;type:text;not null" json:"symbol"`
+	Side       string     `gorm:"column:side;type:text;not null" json:"side"`
+	PosSide    string     `gorm:"column:pos_side;type:text;not null" json:"pos_side"`
+	MarginType string     `gorm:"column:margin_type;type:text;not null" json:"margin_type"`
+	Price      string     `gorm:"column:price;type:text;not null" json:"price"`
+	Size       string     `gorm:"column:size;type:text;not null" json:"size"`
+	SizeType   string     `gorm:"column:size_type;type:text;not null" json:"size_type"`
+	OrderType  string     `gorm:"column:order_type;type:text;not null;default:limit" json:"order_type"`
+	Strategy   string     `gorm:"column:strategy;type:text;not null" json:"strategy"`
+	OrderID    string     `gorm:"column:order_id;type:text;not null" json:"order_id"`
+	Type       string     `gorm:"column:type;type:text;not null;default:open" json:"type"`
+	Status     string     `gorm:"column:status;type:text;not null;default:waiting" json:"status"`
+	Msg        string     `gorm:"column:msg;type:text;not null" json:"msg"`
+	CreatedAt  string     `gorm:"column:created_at;type:text;not null" json:"created_at"`
+	UpdatedAt  string     `gorm:"column:updated_at;type:text;not null" json:"updated_at"`
+	Account    FoxAccount `gorm:"foreignKey:account_id;references:id" json:"account"`
 }
 
 // TableName FoxOrder's table name

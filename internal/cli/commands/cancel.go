@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/lemconn/foxflow/internal/database"
 	"github.com/lemconn/foxflow/internal/utils"
 	"github.com/shopspring/decimal"
+	"gorm.io/gorm"
 )
 
 // CancelCommand 取消命令
@@ -60,9 +62,12 @@ func (c *CancelCommand) Execute(ctx command.Context, args []string) error {
 		database.Adapter().FoxOrder.Symbol.Eq(symbol),
 		database.Adapter().FoxOrder.Side.Eq(side),
 		database.Adapter().FoxOrder.PosSide.Eq(posSide),
-		database.Adapter().FoxOrder.Size.Eq(amountDecimal),
+		database.Adapter().FoxOrder.Size.Eq(amountDecimal.String()),
 		database.Adapter().FoxOrder.SizeType.Eq(amountType),
 	).First()
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return fmt.Errorf("find order error: %w", err)
+	}
 	if targetOrder == nil {
 		return fmt.Errorf("order not found: %s:%s:%s:%s", symbol, side, posSide, orderParts[2])
 	}
