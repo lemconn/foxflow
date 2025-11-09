@@ -1305,15 +1305,20 @@ func (e *OKXExchange) CalcOrderCost(ctx context.Context, req *OrderCostReq) (*Or
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse ticker price: %w", err)
 	}
+	reqAmount, err := decimal.NewFromString(req.Amount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse amount: %w", err)
+	}
+
 	var coinAmount decimal.Decimal
 	if req.AmountType == "USDT" {
 		// 如果是USDT数量，需要先转换为标的数量
 		if tickerPrice.LessThanOrEqual(decimal.Zero) {
 			return nil, fmt.Errorf("ticker price is zero")
 		}
-		coinAmount = req.Amount.Div(tickerPrice)
+		coinAmount = reqAmount.Div(tickerPrice)
 	} else {
-		coinAmount = req.Amount
+		coinAmount = reqAmount
 	}
 
 	// 计算可以购买的张数
@@ -1362,9 +1367,18 @@ func (e *OKXExchange) CalcOrderCost(ctx context.Context, req *OrderCostReq) (*Or
 	marginRequired := notionalValue.Div(decimal.NewFromInt(lever))
 
 	// 手续费计算（这里按照传递的限价计算，没有传递限价则会立即成交，或者卖单时传递价格比现价低或者买入时传递价格比现价多都会立即成交）
-	var feeRate decimal.Decimal
+	if req.LimitPrice == "" {
+		req.LimitPrice = "0"
+	}
+	reqLimitPrice, err := decimal.NewFromString(req.LimitPrice)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse limit price: %w", err)
+	}
 
-	if req.LimitPrice.LessThanOrEqual(decimal.Zero) || (((req.Side == "buy") && (req.LimitPrice.GreaterThanOrEqual(tickerPrice))) || (req.Side == "sell") && (req.LimitPrice.LessThanOrEqual(tickerPrice))) {
+	var feeRate decimal.Decimal
+	if reqLimitPrice.LessThanOrEqual(decimal.Zero) || (((req.Side == "buy") &&
+		(reqLimitPrice.GreaterThanOrEqual(tickerPrice))) || (req.Side == "sell") &&
+		(reqLimitPrice.LessThanOrEqual(tickerPrice))) {
 		if feeData.TakerU == "" && feeData.Taker == "" {
 			return nil, fmt.Errorf("no trade fee data found(TakerU/Taker)")
 		}

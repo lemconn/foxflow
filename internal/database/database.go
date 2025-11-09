@@ -3,13 +3,13 @@ package database
 import (
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/lemconn/foxflow/internal/config"
 	"github.com/lemconn/foxflow/internal/pkg/dao/model"
 	"github.com/lemconn/foxflow/internal/pkg/dao/query"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gen/field"
+	"gorm.io/gorm/logger"
 
 	"gorm.io/gorm"
 )
@@ -23,47 +23,45 @@ func InitDB() error {
 		return fmt.Errorf("global config is nil")
 	}
 
-	dbs := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?%s",
-		config.GlobalConfig.DBConfig.Username,
-		config.GlobalConfig.DBConfig.Password,
-		config.GlobalConfig.DBConfig.Host,
-		config.GlobalConfig.DBConfig.Port,
-		config.GlobalConfig.DBConfig.DbName,
-		config.GlobalConfig.DBConfig.Config)
-
 	// Connection database
 	var err error
-	db, err = gorm.Open(mysql.New(mysql.Config{
-		DSN:                       dbs,   // DSN data source name
-		DefaultStringSize:         256,   // string Default length of type fields
-		DisableDatetimePrecision:  true,  // Disable datetime precision, not supported by databases before MySQL 5.6
-		DontSupportRenameIndex:    true,  // When renaming the index, delete and create a new one. Databases before MySQL 5.7 and MariaDB do not support renaming indexes.
-		DontSupportRenameColumn:   true,  // Use `change` to rename columns. Databases prior to MySQL 8 and MariaDB do not support renaming columns.
-		SkipInitializeWithVersion: false, // Automatically configured based on the current MySQL version
-	}), &gorm.Config{})
+	db, err = gorm.Open(sqlite.Open(config.GlobalConfig.DBFile), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	if err != nil {
 		return fmt.Errorf("failed to connect database: %w", err)
 	}
-
-	sqlDB, err := db.DB()
-	if err != nil {
-		panic(err)
-	}
-
-	// Set up connection pool
-	maxIdleConns, _ := strconv.Atoi(config.GlobalConfig.DBConfig.MaxIdleConns)
-	sqlDB.SetMaxIdleConns(maxIdleConns)
-	maxOpenConns, _ := strconv.Atoi(config.GlobalConfig.DBConfig.MaxOpenConns)
-	sqlDB.SetMaxOpenConns(maxOpenConns)
 
 	_query = query.Use(db)
 	if _query.Available() == false {
 		return errors.New("query is not available")
 	}
 
-	err = insertDefaultData()
-	if err != nil {
-		return err
+	// 使用 GORM AutoMigrate 创建和迁移表结构
+	if err := migrateTables(); err != nil {
+		return fmt.Errorf("failed to migrate tables: %w", err)
+	}
+
+	return nil
+}
+
+// migrateTables 使用 GORM AutoMigrate 创建和迁移表结构
+func migrateTables() error {
+
+	// 这里需要根据系统版本进行迁移数据库
+	// 使用 AutoMigrate 创建和迁移所有表
+	//if err := db.AutoMigrate(
+	//	&models.FoxAccount{},
+	//	&models.FoxSymbol{},
+	//	&models.FoxOrder{},
+	//	&models.FoxExchange{},
+	//); err != nil {
+	//	return fmt.Errorf("failed to auto migrate: %w", err)
+	//}
+
+	// 插入默认数据
+	if err := insertDefaultData(); err != nil {
+		return fmt.Errorf("failed to insert default data: %w", err)
 	}
 
 	return nil

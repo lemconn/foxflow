@@ -210,14 +210,15 @@ func RenderStrategyOrders(orders []*model.FoxOrder) string {
 		var amount string
 		switch order.SizeType {
 		case "USDT":
-			amount = fmt.Sprintf("%sU", order.Size.String())
+			amount = fmt.Sprintf("%sU", order.Size)
 		default:
-			amount = order.Size.String()
+			amount = order.Size
 		}
 
 		price := "-"
-		if order.Price.GreaterThan(decimal.Zero) {
-			price = order.Price.String()
+		orderPriceDecimal := decimal.RequireFromString(order.Price)
+		if orderPriceDecimal.GreaterThan(decimal.Zero) {
+			price = order.Price
 		}
 
 		strategy := "-"

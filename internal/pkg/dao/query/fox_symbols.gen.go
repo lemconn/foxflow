@@ -34,8 +34,8 @@ func newFoxSymbol(db *gorm.DB, opts ...gen.DOOption) foxSymbol {
 	_foxSymbol.Exchange = field.NewString(tableName, "exchange")
 	_foxSymbol.Leverage = field.NewInt64(tableName, "leverage")
 	_foxSymbol.MarginType = field.NewString(tableName, "margin_type")
-	_foxSymbol.CreatedAt = field.NewTime(tableName, "created_at")
-	_foxSymbol.UpdatedAt = field.NewTime(tableName, "updated_at")
+	_foxSymbol.CreatedAt = field.NewString(tableName, "created_at")
+	_foxSymbol.UpdatedAt = field.NewString(tableName, "updated_at")
 	_foxSymbol.Account = foxSymbolBelongsToAccount{
 		db: db.Session(&gorm.Session{}),
 
@@ -47,19 +47,18 @@ func newFoxSymbol(db *gorm.DB, opts ...gen.DOOption) foxSymbol {
 	return _foxSymbol
 }
 
-// foxSymbol symbol table
 type foxSymbol struct {
 	foxSymbolDo
 
 	ALL        field.Asterisk
-	ID         field.Int64  // symbol id
-	Name       field.String // name
-	AccountID  field.Int64  // user id
-	Exchange   field.String // exchange
-	Leverage   field.Int64  // leverage
-	MarginType field.String // margin type
-	CreatedAt  field.Time   // create time
-	UpdatedAt  field.Time   // update time
+	ID         field.Int64
+	Name       field.String
+	AccountID  field.Int64
+	Exchange   field.String
+	Leverage   field.Int64
+	MarginType field.String
+	CreatedAt  field.String
+	UpdatedAt  field.String
 	Account    foxSymbolBelongsToAccount
 
 	fieldMap map[string]field.Expr
@@ -83,8 +82,8 @@ func (f *foxSymbol) updateTableName(table string) *foxSymbol {
 	f.Exchange = field.NewString(table, "exchange")
 	f.Leverage = field.NewInt64(table, "leverage")
 	f.MarginType = field.NewString(table, "margin_type")
-	f.CreatedAt = field.NewTime(table, "created_at")
-	f.UpdatedAt = field.NewTime(table, "updated_at")
+	f.CreatedAt = field.NewString(table, "created_at")
+	f.UpdatedAt = field.NewString(table, "updated_at")
 
 	f.fillFieldMap()
 

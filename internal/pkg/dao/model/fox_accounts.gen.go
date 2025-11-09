@@ -4,24 +4,20 @@
 
 package model
 
-import (
-	"time"
-)
-
 const TableNameFoxAccount = "fox_accounts"
 
-// FoxAccount account table
+// FoxAccount mapped from table <fox_accounts>
 type FoxAccount struct {
-	ID         int64     `gorm:"column:id;type:int(11) unsigned;primaryKey;autoIncrement:true;comment:account id" json:"id"`                     // account id
-	Name       string    `gorm:"column:name;type:varchar(255);not null;comment:name" json:"name"`                                                // name
-	Exchange   string    `gorm:"column:exchange;type:enum('okx','binance','gate');not null;default:okx;comment:exchange" json:"exchange"`        // exchange
-	AccessKey  string    `gorm:"column:access_key;type:varchar(512);not null;comment:access key" json:"access_key"`                              // access key
-	SecretKey  string    `gorm:"column:secret_key;type:varchar(512);not null;comment:secret key" json:"secret_key"`                              // secret key
-	Passphrase string    `gorm:"column:passphrase;type:varchar(255);not null;comment:passphrase" json:"passphrase"`                              // passphrase
-	IsActive   int       `gorm:"column:is_active;type:tinyint(1);not null;comment:active status" json:"is_active"`                               // active status
-	TradeType  string    `gorm:"column:trade_type;type:enum('mock','live');not null;default:live;comment:account environment" json:"trade_type"` // account environment
-	CreatedAt  time.Time `gorm:"column:created_at;type:timestamp;default:current_timestamp();comment:create time" json:"created_at"`             // create time
-	UpdatedAt  time.Time `gorm:"column:updated_at;type:timestamp;default:current_timestamp();comment:update time" json:"updated_at"`             // update time
+	ID         int64  `gorm:"column:id;type:integer;primaryKey" json:"id"`
+	Name       string `gorm:"column:name;type:text;not null" json:"name"`
+	Exchange   string `gorm:"column:exchange;type:text;not null;default:okx" json:"exchange"`
+	AccessKey  string `gorm:"column:access_key;type:text;not null" json:"access_key"`
+	SecretKey  string `gorm:"column:secret_key;type:text;not null" json:"secret_key"`
+	Passphrase string `gorm:"column:passphrase;type:text;not null" json:"passphrase"`
+	IsActive   int64  `gorm:"column:is_active;type:integer;not null" json:"is_active"`
+	TradeType  string `gorm:"column:trade_type;type:text;not null" json:"trade_type"`
+	CreatedAt  string `gorm:"column:created_at;type:text;not null" json:"created_at"`
+	UpdatedAt  string `gorm:"column:updated_at;type:text;not null" json:"updated_at"`
 }
 
 // TableName FoxAccount's table name

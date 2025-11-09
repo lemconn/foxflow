@@ -4,22 +4,18 @@
 
 package model
 
-import (
-	"time"
-)
-
 const TableNameFoxSymbol = "fox_symbols"
 
-// FoxSymbol symbol table
+// FoxSymbol mapped from table <fox_symbols>
 type FoxSymbol struct {
-	ID         int64      `gorm:"column:id;type:int(11) unsigned;primaryKey;autoIncrement:true;comment:symbol id" json:"id"`                         // symbol id
-	Name       string     `gorm:"column:name;type:varchar(100);not null;comment:name" json:"name"`                                                   // name
-	AccountID  int64      `gorm:"column:account_id;type:int(11);not null;comment:user id" json:"account_id"`                                         // user id
-	Exchange   string     `gorm:"column:exchange;type:enum('okx','binance','gate');not null;default:okx;comment:exchange" json:"exchange"`           // exchange
-	Leverage   int64      `gorm:"column:leverage;type:int(11);not null;comment:leverage" json:"leverage"`                                            // leverage
-	MarginType string     `gorm:"column:margin_type;type:enum('isolated','cross');not null;default:isolated;comment:margin type" json:"margin_type"` // margin type
-	CreatedAt  time.Time  `gorm:"column:created_at;type:timestamp;default:current_timestamp();comment:create time" json:"created_at"`                // create time
-	UpdatedAt  time.Time  `gorm:"column:updated_at;type:timestamp;default:current_timestamp();comment:update time" json:"updated_at"`                // update time
+	ID         int64      `gorm:"column:id;type:integer;primaryKey" json:"id"`
+	Name       string     `gorm:"column:name;type:text;not null" json:"name"`
+	AccountID  int64      `gorm:"column:account_id;type:integer;not null" json:"account_id"`
+	Exchange   string     `gorm:"column:exchange;type:text;not null;default:okx" json:"exchange"`
+	Leverage   int64      `gorm:"column:leverage;type:integer;not null;default:1" json:"leverage"`
+	MarginType string     `gorm:"column:margin_type;type:text;not null;default:isolated" json:"margin_type"`
+	CreatedAt  string     `gorm:"column:created_at;type:text;not null" json:"created_at"`
+	UpdatedAt  string     `gorm:"column:updated_at;type:text;not null" json:"updated_at"`
 	Account    FoxAccount `gorm:"foreignKey:account_id;references:id" json:"account"`
 }
 

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/lemconn/foxflow/internal/pkg/dao/model"
-	"github.com/shopspring/decimal"
 )
 
 const (
@@ -32,24 +31,24 @@ type Order struct {
 }
 
 type OrderCondition struct {
-	TpTriggerPx          string          `json:"tpTriggerPx,omitempty"`          // 止盈触发价
-	TpOrdPx              string          `json:"tpOrdPx,omitempty"`              // 止盈委托价
-	TpOrdKind            string          `json:"tpOrdKind,omitempty"`            // 止盈订单类型: condition(条件单), limit(限价单)
-	SlTriggerPx          string          `json:"slTriggerPx,omitempty"`          // 止损触发价
-	SlOrdPx              string          `json:"slOrdPx,omitempty"`              // 止损委托价
-	TpTriggerPxType      string          `json:"tpTriggerPxType,omitempty"`      // 止盈触发价类型: last(最新价格), index(指数价格), mark(标记价格)
-	SlTriggerPxType      string          `json:"slTriggerPxType,omitempty"`      // 止损触发价类型: last(最新价格), index(指数价格), mark(标记价格)
-	Size                 decimal.Decimal `json:"size,omitempty"`                 // 数量 (适用于"多笔止盈")
-	AmendPxOnTriggerType string          `json:"amendPxOnTriggerType,omitempty"` // 是否启用开仓价止损: "0"(不开启), "1"(开启)
+	TpTriggerPx          string `json:"tpTriggerPx,omitempty"`          // 止盈触发价
+	TpOrdPx              string `json:"tpOrdPx,omitempty"`              // 止盈委托价
+	TpOrdKind            string `json:"tpOrdKind,omitempty"`            // 止盈订单类型: condition(条件单), limit(限价单)
+	SlTriggerPx          string `json:"slTriggerPx,omitempty"`          // 止损触发价
+	SlOrdPx              string `json:"slOrdPx,omitempty"`              // 止损委托价
+	TpTriggerPxType      string `json:"tpTriggerPxType,omitempty"`      // 止盈触发价类型: last(最新价格), index(指数价格), mark(标记价格)
+	SlTriggerPxType      string `json:"slTriggerPxType,omitempty"`      // 止损触发价类型: last(最新价格), index(指数价格), mark(标记价格)
+	Size                 string `json:"size,omitempty"`                 // 数量 (适用于"多笔止盈")
+	AmendPxOnTriggerType string `json:"amendPxOnTriggerType,omitempty"` // 是否启用开仓价止损: "0"(不开启), "1"(开启)
 }
 
 type OrderCostReq struct {
-	Symbol     string          `json:"symbol"`      // 标的
-	Side       string          `json:"side"`        // 方向
-	Amount     decimal.Decimal `json:"amount"`      // 购买数量（标的数量）
-	AmountType string          `json:"amount_type"` // 数量类型：coin(标的数量) / usdt(USDT数量)
-	MarginType string          `json:"margin_type"` // 保证金模式：isolated(逐仓) / cross(全仓)
-	LimitPrice decimal.Decimal `json:"limit_price"` // 限价（目前不需要传递）
+	Symbol     string `json:"symbol"`      // 标的
+	Side       string `json:"side"`        // 方向
+	Amount     string `json:"amount"`      // 购买数量（标的数量）
+	AmountType string `json:"amount_type"` // 数量类型：coin(标的数量) / usdt(USDT数量)
+	MarginType string `json:"margin_type"` // 保证金模式：isolated(逐仓) / cross(全仓)
+	LimitPrice string `json:"limit_price"` // 限价（目前不需要传递）
 }
 
 type OrderCostResp struct {

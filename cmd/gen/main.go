@@ -1,47 +1,55 @@
 package main
 
 import (
-	"fmt"
+	"flag"
 	"log"
 	"strings"
 
 	"github.com/lemconn/foxflow/internal/config"
-	"gorm.io/driver/mysql"
+	"github.com/lemconn/foxflow/internal/models"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gen"
 	"gorm.io/gen/field"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func main() {
+
+	var (
+		dbFile = flag.String("db", "", "SQLite数据库文件路径（例如：./foxflow.db 或 /var/lib/foxflow/foxflow.db）")
+	)
+	flag.Parse()
+
 	// Load config
 	if err := config.LoadConfig(); err != nil {
 		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	if *dbFile != "" {
+		config.GlobalConfig.DBFile = *dbFile
 	}
 
 	if config.GlobalConfig == nil {
 		log.Fatalf("global config is nil")
 	}
 
-	dbs := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?%s",
-		config.GlobalConfig.DBConfig.Username,
-		config.GlobalConfig.DBConfig.Password,
-		config.GlobalConfig.DBConfig.Host,
-		config.GlobalConfig.DBConfig.Port,
-		config.GlobalConfig.DBConfig.DbName,
-		config.GlobalConfig.DBConfig.Config)
-
 	// Connection database
 	var err error
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		DSN:                       dbs,   // DSN data source name
-		DefaultStringSize:         256,   // string Default length of type fields
-		DisableDatetimePrecision:  true,  // Disable datetime precision, not supported by databases before MySQL 5.6
-		DontSupportRenameIndex:    true,  // When renaming the index, delete and create a new one. Databases before MySQL 5.7 and MariaDB do not support renaming indexes.
-		DontSupportRenameColumn:   true,  // Use `change` to rename columns. Databases prior to MySQL 8 and MariaDB do not support renaming columns.
-		SkipInitializeWithVersion: false, // Automatically configured based on the current MySQL version
-	}), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(config.GlobalConfig.DBFile), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	if err != nil {
 		log.Fatalf("failed to connect database: %w", err)
+	}
+
+	if err := db.AutoMigrate(
+		&models.FoxAccount{},
+		&models.FoxSymbol{},
+		&models.FoxOrder{},
+		&models.FoxExchange{},
+	); err != nil {
+		log.Fatalf("failed to auto migrate: %w", err)
 	}
 
 	// Generate instance
@@ -71,6 +79,8 @@ func main() {
 		"mediumint": func(detailType gorm.ColumnType) (dataType string) { return "int64" },
 		"bigint":    func(detailType gorm.ColumnType) (dataType string) { return "int64" },
 		"int":       func(detailType gorm.ColumnType) (dataType string) { return "int64" },
+		"uint":      func(detailType gorm.ColumnType) (dataType string) { return "int64" },
+		"integer":   func(detailType gorm.ColumnType) (dataType string) { return "int64" },
 		"float":     func(detailType gorm.ColumnType) (dataType string) { return "float64" },
 		"decimal":   func(detailType gorm.ColumnType) (dataType string) { return "decimal.Decimal" },
 	}
@@ -85,8 +95,6 @@ func main() {
 	// Model Custom Options Group
 	fieldOpts := []gen.ModelOpt{jsonField}
 	allModel := g.GenerateAllTable(fieldOpts...)
-
-	exchangeModel := g.GenerateModel("fox_exchanges")
 	accountModel := g.GenerateModel("fox_accounts")
 
 	orderModel := g.GenerateModel("fox_orders",
@@ -116,8 +124,6 @@ func main() {
 		)...,
 	)
 
-	g.ApplyBasic(exchangeModel)
-	g.ApplyBasic(accountModel)
 	g.ApplyBasic(orderModel)
 	g.ApplyBasic(symbolModel)
 	g.ApplyBasic(allModel...)

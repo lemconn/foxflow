@@ -23,6 +23,7 @@ func main() {
 		port     = flag.Int("P", 1259, "服务端端口")
 		username = flag.String("u", "foxflow", "用户名")
 		password = flag.String("p", "foxflow", "密码")
+		dbFile   = flag.String("db", "", "SQLite数据库文件路径（例如：./foxflow.db 或 /var/lib/foxflow/foxflow.db）")
 	)
 	flag.Parse()
 
@@ -32,6 +33,10 @@ func main() {
 	// 加载配置
 	if err := config.LoadConfig(); err != nil {
 		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	if *dbFile != "" {
+		config.GlobalConfig.DBFile = *dbFile
 	}
 
 	// 初始化数据库

@@ -2,9 +2,6 @@ package config
 
 import (
 	"os"
-	"path/filepath"
-
-	"github.com/joho/godotenv"
 )
 
 const Version = "v0.1.0"
@@ -29,21 +26,8 @@ type SymbolInfo struct {
 var ExchangeSymbolList map[string][]SymbolInfo
 
 type Config struct {
-	DBConfig MysqlConfig
-	ProxyURL string
-	LogLevel string
-	LogFile  string
-	WorkDir  string
-}
-type MysqlConfig struct {
-	Host         string
-	Port         string
-	DbName       string
-	Username     string
-	Password     string
-	Config       string
-	MaxIdleConns string
-	MaxOpenConns string
+	DBFile  string
+	WorkDir string
 }
 
 var GlobalConfig *Config
@@ -55,41 +39,10 @@ func LoadConfig() error {
 		return err
 	}
 
-	// 尝试加载.env文件
-	envPath := filepath.Join(workDir, ".env")
-	if _, err := os.Stat(envPath); err == nil {
-		godotenv.Load(envPath)
-	}
-
 	GlobalConfig = &Config{
-		DBConfig: MysqlConfig{
-			Host:         getEnv("MYSQL_HOST", "127.0.0.1"),
-			Port:         getEnv("MYSQL_PORT", "3306"),
-			DbName:       getEnv("MYSQL_DATABASE", "foxflow"),
-			Username:     getEnv("MYSQL_USERNAME", "root"),
-			Password:     getEnv("MYSQL_PASSWORD", "password"),
-			Config:       getEnv("MYSQL_CONFIG", "charset=utf8&parseTime=True&loc=Local&timeout=5s"),
-			MaxIdleConns: getEnv("MYSQL_MAX_IDLE_CONNS", "10"),
-			MaxOpenConns: getEnv("MYSQL_MAX_OPEN_CONNS", "50"),
-		},
-		ProxyURL: getEnv("PROXY_URL", "http://127.0.0.1:7890"),
-		LogLevel: getEnv("LOG_LEVEL", "info"),
-		LogFile:  getEnv("LOG_FILE", "logs/foxflow.log"),
-		WorkDir:  workDir,
-	}
-
-	// 确保日志目录存在
-	logDir := filepath.Dir(GlobalConfig.LogFile)
-	if err := os.MkdirAll(logDir, 0755); err != nil {
-		return err
+		DBFile:  "./foxflow.db",
+		WorkDir: workDir,
 	}
 
 	return nil
-}
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }

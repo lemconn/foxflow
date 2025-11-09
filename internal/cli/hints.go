@@ -993,9 +993,9 @@ func getCancelOrderList(ctx *Context) []prompt.Suggest {
 
 		var amount string
 		if order.SizeType == "USDT" {
-			amount = fmt.Sprintf("%sU", order.Size.String())
+			amount = fmt.Sprintf("%sU", order.Size)
 		} else {
-			amount = order.Size.String()
+			amount = order.Size
 		}
 
 		// 构建订单标识：symbol:side:posSide:amount

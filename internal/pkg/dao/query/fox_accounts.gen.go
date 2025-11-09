@@ -34,31 +34,30 @@ func newFoxAccount(db *gorm.DB, opts ...gen.DOOption) foxAccount {
 	_foxAccount.AccessKey = field.NewString(tableName, "access_key")
 	_foxAccount.SecretKey = field.NewString(tableName, "secret_key")
 	_foxAccount.Passphrase = field.NewString(tableName, "passphrase")
-	_foxAccount.IsActive = field.NewInt(tableName, "is_active")
+	_foxAccount.IsActive = field.NewInt64(tableName, "is_active")
 	_foxAccount.TradeType = field.NewString(tableName, "trade_type")
-	_foxAccount.CreatedAt = field.NewTime(tableName, "created_at")
-	_foxAccount.UpdatedAt = field.NewTime(tableName, "updated_at")
+	_foxAccount.CreatedAt = field.NewString(tableName, "created_at")
+	_foxAccount.UpdatedAt = field.NewString(tableName, "updated_at")
 
 	_foxAccount.fillFieldMap()
 
 	return _foxAccount
 }
 
-// foxAccount account table
 type foxAccount struct {
 	foxAccountDo
 
 	ALL        field.Asterisk
-	ID         field.Int64  // account id
-	Name       field.String // name
-	Exchange   field.String // exchange
-	AccessKey  field.String // access key
-	SecretKey  field.String // secret key
-	Passphrase field.String // passphrase
-	IsActive   field.Int    // active status
-	TradeType  field.String // account environment
-	CreatedAt  field.Time   // create time
-	UpdatedAt  field.Time   // update time
+	ID         field.Int64
+	Name       field.String
+	Exchange   field.String
+	AccessKey  field.String
+	SecretKey  field.String
+	Passphrase field.String
+	IsActive   field.Int64
+	TradeType  field.String
+	CreatedAt  field.String
+	UpdatedAt  field.String
 
 	fieldMap map[string]field.Expr
 }
@@ -81,10 +80,10 @@ func (f *foxAccount) updateTableName(table string) *foxAccount {
 	f.AccessKey = field.NewString(table, "access_key")
 	f.SecretKey = field.NewString(table, "secret_key")
 	f.Passphrase = field.NewString(table, "passphrase")
-	f.IsActive = field.NewInt(table, "is_active")
+	f.IsActive = field.NewInt64(table, "is_active")
 	f.TradeType = field.NewString(table, "trade_type")
-	f.CreatedAt = field.NewTime(table, "created_at")
-	f.UpdatedAt = field.NewTime(table, "updated_at")
+	f.CreatedAt = field.NewString(table, "created_at")
+	f.UpdatedAt = field.NewString(table, "updated_at")
 
 	f.fillFieldMap()
 
