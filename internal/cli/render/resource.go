@@ -2,6 +2,7 @@ package render
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
@@ -37,7 +38,7 @@ func RenderExchangesWithStatus(exchanges []*model.FoxExchange) string {
 func RenderAccounts(accounts []*model.FoxAccount) string {
 	pt := utils.NewPrettyTable()
 	pt.SetTitle("用户列表")
-	pt.SetHeaders([]interface{}{"用户名", "交易所", "交易类型", "状态"})
+	pt.SetHeaders([]interface{}{"用户名", "交易所", "交易类型", "状态", "杠杆倍数", "代理地址"})
 
 	for _, account := range accounts {
 		status := "非活跃"
@@ -50,11 +51,22 @@ func RenderAccounts(accounts []*model.FoxAccount) string {
 			tradeType = "实盘"
 		}
 
+		leverSlice := make([]string, 0)
+		for _, tradeConfig := range account.TradeConfigs {
+			if tradeConfig.Margin == "cross" {
+				leverSlice = append(leverSlice, fmt.Sprintf("%d(%s)", tradeConfig.Leverage, "全仓"))
+			} else if tradeConfig.Margin == "isolated" {
+				leverSlice = append(leverSlice, fmt.Sprintf("%d(%s)", tradeConfig.Leverage, "逐仓"))
+			}
+		}
+
 		pt.AddRow([]interface{}{
 			account.Name,
 			account.Exchange,
 			tradeType,
 			status,
+			strings.Join(leverSlice, " / "),
+			account.Config.ProxyURL,
 		})
 	}
 
@@ -181,6 +193,9 @@ func RenderStrategyOrders(orders []*model.FoxOrder) string {
 	pt.SetHeaders([]interface{}{"ID", "交易对", "方向", "仓位", "数量/金额", "价格", "状态", "策略", "异常结果"})
 
 	for _, order := range orders {
+
+		fmt.Printf("---------[%+v]--------\n", order)
+
 		side := ""
 		if order.Side == "buy" {
 			side = fmt.Sprintf("%s(买入)", order.Side)
@@ -216,9 +231,11 @@ func RenderStrategyOrders(orders []*model.FoxOrder) string {
 		}
 
 		price := "-"
-		orderPriceDecimal := decimal.RequireFromString(order.Price)
-		if orderPriceDecimal.GreaterThan(decimal.Zero) {
-			price = order.Price
+		if order.Price != "" {
+			orderPriceDecimal := decimal.RequireFromString(order.Price)
+			if orderPriceDecimal.GreaterThan(decimal.Zero) {
+				price = order.Price
+			}
 		}
 
 		strategy := "-"

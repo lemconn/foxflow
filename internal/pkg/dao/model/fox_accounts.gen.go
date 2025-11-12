@@ -4,20 +4,26 @@
 
 package model
 
+import (
+	"time"
+)
+
 const TableNameFoxAccount = "fox_accounts"
 
 // FoxAccount mapped from table <fox_accounts>
 type FoxAccount struct {
-	ID         int64  `gorm:"column:id;type:integer;primaryKey" json:"id"`
-	Name       string `gorm:"column:name;type:text;not null" json:"name"`
-	Exchange   string `gorm:"column:exchange;type:text;not null;default:okx" json:"exchange"`
-	AccessKey  string `gorm:"column:access_key;type:text;not null" json:"access_key"`
-	SecretKey  string `gorm:"column:secret_key;type:text;not null" json:"secret_key"`
-	Passphrase string `gorm:"column:passphrase;type:text;not null" json:"passphrase"`
-	IsActive   int64  `gorm:"column:is_active;type:integer;not null" json:"is_active"`
-	TradeType  string `gorm:"column:trade_type;type:text;not null" json:"trade_type"`
-	CreatedAt  string `gorm:"column:created_at;type:text;not null" json:"created_at"`
-	UpdatedAt  string `gorm:"column:updated_at;type:text;not null" json:"updated_at"`
+	ID           int64            `gorm:"column:id;type:integer;primaryKey" json:"id"`
+	Name         string           `gorm:"column:name;type:text;not null" json:"name"`
+	Exchange     string           `gorm:"column:exchange;type:text;not null" json:"exchange"`
+	AccessKey    string           `gorm:"column:access_key;type:text;not null" json:"access_key"`
+	SecretKey    string           `gorm:"column:secret_key;type:text;not null" json:"secret_key"`
+	Passphrase   string           `gorm:"column:passphrase;type:text;not null" json:"passphrase"`
+	IsActive     int64            `gorm:"column:is_active;type:integer;not null" json:"is_active"`
+	TradeType    string           `gorm:"column:trade_type;type:text;not null" json:"trade_type"`
+	CreatedAt    time.Time        `gorm:"column:created_at;type:datetime" json:"created_at"`
+	UpdatedAt    time.Time        `gorm:"column:updated_at;type:datetime" json:"updated_at"`
+	Config       FoxConfig        `gorm:"foreignKey:account_id;references:id" json:"config"`
+	TradeConfigs []FoxTradeConfig `gorm:"foreignKey:account_id;references:id" json:"trade_configs"`
 }
 
 // TableName FoxAccount's table name

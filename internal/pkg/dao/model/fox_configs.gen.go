@@ -8,20 +8,18 @@ import (
 	"time"
 )
 
-const TableNameFoxExchange = "fox_exchanges"
+const TableNameFoxConfig = "fox_configs"
 
-// FoxExchange mapped from table <fox_exchanges>
-type FoxExchange struct {
+// FoxConfig mapped from table <fox_configs>
+type FoxConfig struct {
 	ID        int64     `gorm:"column:id;type:integer;primaryKey" json:"id"`
-	Name      string    `gorm:"column:name;type:text;not null" json:"name"`
-	APIURL    string    `gorm:"column:api_url;type:text;not null" json:"api_url"`
+	AccountID int64     `gorm:"column:account_id;type:integer;not null" json:"account_id"`
 	ProxyURL  string    `gorm:"column:proxy_url;type:text;not null" json:"proxy_url"`
-	IsActive  int64     `gorm:"column:is_active;type:integer;not null" json:"is_active"`
 	CreatedAt time.Time `gorm:"column:created_at;type:datetime" json:"created_at"`
 	UpdatedAt time.Time `gorm:"column:updated_at;type:datetime" json:"updated_at"`
 }
 
-// TableName FoxExchange's table name
-func (*FoxExchange) TableName() string {
-	return TableNameFoxExchange
+// TableName FoxConfig's table name
+func (*FoxConfig) TableName() string {
+	return TableNameFoxConfig
 }

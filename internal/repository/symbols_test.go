@@ -11,7 +11,7 @@ import (
 )
 
 func setupTestDBForSymbols() *gorm.DB {
-	db, err := gorm.Open(sqlite.Open("foxflow.db"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open("foxflow-1.db"), &gorm.Config{})
 	if err != nil {
 		panic("failed to connect database")
 	}
@@ -41,7 +41,7 @@ func TestGetSymbolsByExchange(t *testing.T) {
 
 	// 测试完成后清理数据库文件
 	defer func() {
-		os.Remove("foxflow.db")
+		os.Remove("foxflow-1.db")
 	}()
 
 	// 清理测试数据

@@ -36,8 +36,19 @@ func newFoxAccount(db *gorm.DB, opts ...gen.DOOption) foxAccount {
 	_foxAccount.Passphrase = field.NewString(tableName, "passphrase")
 	_foxAccount.IsActive = field.NewInt64(tableName, "is_active")
 	_foxAccount.TradeType = field.NewString(tableName, "trade_type")
-	_foxAccount.CreatedAt = field.NewString(tableName, "created_at")
-	_foxAccount.UpdatedAt = field.NewString(tableName, "updated_at")
+	_foxAccount.CreatedAt = field.NewTime(tableName, "created_at")
+	_foxAccount.UpdatedAt = field.NewTime(tableName, "updated_at")
+	_foxAccount.Config = foxAccountBelongsToConfig{
+		db: db.Session(&gorm.Session{}),
+
+		RelationField: field.NewRelation("Config", "model.FoxConfig"),
+	}
+
+	_foxAccount.TradeConfigs = foxAccountHasManyTradeConfigs{
+		db: db.Session(&gorm.Session{}),
+
+		RelationField: field.NewRelation("TradeConfigs", "model.FoxTradeConfig"),
+	}
 
 	_foxAccount.fillFieldMap()
 
@@ -56,8 +67,11 @@ type foxAccount struct {
 	Passphrase field.String
 	IsActive   field.Int64
 	TradeType  field.String
-	CreatedAt  field.String
-	UpdatedAt  field.String
+	CreatedAt  field.Time
+	UpdatedAt  field.Time
+	Config     foxAccountBelongsToConfig
+
+	TradeConfigs foxAccountHasManyTradeConfigs
 
 	fieldMap map[string]field.Expr
 }
@@ -82,8 +96,8 @@ func (f *foxAccount) updateTableName(table string) *foxAccount {
 	f.Passphrase = field.NewString(table, "passphrase")
 	f.IsActive = field.NewInt64(table, "is_active")
 	f.TradeType = field.NewString(table, "trade_type")
-	f.CreatedAt = field.NewString(table, "created_at")
-	f.UpdatedAt = field.NewString(table, "updated_at")
+	f.CreatedAt = field.NewTime(table, "created_at")
+	f.UpdatedAt = field.NewTime(table, "updated_at")
 
 	f.fillFieldMap()
 
@@ -100,7 +114,7 @@ func (f *foxAccount) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
 }
 
 func (f *foxAccount) fillFieldMap() {
-	f.fieldMap = make(map[string]field.Expr, 10)
+	f.fieldMap = make(map[string]field.Expr, 12)
 	f.fieldMap["id"] = f.ID
 	f.fieldMap["name"] = f.Name
 	f.fieldMap["exchange"] = f.Exchange
@@ -111,16 +125,185 @@ func (f *foxAccount) fillFieldMap() {
 	f.fieldMap["trade_type"] = f.TradeType
 	f.fieldMap["created_at"] = f.CreatedAt
 	f.fieldMap["updated_at"] = f.UpdatedAt
+
 }
 
 func (f foxAccount) clone(db *gorm.DB) foxAccount {
 	f.foxAccountDo.ReplaceConnPool(db.Statement.ConnPool)
+	f.Config.db = db.Session(&gorm.Session{Initialized: true})
+	f.Config.db.Statement.ConnPool = db.Statement.ConnPool
+	f.TradeConfigs.db = db.Session(&gorm.Session{Initialized: true})
+	f.TradeConfigs.db.Statement.ConnPool = db.Statement.ConnPool
 	return f
 }
 
 func (f foxAccount) replaceDB(db *gorm.DB) foxAccount {
 	f.foxAccountDo.ReplaceDB(db)
+	f.Config.db = db.Session(&gorm.Session{})
+	f.TradeConfigs.db = db.Session(&gorm.Session{})
 	return f
+}
+
+type foxAccountBelongsToConfig struct {
+	db *gorm.DB
+
+	field.RelationField
+}
+
+func (a foxAccountBelongsToConfig) Where(conds ...field.Expr) *foxAccountBelongsToConfig {
+	if len(conds) == 0 {
+		return &a
+	}
+
+	exprs := make([]clause.Expression, 0, len(conds))
+	for _, cond := range conds {
+		exprs = append(exprs, cond.BeCond().(clause.Expression))
+	}
+	a.db = a.db.Clauses(clause.Where{Exprs: exprs})
+	return &a
+}
+
+func (a foxAccountBelongsToConfig) WithContext(ctx context.Context) *foxAccountBelongsToConfig {
+	a.db = a.db.WithContext(ctx)
+	return &a
+}
+
+func (a foxAccountBelongsToConfig) Session(session *gorm.Session) *foxAccountBelongsToConfig {
+	a.db = a.db.Session(session)
+	return &a
+}
+
+func (a foxAccountBelongsToConfig) Model(m *model.FoxAccount) *foxAccountBelongsToConfigTx {
+	return &foxAccountBelongsToConfigTx{a.db.Model(m).Association(a.Name())}
+}
+
+func (a foxAccountBelongsToConfig) Unscoped() *foxAccountBelongsToConfig {
+	a.db = a.db.Unscoped()
+	return &a
+}
+
+type foxAccountBelongsToConfigTx struct{ tx *gorm.Association }
+
+func (a foxAccountBelongsToConfigTx) Find() (result *model.FoxConfig, err error) {
+	return result, a.tx.Find(&result)
+}
+
+func (a foxAccountBelongsToConfigTx) Append(values ...*model.FoxConfig) (err error) {
+	targetValues := make([]interface{}, len(values))
+	for i, v := range values {
+		targetValues[i] = v
+	}
+	return a.tx.Append(targetValues...)
+}
+
+func (a foxAccountBelongsToConfigTx) Replace(values ...*model.FoxConfig) (err error) {
+	targetValues := make([]interface{}, len(values))
+	for i, v := range values {
+		targetValues[i] = v
+	}
+	return a.tx.Replace(targetValues...)
+}
+
+func (a foxAccountBelongsToConfigTx) Delete(values ...*model.FoxConfig) (err error) {
+	targetValues := make([]interface{}, len(values))
+	for i, v := range values {
+		targetValues[i] = v
+	}
+	return a.tx.Delete(targetValues...)
+}
+
+func (a foxAccountBelongsToConfigTx) Clear() error {
+	return a.tx.Clear()
+}
+
+func (a foxAccountBelongsToConfigTx) Count() int64 {
+	return a.tx.Count()
+}
+
+func (a foxAccountBelongsToConfigTx) Unscoped() *foxAccountBelongsToConfigTx {
+	a.tx = a.tx.Unscoped()
+	return &a
+}
+
+type foxAccountHasManyTradeConfigs struct {
+	db *gorm.DB
+
+	field.RelationField
+}
+
+func (a foxAccountHasManyTradeConfigs) Where(conds ...field.Expr) *foxAccountHasManyTradeConfigs {
+	if len(conds) == 0 {
+		return &a
+	}
+
+	exprs := make([]clause.Expression, 0, len(conds))
+	for _, cond := range conds {
+		exprs = append(exprs, cond.BeCond().(clause.Expression))
+	}
+	a.db = a.db.Clauses(clause.Where{Exprs: exprs})
+	return &a
+}
+
+func (a foxAccountHasManyTradeConfigs) WithContext(ctx context.Context) *foxAccountHasManyTradeConfigs {
+	a.db = a.db.WithContext(ctx)
+	return &a
+}
+
+func (a foxAccountHasManyTradeConfigs) Session(session *gorm.Session) *foxAccountHasManyTradeConfigs {
+	a.db = a.db.Session(session)
+	return &a
+}
+
+func (a foxAccountHasManyTradeConfigs) Model(m *model.FoxAccount) *foxAccountHasManyTradeConfigsTx {
+	return &foxAccountHasManyTradeConfigsTx{a.db.Model(m).Association(a.Name())}
+}
+
+func (a foxAccountHasManyTradeConfigs) Unscoped() *foxAccountHasManyTradeConfigs {
+	a.db = a.db.Unscoped()
+	return &a
+}
+
+type foxAccountHasManyTradeConfigsTx struct{ tx *gorm.Association }
+
+func (a foxAccountHasManyTradeConfigsTx) Find() (result []*model.FoxTradeConfig, err error) {
+	return result, a.tx.Find(&result)
+}
+
+func (a foxAccountHasManyTradeConfigsTx) Append(values ...*model.FoxTradeConfig) (err error) {
+	targetValues := make([]interface{}, len(values))
+	for i, v := range values {
+		targetValues[i] = v
+	}
+	return a.tx.Append(targetValues...)
+}
+
+func (a foxAccountHasManyTradeConfigsTx) Replace(values ...*model.FoxTradeConfig) (err error) {
+	targetValues := make([]interface{}, len(values))
+	for i, v := range values {
+		targetValues[i] = v
+	}
+	return a.tx.Replace(targetValues...)
+}
+
+func (a foxAccountHasManyTradeConfigsTx) Delete(values ...*model.FoxTradeConfig) (err error) {
+	targetValues := make([]interface{}, len(values))
+	for i, v := range values {
+		targetValues[i] = v
+	}
+	return a.tx.Delete(targetValues...)
+}
+
+func (a foxAccountHasManyTradeConfigsTx) Clear() error {
+	return a.tx.Clear()
+}
+
+func (a foxAccountHasManyTradeConfigsTx) Count() int64 {
+	return a.tx.Count()
+}
+
+func (a foxAccountHasManyTradeConfigsTx) Unscoped() *foxAccountHasManyTradeConfigsTx {
+	a.tx = a.tx.Unscoped()
+	return &a
 }
 
 type foxAccountDo struct{ gen.DO }
