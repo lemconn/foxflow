@@ -4,6 +4,10 @@
 
 package model
 
+import (
+	"time"
+)
+
 const TableNameFoxSymbol = "fox_symbols"
 
 // FoxSymbol mapped from table <fox_symbols>
@@ -11,12 +15,12 @@ type FoxSymbol struct {
 	ID         int64      `gorm:"column:id;type:integer;primaryKey" json:"id"`
 	Name       string     `gorm:"column:name;type:text;not null" json:"name"`
 	AccountID  int64      `gorm:"column:account_id;type:integer;not null" json:"account_id"`
-	Exchange   string     `gorm:"column:exchange;type:text;not null;default:okx" json:"exchange"`
-	Leverage   int64      `gorm:"column:leverage;type:integer;not null;default:1" json:"leverage"`
+	Exchange   string     `gorm:"column:exchange;type:text;not null" json:"exchange"`
+	Leverage   int64      `gorm:"column:leverage;type:integer;not null" json:"leverage"`
 	MarginType string     `gorm:"column:margin_type;type:text;not null;default:isolated" json:"margin_type"`
-	CreatedAt  string     `gorm:"column:created_at;type:text;not null" json:"created_at"`
-	UpdatedAt  string     `gorm:"column:updated_at;type:text;not null" json:"updated_at"`
-	Account    FoxAccount `gorm:"foreignKey:account_id;references:id" json:"account"`
+	CreatedAt  time.Time  `gorm:"column:created_at;type:datetime" json:"created_at"`
+	UpdatedAt  time.Time  `gorm:"column:updated_at;type:datetime" json:"updated_at"`
+	Account    FoxAccount `gorm:"foreignKey:id;references:account_id" json:"account"`
 }
 
 // TableName FoxSymbol's table name

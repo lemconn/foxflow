@@ -66,6 +66,11 @@ func handleSpecialCommandCompletions(ctx *Context, d prompt.Document, w string, 
 		return result
 	}
 
+	// set 命令的补全
+	if result := handleSetCommandCompletion(ctx, d, w, fields, first, second); result != nil {
+		return result
+	}
+
 	// cancel 命令的补全
 	if result := handleCancelCommandCompletion(ctx, d, w, fields, first, second); result != nil {
 		return result
@@ -297,6 +302,84 @@ func handleUpdateAccountCompletion(ctx *Context, d prompt.Document, w string, fi
 	// 选择类型后，显示参数提示
 	if len(fields) == 4 && strings.HasSuffix(w, " ") {
 		return getUpdateAccountArgHints(ctx.GetExchangeName())
+	}
+
+	return nil
+}
+
+// handleSetCommandCompletion 处理 set 命令的补全
+func handleSetCommandCompletion(ctx *Context, d prompt.Document, w string, fields []string, first, second string) []prompt.Suggest {
+	if first != "set" {
+		return nil
+	}
+
+	// 处理 set config
+	if result := handleSetConfigCompletion(ctx, d, w, fields, first, second); result != nil {
+		return result
+	}
+
+	// 处理 set proxy
+	if result := handleSetProxyCompletion(ctx, d, w, fields, first, second); result != nil {
+		return result
+	}
+
+	return nil
+}
+
+// handleSetConfigCompletion 处理 set config 命令的补全
+func handleSetConfigCompletion(ctx *Context, d prompt.Document, w string, fields []string, first, second string) []prompt.Suggest {
+	if second != "config" {
+		return nil
+	}
+
+	// 选择保证金模式：第三个token位置
+	if len(fields) == 2 && strings.HasSuffix(w, " ") {
+		return getMarginModeList(ctx, "")
+	}
+
+	// 正在输入保证金模式（第三个token）
+	if len(fields) == 3 && !strings.HasSuffix(w, " ") {
+		prefix := d.GetWordBeforeCursor()
+		return prompt.FilterHasPrefix(getMarginModeList(ctx, ""), prefix, true)
+	}
+
+	// 选择保证金对应的杠杆倍数（第四个token）
+	if len(fields) == 3 && strings.HasSuffix(w, " ") {
+		return []prompt.Suggest{
+			{Text: "leverage=", Description: "[必填] 杠杆倍数"},
+		}
+	}
+
+	// 正在输入类型（第四个token）
+	if len(fields) == 4 && !strings.HasSuffix(w, " ") {
+		prefix := d.GetWordBeforeCursor()
+		return prompt.FilterHasPrefix([]prompt.Suggest{
+			{Text: "leverage=", Description: "[必填] 杠杆倍数"},
+		}, prefix, true)
+	}
+
+	return nil
+}
+
+// handleSetProxyCompletion 处理 set proxy 命令的补全
+func handleSetProxyCompletion(ctx *Context, d prompt.Document, w string, fields []string, first, second string) []prompt.Suggest {
+	if second != "proxy" {
+		return nil
+	}
+
+	// 提示需要输入的url（第三个token位置）
+	if len(fields) == 2 && strings.HasSuffix(w, " ") {
+		return []prompt.Suggest{
+			{Text: "url=", Description: "[选填] 不填写则表示删除代理"},
+		}
+	}
+
+	// 正在输入代理地址（第三个token）
+	if len(fields) == 3 && !strings.HasSuffix(w, " ") {
+		prefix := d.GetWordBeforeCursor()
+		return prompt.FilterHasPrefix([]prompt.Suggest{
+			{Text: "leverage=", Description: "[选填] 不填写则表示删除代理"},
+		}, prefix, true)
 	}
 
 	return nil
@@ -633,7 +716,8 @@ func getTopLevelHelpSuggestions() []prompt.Suggest {
 		{Text: "show", Description: "查看数据列表 - 支持子命令：exchange(交易所)、account(账户)、balance(资产)、position(持仓)、symbol(交易对)、strategy(策略)、order(订单)、news(新闻)"},
 		{Text: "use", Description: "激活上下文 - 支持子命令：exchange(交易所)、account(交易账户)"},
 		{Text: "create", Description: "创建资源 - 支持子命令：account(交易账户)"},
-		{Text: "update", Description: "更新配置 - 支持子命令：symbol(交易对)、account(交易账户)"},
+		{Text: "update", Description: "更新资源 - 支持子命令：symbol(交易对)、account(交易账户)"},
+		{Text: "set", Description: "设置配置 - 支持子命令：config(默认交易配置)、proxy(默认代理)"},
 		{Text: "open", Description: "开仓/下单 - 执行交易开仓操作"},
 		{Text: "close", Description: "平仓 - 执行交易平仓操作"},
 		{Text: "cancel", Description: "取消订单 - 支持子命令：order(策略订单)"},
@@ -676,6 +760,10 @@ func getSubcommandSuggestions() map[string][]prompt.Suggest {
 		"update": {
 			{Text: "symbol", Description: "更新交易对配置"},
 			{Text: "account", Description: "更新账户配置"},
+		},
+		"set": {
+			{Text: "config", Description: "设置默认保证金模式的杠杆倍数"},
+			{Text: "proxy", Description: "更新默认代理配置"},
 		},
 		"cancel": {
 			{Text: "order", Description: "取消订单"},
@@ -983,7 +1071,7 @@ func handleCancelCommandCompletion(ctx *Context, d prompt.Document, w string, fi
 func getCancelOrderList(ctx *Context) []prompt.Suggest {
 
 	// 只获取未完成的订单
-	accountOrderList, err := repository.ListSSOrders(ctx.GetAccountInstance().ID, []string{"waiting"}, []string{})
+	accountOrderList, err := repository.ListSSOrders(ctx.GetAccountInstance().ID, []string{"waiting"})
 	if err != nil {
 		return []prompt.Suggest{}
 	}

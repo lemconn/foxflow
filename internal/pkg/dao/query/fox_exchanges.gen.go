@@ -33,8 +33,8 @@ func newFoxExchange(db *gorm.DB, opts ...gen.DOOption) foxExchange {
 	_foxExchange.APIURL = field.NewString(tableName, "api_url")
 	_foxExchange.ProxyURL = field.NewString(tableName, "proxy_url")
 	_foxExchange.IsActive = field.NewInt64(tableName, "is_active")
-	_foxExchange.CreatedAt = field.NewString(tableName, "created_at")
-	_foxExchange.UpdatedAt = field.NewString(tableName, "updated_at")
+	_foxExchange.CreatedAt = field.NewTime(tableName, "created_at")
+	_foxExchange.UpdatedAt = field.NewTime(tableName, "updated_at")
 
 	_foxExchange.fillFieldMap()
 
@@ -50,8 +50,8 @@ type foxExchange struct {
 	APIURL    field.String
 	ProxyURL  field.String
 	IsActive  field.Int64
-	CreatedAt field.String
-	UpdatedAt field.String
+	CreatedAt field.Time
+	UpdatedAt field.Time
 
 	fieldMap map[string]field.Expr
 }
@@ -73,8 +73,8 @@ func (f *foxExchange) updateTableName(table string) *foxExchange {
 	f.APIURL = field.NewString(table, "api_url")
 	f.ProxyURL = field.NewString(table, "proxy_url")
 	f.IsActive = field.NewInt64(table, "is_active")
-	f.CreatedAt = field.NewString(table, "created_at")
-	f.UpdatedAt = field.NewString(table, "updated_at")
+	f.CreatedAt = field.NewTime(table, "created_at")
+	f.UpdatedAt = field.NewTime(table, "updated_at")
 
 	f.fillFieldMap()
 

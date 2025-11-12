@@ -4,13 +4,14 @@ import (
 	"os"
 )
 
-const Version = "v0.1.0"
+const Version = "v0.2.0"
+
+const DateFormat = "2006-01-02 15:04:05"
 
 const (
 	DefaultExchange = "okx"
+	DefaultDbFile   = "./foxflow.db"
 )
-
-const DateFormat = "2006-01-02 15:04:05"
 
 type SymbolInfo struct {
 	Type     string `json:"type"`
@@ -26,6 +27,7 @@ type SymbolInfo struct {
 var ExchangeSymbolList map[string][]SymbolInfo
 
 type Config struct {
+	Version string
 	DBFile  string
 	WorkDir string
 }
@@ -33,14 +35,15 @@ type Config struct {
 var GlobalConfig *Config
 
 func LoadConfig() error {
-	// 获取工作目录
+	// Get work dir
 	workDir, err := os.Getwd()
 	if err != nil {
 		return err
 	}
 
 	GlobalConfig = &Config{
-		DBFile:  "./foxflow.db",
+		Version: Version,
+		DBFile:  DefaultDbFile,
 		WorkDir: workDir,
 	}
 

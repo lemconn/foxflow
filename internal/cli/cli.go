@@ -40,6 +40,7 @@ func NewCLI() (*CLI, error) {
 		"use":    &cliCmds.UseCommand{},
 		"create": &cliCmds.CreateCommand{},
 		"update": &cliCmds.UpdateCommand{},
+		"set":    &cliCmds.SetCommand{},
 		"open":   &cliCmds.OpenCommand{},
 		"close":  &cliCmds.CloseCommand{},
 		"cancel": &cliCmds.CancelCommand{},

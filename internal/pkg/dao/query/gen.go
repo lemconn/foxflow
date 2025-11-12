@@ -18,29 +18,38 @@ import (
 var (
 	Q              = new(Query)
 	FoxAccount     *foxAccount
+	FoxConfig      *foxConfig
 	FoxExchange    *foxExchange
 	FoxOrder       *foxOrder
 	FoxSymbol      *foxSymbol
+	FoxTradeConfig *foxTradeConfig
 	SqliteSequence *sqliteSequence
+	SystemInfo     *systemInfo
 )
 
 func SetDefault(db *gorm.DB, opts ...gen.DOOption) {
 	*Q = *Use(db, opts...)
 	FoxAccount = &Q.FoxAccount
+	FoxConfig = &Q.FoxConfig
 	FoxExchange = &Q.FoxExchange
 	FoxOrder = &Q.FoxOrder
 	FoxSymbol = &Q.FoxSymbol
+	FoxTradeConfig = &Q.FoxTradeConfig
 	SqliteSequence = &Q.SqliteSequence
+	SystemInfo = &Q.SystemInfo
 }
 
 func Use(db *gorm.DB, opts ...gen.DOOption) *Query {
 	return &Query{
 		db:             db,
 		FoxAccount:     newFoxAccount(db, opts...),
+		FoxConfig:      newFoxConfig(db, opts...),
 		FoxExchange:    newFoxExchange(db, opts...),
 		FoxOrder:       newFoxOrder(db, opts...),
 		FoxSymbol:      newFoxSymbol(db, opts...),
+		FoxTradeConfig: newFoxTradeConfig(db, opts...),
 		SqliteSequence: newSqliteSequence(db, opts...),
+		SystemInfo:     newSystemInfo(db, opts...),
 	}
 }
 
@@ -48,10 +57,13 @@ type Query struct {
 	db *gorm.DB
 
 	FoxAccount     foxAccount
+	FoxConfig      foxConfig
 	FoxExchange    foxExchange
 	FoxOrder       foxOrder
 	FoxSymbol      foxSymbol
+	FoxTradeConfig foxTradeConfig
 	SqliteSequence sqliteSequence
+	SystemInfo     systemInfo
 }
 
 func (q *Query) Available() bool { return q.db != nil }
@@ -60,10 +72,13 @@ func (q *Query) clone(db *gorm.DB) *Query {
 	return &Query{
 		db:             db,
 		FoxAccount:     q.FoxAccount.clone(db),
+		FoxConfig:      q.FoxConfig.clone(db),
 		FoxExchange:    q.FoxExchange.clone(db),
 		FoxOrder:       q.FoxOrder.clone(db),
 		FoxSymbol:      q.FoxSymbol.clone(db),
+		FoxTradeConfig: q.FoxTradeConfig.clone(db),
 		SqliteSequence: q.SqliteSequence.clone(db),
+		SystemInfo:     q.SystemInfo.clone(db),
 	}
 }
 
@@ -79,28 +94,37 @@ func (q *Query) ReplaceDB(db *gorm.DB) *Query {
 	return &Query{
 		db:             db,
 		FoxAccount:     q.FoxAccount.replaceDB(db),
+		FoxConfig:      q.FoxConfig.replaceDB(db),
 		FoxExchange:    q.FoxExchange.replaceDB(db),
 		FoxOrder:       q.FoxOrder.replaceDB(db),
 		FoxSymbol:      q.FoxSymbol.replaceDB(db),
+		FoxTradeConfig: q.FoxTradeConfig.replaceDB(db),
 		SqliteSequence: q.SqliteSequence.replaceDB(db),
+		SystemInfo:     q.SystemInfo.replaceDB(db),
 	}
 }
 
 type queryCtx struct {
 	FoxAccount     IFoxAccountDo
+	FoxConfig      IFoxConfigDo
 	FoxExchange    IFoxExchangeDo
 	FoxOrder       IFoxOrderDo
 	FoxSymbol      IFoxSymbolDo
+	FoxTradeConfig IFoxTradeConfigDo
 	SqliteSequence ISqliteSequenceDo
+	SystemInfo     ISystemInfoDo
 }
 
 func (q *Query) WithContext(ctx context.Context) *queryCtx {
 	return &queryCtx{
 		FoxAccount:     q.FoxAccount.WithContext(ctx),
+		FoxConfig:      q.FoxConfig.WithContext(ctx),
 		FoxExchange:    q.FoxExchange.WithContext(ctx),
 		FoxOrder:       q.FoxOrder.WithContext(ctx),
 		FoxSymbol:      q.FoxSymbol.WithContext(ctx),
+		FoxTradeConfig: q.FoxTradeConfig.WithContext(ctx),
 		SqliteSequence: q.SqliteSequence.WithContext(ctx),
+		SystemInfo:     q.SystemInfo.WithContext(ctx),
 	}
 }
 

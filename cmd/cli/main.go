@@ -23,7 +23,7 @@ func main() {
 		port     = flag.Int("P", 1259, "服务端端口")
 		username = flag.String("u", "foxflow", "用户名")
 		password = flag.String("p", "foxflow", "密码")
-		dbFile   = flag.String("db", "", "SQLite数据库文件路径（例如：./foxflow.db 或 /var/lib/foxflow/foxflow.db）")
+		dbFile   = flag.String("db", "", "SQLite数据库文件路径（例如：./foxflow-1.db 或 /var/lib/foxflow/foxflow-1.db）")
 	)
 	flag.Parse()
 

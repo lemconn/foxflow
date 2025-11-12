@@ -34,12 +34,22 @@ func newFoxSymbol(db *gorm.DB, opts ...gen.DOOption) foxSymbol {
 	_foxSymbol.Exchange = field.NewString(tableName, "exchange")
 	_foxSymbol.Leverage = field.NewInt64(tableName, "leverage")
 	_foxSymbol.MarginType = field.NewString(tableName, "margin_type")
-	_foxSymbol.CreatedAt = field.NewString(tableName, "created_at")
-	_foxSymbol.UpdatedAt = field.NewString(tableName, "updated_at")
+	_foxSymbol.CreatedAt = field.NewTime(tableName, "created_at")
+	_foxSymbol.UpdatedAt = field.NewTime(tableName, "updated_at")
 	_foxSymbol.Account = foxSymbolBelongsToAccount{
 		db: db.Session(&gorm.Session{}),
 
 		RelationField: field.NewRelation("Account", "model.FoxAccount"),
+		Config: struct {
+			field.RelationField
+		}{
+			RelationField: field.NewRelation("Account.Config", "model.FoxConfig"),
+		},
+		TradeConfigs: struct {
+			field.RelationField
+		}{
+			RelationField: field.NewRelation("Account.TradeConfigs", "model.FoxTradeConfig"),
+		},
 	}
 
 	_foxSymbol.fillFieldMap()
@@ -57,8 +67,8 @@ type foxSymbol struct {
 	Exchange   field.String
 	Leverage   field.Int64
 	MarginType field.String
-	CreatedAt  field.String
-	UpdatedAt  field.String
+	CreatedAt  field.Time
+	UpdatedAt  field.Time
 	Account    foxSymbolBelongsToAccount
 
 	fieldMap map[string]field.Expr
@@ -82,8 +92,8 @@ func (f *foxSymbol) updateTableName(table string) *foxSymbol {
 	f.Exchange = field.NewString(table, "exchange")
 	f.Leverage = field.NewInt64(table, "leverage")
 	f.MarginType = field.NewString(table, "margin_type")
-	f.CreatedAt = field.NewString(table, "created_at")
-	f.UpdatedAt = field.NewString(table, "updated_at")
+	f.CreatedAt = field.NewTime(table, "created_at")
+	f.UpdatedAt = field.NewTime(table, "updated_at")
 
 	f.fillFieldMap()
 
@@ -129,6 +139,13 @@ type foxSymbolBelongsToAccount struct {
 	db *gorm.DB
 
 	field.RelationField
+
+	Config struct {
+		field.RelationField
+	}
+	TradeConfigs struct {
+		field.RelationField
+	}
 }
 
 func (a foxSymbolBelongsToAccount) Where(conds ...field.Expr) *foxSymbolBelongsToAccount {

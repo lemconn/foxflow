@@ -4,6 +4,10 @@
 
 package model
 
+import (
+	"time"
+)
+
 const TableNameFoxOrder = "fox_orders"
 
 // FoxOrder mapped from table <fox_orders>
@@ -24,9 +28,9 @@ type FoxOrder struct {
 	Type       string     `gorm:"column:type;type:text;not null;default:open" json:"type"`
 	Status     string     `gorm:"column:status;type:text;not null;default:waiting" json:"status"`
 	Msg        string     `gorm:"column:msg;type:text;not null" json:"msg"`
-	CreatedAt  string     `gorm:"column:created_at;type:text;not null" json:"created_at"`
-	UpdatedAt  string     `gorm:"column:updated_at;type:text;not null" json:"updated_at"`
-	Account    FoxAccount `gorm:"foreignKey:account_id;references:id" json:"account"`
+	CreatedAt  time.Time  `gorm:"column:created_at;type:datetime" json:"created_at"`
+	UpdatedAt  time.Time  `gorm:"column:updated_at;type:datetime" json:"updated_at"`
+	Account    FoxAccount `gorm:"foreignKey:id;references:account_id" json:"account"`
 }
 
 // TableName FoxOrder's table name

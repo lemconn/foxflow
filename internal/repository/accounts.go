@@ -22,7 +22,9 @@ func ActiveAccount() (*model.FoxAccount, error) {
 func ExchangeAccountList(exchangeName string) ([]*model.FoxAccount, error) {
 	accounts, err := database.Adapter().FoxAccount.Where(
 		database.Adapter().FoxAccount.Exchange.Eq(exchangeName),
-	).Find()
+	).Preload(database.Adapter().FoxAccount.Config).
+		Preload(database.Adapter().FoxAccount.TradeConfigs).
+		Find()
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}

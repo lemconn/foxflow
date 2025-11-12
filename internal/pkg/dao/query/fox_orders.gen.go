@@ -44,12 +44,22 @@ func newFoxOrder(db *gorm.DB, opts ...gen.DOOption) foxOrder {
 	_foxOrder.Type = field.NewString(tableName, "type")
 	_foxOrder.Status = field.NewString(tableName, "status")
 	_foxOrder.Msg = field.NewString(tableName, "msg")
-	_foxOrder.CreatedAt = field.NewString(tableName, "created_at")
-	_foxOrder.UpdatedAt = field.NewString(tableName, "updated_at")
+	_foxOrder.CreatedAt = field.NewTime(tableName, "created_at")
+	_foxOrder.UpdatedAt = field.NewTime(tableName, "updated_at")
 	_foxOrder.Account = foxOrderBelongsToAccount{
 		db: db.Session(&gorm.Session{}),
 
 		RelationField: field.NewRelation("Account", "model.FoxAccount"),
+		Config: struct {
+			field.RelationField
+		}{
+			RelationField: field.NewRelation("Account.Config", "model.FoxConfig"),
+		},
+		TradeConfigs: struct {
+			field.RelationField
+		}{
+			RelationField: field.NewRelation("Account.TradeConfigs", "model.FoxTradeConfig"),
+		},
 	}
 
 	_foxOrder.fillFieldMap()
@@ -77,8 +87,8 @@ type foxOrder struct {
 	Type       field.String
 	Status     field.String
 	Msg        field.String
-	CreatedAt  field.String
-	UpdatedAt  field.String
+	CreatedAt  field.Time
+	UpdatedAt  field.Time
 	Account    foxOrderBelongsToAccount
 
 	fieldMap map[string]field.Expr
@@ -112,8 +122,8 @@ func (f *foxOrder) updateTableName(table string) *foxOrder {
 	f.Type = field.NewString(table, "type")
 	f.Status = field.NewString(table, "status")
 	f.Msg = field.NewString(table, "msg")
-	f.CreatedAt = field.NewString(table, "created_at")
-	f.UpdatedAt = field.NewString(table, "updated_at")
+	f.CreatedAt = field.NewTime(table, "created_at")
+	f.UpdatedAt = field.NewTime(table, "updated_at")
 
 	f.fillFieldMap()
 
@@ -169,6 +179,13 @@ type foxOrderBelongsToAccount struct {
 	db *gorm.DB
 
 	field.RelationField
+
+	Config struct {
+		field.RelationField
+	}
+	TradeConfigs struct {
+		field.RelationField
+	}
 }
 
 func (a foxOrderBelongsToAccount) Where(conds ...field.Expr) *foxOrderBelongsToAccount {
