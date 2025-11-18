@@ -2,11 +2,12 @@ package render
 
 import (
 	"fmt"
-	"strings"
+	"time"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/lemconn/foxflow/internal/exchange"
+	"github.com/lemconn/foxflow/internal/grpc"
 	"github.com/lemconn/foxflow/internal/news"
 	"github.com/lemconn/foxflow/internal/pkg/dao/model"
 	"github.com/lemconn/foxflow/internal/utils"
@@ -35,38 +36,32 @@ func RenderExchangesWithStatus(exchanges []*model.FoxExchange) string {
 }
 
 // RenderAccounts 渲染用户列表
-func RenderAccounts(accounts []*model.FoxAccount) string {
+func RenderAccounts(accounts []*grpc.ShowAccountItem) string {
 	pt := utils.NewPrettyTable()
 	pt.SetTitle("用户列表")
 	pt.SetHeaders([]interface{}{"用户名", "交易所", "交易类型", "状态", "杠杆倍数", "代理地址"})
 
 	for _, account := range accounts {
-		status := "非活跃"
-		if account.IsActive == 1 {
-			status = "激活"
+
+		// 处理状态
+		statusName := "非活跃"
+		if account.StatusValue == 1 {
+			statusName = "激活"
 		}
 
-		tradeType := "模拟"
-		if account.TradeType == "live" {
-			tradeType = "实盘"
-		}
-
-		leverSlice := make([]string, 0)
-		for _, tradeConfig := range account.TradeConfigs {
-			if tradeConfig.Margin == "cross" {
-				leverSlice = append(leverSlice, fmt.Sprintf("%d(%s)", tradeConfig.Leverage, "全仓"))
-			} else if tradeConfig.Margin == "isolated" {
-				leverSlice = append(leverSlice, fmt.Sprintf("%d(%s)", tradeConfig.Leverage, "逐仓"))
-			}
+		// 处理交易类型
+		tradeTypeName := "模拟"
+		if account.TradeTypeValue == "live" {
+			tradeTypeName = "实盘"
 		}
 
 		pt.AddRow([]interface{}{
 			account.Name,
 			account.Exchange,
-			tradeType,
-			status,
-			strings.Join(leverSlice, " / "),
-			account.Config.ProxyURL,
+			tradeTypeName,
+			statusName,
+			fmt.Sprintf("%d(cross)/%d(isolated)", account.CrossLeverage, account.IsolatedLeverage),
+			account.ProxyUrl,
 		})
 	}
 
@@ -194,8 +189,6 @@ func RenderStrategyOrders(orders []*model.FoxOrder) string {
 
 	for _, order := range orders {
 
-		fmt.Printf("---------[%+v]--------\n", order)
-
 		side := ""
 		if order.Side == "buy" {
 			side = fmt.Sprintf("%s(买入)", order.Side)
@@ -256,6 +249,82 @@ func RenderStrategyOrders(orders []*model.FoxOrder) string {
 			amount,
 			price,
 			status,
+			strategy,
+			msg,
+		})
+	}
+
+	return pt.Render()
+}
+
+// RenderOrders 渲染订单列表（gRPC版本）
+func RenderOrders(orders []*grpc.ShowOrderItem) string {
+	pt := utils.NewPrettyTable()
+	pt.SetTitle("订单列表")
+	pt.SetHeaders([]interface{}{"ID", "交易对", "方向", "仓位", "数量/金额", "价格", "状态", "下单时间", "策略", "异常结果"})
+
+	for _, order := range orders {
+		side := ""
+		if order.Side == "buy" {
+			side = fmt.Sprintf("%s(买入)", order.Side)
+		} else if order.Side == "sell" {
+			side = fmt.Sprintf("%s(卖出)", order.Side)
+		}
+
+		posSide := ""
+		if order.PosSide == "long" {
+			posSide = fmt.Sprintf("%s(多头)", order.PosSide)
+		} else if order.PosSide == "short" {
+			posSide = fmt.Sprintf("%s(空头)", order.PosSide)
+		}
+
+		status := "等待中"
+		switch order.Status {
+		case "opened":
+			status = "开仓成功"
+		case "closed":
+			status = "平仓成功"
+		case "cancelled":
+			status = "已取消"
+		case "failed":
+			status = "失败"
+		}
+
+		var amount string
+		switch order.SizeType {
+		case "USDT":
+			amount = fmt.Sprintf("%sU", order.Size)
+		default:
+			amount = order.Size
+		}
+
+		price := "-"
+		if order.Price != "" {
+			orderPriceDecimal := decimal.RequireFromString(order.Price)
+			if orderPriceDecimal.GreaterThan(decimal.Zero) {
+				price = order.Price
+			}
+		}
+
+		strategy := "-"
+		if len(order.Strategy) > 0 {
+			strategy = order.Strategy
+		}
+
+		msg := "-"
+		if len(order.Msg) > 0 {
+			msg = order.Msg
+		}
+
+		pt.AddRow([]interface{}{
+			order.OrderID,
+			order.Symbol,
+			side,
+			posSide,
+			amount,
+			price,
+			status,
+			time.Unix(order.CreatedAt, 0).Format("2006-01-02 15:04:05"),
 			strategy,
 			msg,
 		})

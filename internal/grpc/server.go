@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/lemconn/foxflow/internal/engine"
+	"github.com/lemconn/foxflow/internal/server"
 	pb "github.com/lemconn/foxflow/proto/generated"
 	"google.golang.org/grpc"
 )
@@ -206,6 +207,34 @@ func (s *Server) GetNews(ctx context.Context, req *pb.GetNewsRequest) (*pb.GetNe
 		Message: fmt.Sprintf("成功获取 %d 条新闻", len(pbNews)),
 		News:    pbNews,
 	}, nil
+}
+
+// GetAccounts 获取账户列表方法
+func (s *Server) GetAccounts(ctx context.Context, req *pb.GetAccountsRequest) (*pb.GetAccountsResponse, error) {
+	// 验证 access token
+	if err := s.validateToken(req.AccessToken); err != nil {
+		log.Printf("Token 验证失败: %v", err)
+		return &pb.GetAccountsResponse{
+			Success: false,
+			Message: fmt.Sprintf("认证失败: %v", err),
+		}, nil
+	}
+
+	return server.NewAccountServer().GetAccounts(ctx, req)
+}
+
+// GetOrders 获取订单列表方法
+func (s *Server) GetOrders(ctx context.Context, req *pb.GetOrdersRequest) (*pb.GetOrdersResponse, error) {
+	// 验证 access token
+	if err := s.validateToken(req.AccessToken); err != nil {
+		log.Printf("Token 验证失败: %v", err)
+		return &pb.GetOrdersResponse{
+			Success: false,
+			Message: fmt.Sprintf("认证失败: %v", err),
+		}, nil
+	}
+
+	return server.NewOrderServer().GetOrders(ctx, req)
 }
 
 // validateToken 验证 access token
