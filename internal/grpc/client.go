@@ -233,3 +233,98 @@ func (c *Client) GetNews(count int, source string) ([]news.NewsItem, error) {
 
 	return newsList, nil
 }
+
+// GetAccounts 获取账户列表
+func (c *Client) GetAccounts() ([]*ShowAccountItem, error) {
+	// 确保 token 有效
+	if err := c.ensureValidToken(); err != nil {
+		return nil, fmt.Errorf("token 验证失败: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := c.client.GetAccounts(ctx, &pb.GetAccountsRequest{
+		AccessToken: c.getAccessToken(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get accounts: %w", err)
+	}
+
+	if !resp.Success {
+		return nil, fmt.Errorf("get accounts failed: %s", resp.Message)
+	}
+
+	// 转换为内部格式
+	var accounts []*ShowAccountItem
+	for _, item := range resp.Accounts {
+		accounts = append(accounts, &ShowAccountItem{
+			Name:             item.Name,
+			Exchange:         item.Exchange,
+			TradeTypeValue:   item.TradeTypeValue,
+			StatusValue:      item.StatusValue,
+			IsolatedLeverage: item.IsolatedLeverage,
+			CrossLeverage:    item.CrossLeverage,
+			ProxyUrl:         item.ProxyUrl,
+		})
+	}
+
+	return accounts, nil
+}
+
+// GetOrders 获取订单列表
+func (c *Client) GetOrders(accountID int64, status []string) ([]*ShowOrderItem, error) {
+	// 确保 token 有效
+	if err := c.ensureValidToken(); err != nil {
+		return nil, fmt.Errorf("token 验证失败: %w", err)
+	}
+
+	// 验证必填参数
+	if accountID <= 0 {
+		return nil, fmt.Errorf("account_id 是必填参数，且必须大于 0")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := c.client.GetOrders(ctx, &pb.GetOrdersRequest{
+		AccessToken: c.getAccessToken(),
+		AccountId:   accountID,
+		Status:      status,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get orders: %w", err)
+	}
+
+	if !resp.Success {
+		return nil, fmt.Errorf("get orders failed: %s", resp.Message)
+	}
+
+	// 转换为内部格式
+	var orders []*ShowOrderItem
+	for _, item := range resp.Orders {
+		orders = append(orders, &ShowOrderItem{
+			ID:         item.Id,
+			Exchange:   item.Exchange,
+			AccountID:  item.AccountId,
+			Symbol:     item.Symbol,
+			Side:       item.Side,
+			PosSide:    item.PosSide,
+			MarginType: item.MarginType,
+			Price:      item.Price,
+			Size:       item.Size,
+			SizeType:   item.SizeType,
+			OrderType:  item.OrderType,
+			Strategy:   item.Strategy,
+			OrderID:    item.OrderId,
+			Type:       item.Type,
+			Status:     item.Status,
+			Msg:        item.Msg,
+			CreatedAt:  item.CreatedAt,
+			UpdatedAt:  item.UpdatedAt,
+		})
+	}
+
+	log.Printf("成功获取 %d 个订单", len(orders))
+	return orders, nil
+}

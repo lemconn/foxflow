@@ -12,6 +12,7 @@ import (
 	cliRender "github.com/lemconn/foxflow/internal/cli/render"
 	"github.com/lemconn/foxflow/internal/config"
 	"github.com/lemconn/foxflow/internal/exchange"
+	"github.com/lemconn/foxflow/internal/grpc"
 	"github.com/lemconn/foxflow/internal/news"
 	"github.com/lemconn/foxflow/internal/repository"
 	"github.com/lemconn/foxflow/internal/utils"
@@ -39,19 +40,19 @@ func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
 
 	switch args[0] {
 	case "exchange":
-		return c.handleExchangeCommand()
+		return c.handleExchangeCommand() // @TODO 切换为grpc模式
 	case "account":
 		return c.handleAccountCommand(ctx)
 	case "balance":
-		return c.handleBalanceCommand(ctx)
+		return c.handleBalanceCommand(ctx) // @TODO 切换为grpc模式
 	case "order":
 		return c.handleOrderCommand(ctx)
 	case "position":
-		return c.handlePositionCommand(ctx)
+		return c.handlePositionCommand(ctx) // @TODO 切换为grpc模式
 	case "strategy":
-		fmt.Println(cliRender.RenderStrategies())
+		fmt.Println(cliRender.RenderStrategies()) // @TODO 切换为grpc模式
 	case "symbol":
-		return c.handleSymbolCommand(ctx, args[1:])
+		return c.handleSymbolCommand(ctx, args[1:]) // @TODO 切换为grpc模式
 	case "news":
 		return c.handleNewsCommand(ctx, args[1:])
 	default:
@@ -148,9 +149,43 @@ func (c *ShowCommand) handleOrderCommand(ctx command.Context) error {
 		return errors.New("请先选择交易所和用户")
 	}
 
+	// 检查是否有 gRPC 客户端
+	grpcClient := ctx.GetGRPCClient()
+	if grpcClient == nil {
+		// 如果没有 gRPC 客户端，使用本地模式
+		return c.handleOrderCommandLocal(ctx)
+	}
+
+	// 使用 gRPC 获取订单列表
+	fmt.Println(utils.RenderInfo("正在通过 gRPC 获取订单列表..."))
+	orders, err := grpcClient.GetOrders(ctx.GetAccountInstance().ID, []string{})
+	if err != nil {
+		// 如果 gRPC 失败，回退到本地模式
+		fmt.Println(utils.RenderWarning(fmt.Sprintf("gRPC 获取订单失败，回退到本地模式: %v", err)))
+		return c.handleOrderCommandLocal(ctx)
+	}
+
+	if len(orders) == 0 {
+		fmt.Println(utils.RenderWarning("暂无订单数据"))
+		return nil
+	}
+
+	// 渲染订单列表
+	fmt.Println(cliRender.RenderOrders(orders))
+
+	return nil
+}
+
+// handleOrderCommandLocal 本地模式处理订单命令
+func (c *ShowCommand) handleOrderCommandLocal(ctx command.Context) error {
 	orders, err := repository.ListSSOrders(ctx.GetAccountInstance().ID, []string{})
 	if err != nil {
 		return fmt.Errorf("failed to get strategy orders: %w", err)
+	}
+
+	if len(orders) == 0 {
+		fmt.Println(utils.RenderWarning("暂无订单数据"))
+		return nil
 	}
 
 	fmt.Println(cliRender.RenderStrategyOrders(orders))
@@ -176,12 +211,76 @@ func (c *ShowCommand) handleBalanceCommand(ctx command.Context) error {
 }
 
 func (c *ShowCommand) handleAccountCommand(ctx command.Context) error {
+	// 检查是否有 gRPC 客户端
+	grpcClient := ctx.GetGRPCClient()
+	if grpcClient == nil {
+		// 如果没有 gRPC 客户端，使用本地模式
+		return c.handleAccountCommandLocal(ctx)
+	}
+
+	// 使用 gRPC 获取账户列表
+	fmt.Println(utils.RenderInfo("正在通过 gRPC 获取账户列表..."))
+	accounts, err := grpcClient.GetAccounts()
+	if err != nil {
+		// 如果 gRPC 失败，回退到本地模式
+		fmt.Println(utils.RenderWarning(fmt.Sprintf("gRPC 获取账户列表失败，回退到本地模式: %v", err)))
+		return c.handleAccountCommandLocal(ctx)
+	}
+
+	if len(accounts) == 0 {
+		fmt.Println(utils.RenderWarning("暂无账户数据"))
+		return nil
+	}
+
+	// 渲染账户列表
+	fmt.Println(cliRender.RenderAccounts(accounts))
+
+	return nil
+}
+
+// handleAccountCommandLocal 本地模式处理账户命令
+func (c *ShowCommand) handleAccountCommandLocal(ctx command.Context) error {
 	accounts, err := repository.ExchangeAccountList(ctx.GetExchangeName())
 	if err != nil {
 		return fmt.Errorf("failed to get accounts: %w", err)
 	}
 
-	fmt.Println(cliRender.RenderAccounts(accounts))
+	if len(accounts) == 0 {
+		fmt.Println(utils.RenderWarning("暂无账户数据"))
+		return nil
+	}
+
+	renderAccounts := make([]*grpc.ShowAccountItem, 0)
+	for _, account := range accounts {
+		renderAccount := &grpc.ShowAccountItem{
+			Name:           account.Name,
+			Exchange:       account.Exchange,
+			TradeTypeValue: account.TradeType,
+			StatusValue:    account.IsActive,
+		}
+
+		if len(account.TradeConfigs) > 0 {
+			var crossLeverage, isolatedLeverage int64
+			for _, tradeConfig := range account.TradeConfigs {
+				if tradeConfig.Margin == "cross" {
+					crossLeverage = tradeConfig.Leverage
+				} else if tradeConfig.Margin == "isolated" {
+					isolatedLeverage = tradeConfig.Leverage
+				}
+			}
+			renderAccount.CrossLeverage = crossLeverage
+			renderAccount.IsolatedLeverage = isolatedLeverage
+		}
+
+		// 处理代理地址
+		if account.Config.ProxyURL != "" {
+			renderAccount.ProxyUrl = account.Config.ProxyURL
+		}
+
+		renderAccounts = append(renderAccounts, renderAccount)
+	}
+
+	fmt.Println(cliRender.RenderAccounts(renderAccounts))
 	return nil
 }
 

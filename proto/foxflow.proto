@@ -17,6 +17,12 @@ service FoxFlowService {
   
   // 新闻查询
   rpc GetNews(GetNewsRequest) returns (GetNewsResponse);
+  
+  // 账户查询
+  rpc GetAccounts(GetAccountsRequest) returns (GetAccountsResponse);
+  
+  // 订单查询
+  rpc GetOrders(GetOrdersRequest) returns (GetOrdersResponse);
 }
 
 // 认证请求
@@ -85,4 +91,63 @@ message RefreshTokenResponse {
   string message = 2;
   string access_token = 3;          // 新的 JWT access token
   int64 expires_at = 4;             // 新的过期时间 (Unix 时间戳)
+}
+
+// 账户查询请求
+message GetAccountsRequest {
+  string access_token = 1; // JWT access token
+}
+
+// 账户信息
+message AccountsItem {
+  string name = 1;
+  string exchange = 2;
+  string trade_type_value = 3;
+  int64 status_value = 4;
+  int64 isolated_leverage = 5;
+  int64 cross_leverage = 6;
+  string proxy_url = 7;
+}
+
+// 账户信息查询响应
+message GetAccountsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated AccountsItem accounts = 3;       // 账户列表
+}
+
+// 订单查询请求
+message GetOrdersRequest {
+  string access_token = 1;     // JWT access token（必填）
+  int64 account_id = 2;        // 账户ID（必填，必须大于0）
+  repeated string status = 3;  // 订单状态过滤（可选）
+}
+
+// 订单信息
+message OrderItem {
+  int64 id = 1;                // 订单ID
+  string exchange = 2;         // 交易所
+  int64 account_id = 3;        // 账户ID
+  string symbol = 4;           // 交易对符号
+  string side = 5;             // 买卖方向 (buy/sell)
+  string pos_side = 6;         // 持仓方向 (long/short)
+  string margin_type = 7;      // 保证金类型 (isolated/cross)
+  string price = 8;            // 价格
+  string size = 9;             // 数量
+  string size_type = 10;       // 数量类型
+  string order_type = 11;      // 订单类型 (limit/market)
+  string strategy = 12;        // 策略名称
+  string order_id = 13;        // 交易所订单ID
+  string type = 14;            // 订单类型 (open/close)
+  string status = 15;          // 订单状态 (waiting/opened/closed/failed/cancelled)
+  string msg = 16;             // 订单消息/描述
+  int64 created_at = 17;       // 创建时间（Unix时间戳）
+  int64 updated_at = 18;       // 更新时间（Unix时间戳）
+}
+
+// 订单查询响应
+message GetOrdersResponse {
+  bool success = 1;
+  string message = 2;
+  repeated OrderItem orders = 3;  // 订单列表
 }
