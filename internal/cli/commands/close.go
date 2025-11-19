@@ -74,7 +74,7 @@ func (c *CloseCommand) Execute(ctx command.Context, args []string) error {
 	order := &model.FoxOrder{
 		OrderID:    exchangeClient.GetClientOrderId(ctx.GetContext()),
 		Exchange:   ctx.GetExchangeName(),
-		AccountID:  ctx.GetAccountInstance().ID,
+		AccountID:  ctx.GetAccountInstance().Id,
 		Symbol:     symbolName,
 		PosSide:    posSide,
 		MarginType: margin,

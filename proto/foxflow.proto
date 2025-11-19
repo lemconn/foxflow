@@ -18,8 +18,26 @@ service FoxFlowService {
   // 新闻查询
   rpc GetNews(GetNewsRequest) returns (GetNewsResponse);
   
+  // 交易所查询
+  rpc GetExchanges(GetExchangesRequest) returns (GetExchangesResponse);
+
+  // 激活交易所
+  rpc UseExchange(UseExchangeRequest) returns (UseExchangeResponse);
+
+  // 激活账户
+  rpc UseAccount(UseAccountRequest) returns (UseAccountResponse);
+  
   // 账户查询
   rpc GetAccounts(GetAccountsRequest) returns (GetAccountsResponse);
+
+  // 资产查询
+  rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse);
+
+  // 仓位查询
+  rpc GetPositions(GetPositionsRequest) returns (GetPositionsResponse);
+
+  // 交易对查询
+  rpc GetSymbols(GetSymbolsRequest) returns (GetSymbolsResponse);
   
   // 订单查询
   rpc GetOrders(GetOrdersRequest) returns (GetOrdersResponse);
@@ -80,6 +98,127 @@ message GetNewsResponse {
   repeated NewsItem news = 3;       // 新闻列表
 }
 
+// 交易所查询请求
+message GetExchangesRequest {
+  string access_token = 1; // JWT access token
+}
+
+// 交易所信息
+message ExchangesItem {
+  string name = 1;
+  string api_url = 2;
+  string proxy_url = 3;
+  int64 status_value = 4;
+}
+
+// 交易所查询响应
+message GetExchangesResponse {
+  bool success = 1;
+  string message = 2;
+  repeated ExchangesItem exchanges = 3; // 交易所列表
+}
+
+// 激活交易所请求
+message UseExchangeRequest {
+  string access_token = 1; // JWT access token
+  string exchange = 2;     // 要激活的交易所名称
+}
+
+// 激活交易所响应
+message UseExchangeResponse {
+  bool success = 1;
+  string message = 2;
+  ExchangesItem exchange = 3;
+}
+
+// 激活账户请求
+message UseAccountRequest {
+  string access_token = 1; // JWT access token
+  string account = 2;      // 要激活的账户名称
+}
+
+// 激活账户响应
+message UseAccountResponse {
+  bool success = 1;
+  string message = 2;
+  AccountsItem account = 3;
+  ExchangesItem exchange = 4;
+}
+
+// 资产查询请求
+message GetBalanceRequest {
+  string access_token = 1; // JWT access token
+  int64 account_id = 2;    // 账户ID
+}
+
+// 资产信息
+message BalanceItem {
+  string currency = 1;
+  string balance = 2;
+  string available = 3;
+  string frozen = 4;
+}
+
+// 资产查询响应
+message GetBalanceResponse {
+  bool success = 1;
+  string message = 2;
+  repeated BalanceItem assets = 3; // 资产列表
+}
+
+// 仓位查询请求
+message GetPositionsRequest {
+  string access_token = 1; // JWT access token
+  int64 account_id = 2;    // 账户ID
+}
+
+// 仓位信息
+message PositionItem {
+  string symbol = 1;
+  string pos_side = 2;
+  string margin_type = 3;
+  string size = 4;
+  string avg_price = 5;
+  string unreal_pnl = 6;
+}
+
+// 仓位查询响应
+message GetPositionsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated PositionItem positions = 3; // 仓位列表
+}
+
+// 交易对查询请求
+message GetSymbolsRequest {
+  string access_token = 1; // JWT access token
+  string exchange = 2;     // 交易所名称
+  string keyword = 3;      // 关键字过滤（可选）
+}
+
+// 交易对信息
+message SymbolItem {
+  string exchange = 1;
+  string type = 2;
+  string name = 3;
+  string price = 4;
+  string volume = 5;
+  string high = 6;
+  string low = 7;
+  string base = 8;
+  string quote = 9;
+  int64 max_leverage = 10;
+  string min_size = 11;
+  string contract = 12;
+}
+
+// 交易对查询响应
+message GetSymbolsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated SymbolItem symbols = 3; // 交易对列表
+}
+
 // Token 刷新请求
 message RefreshTokenRequest {
   string access_token = 1;          // 当前的 access token
@@ -107,6 +246,7 @@ message AccountsItem {
   int64 isolated_leverage = 5;
   int64 cross_leverage = 6;
   string proxy_url = 7;
+  int64 id = 8;
 }
 
 // 账户信息查询响应

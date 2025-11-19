@@ -9,7 +9,6 @@ import (
 	"github.com/lemconn/foxflow/internal/database"
 	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/grpc"
-	"github.com/lemconn/foxflow/internal/pkg/dao/model"
 )
 
 // Context CLI上下文
@@ -17,9 +16,9 @@ type Context struct {
 	ctx              context.Context
 	currentExchange  string
 	currentAccount   string
-	accountInstance  *model.FoxAccount
+	accountInstance  *grpc.ShowAccountItem
 	exchange         exchange.Exchange
-	exchangeInstance *model.FoxExchange
+	exchangeInstance *grpc.ShowExchangeItem
 	grpcClient       *grpc.Client
 	tokenExpiresAt   int64 // Token 过期时间
 }
@@ -90,22 +89,22 @@ func (c *Context) GetAccountName() string {
 }
 
 // SetExchangeInstance 设置交易所实例
-func (c *Context) SetExchangeInstance(ex *model.FoxExchange) {
+func (c *Context) SetExchangeInstance(ex *grpc.ShowExchangeItem) {
 	c.exchangeInstance = ex
 }
 
 // GetExchangeInstance 获取交易所实例
-func (c *Context) GetExchangeInstance() *model.FoxExchange {
+func (c *Context) GetExchangeInstance() *grpc.ShowExchangeItem {
 	return c.exchangeInstance
 }
 
 // SetAccountInstance 设置当前用户
-func (c *Context) SetAccountInstance(account *model.FoxAccount) {
+func (c *Context) SetAccountInstance(account *grpc.ShowAccountItem) {
 	c.accountInstance = account
 }
 
 // GetAccountInstance 获取当前用户
-func (c *Context) GetAccountInstance() *model.FoxAccount {
+func (c *Context) GetAccountInstance() *grpc.ShowAccountItem {
 	return c.accountInstance
 }
 

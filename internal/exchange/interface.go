@@ -66,12 +66,12 @@ type OrderCostResp struct {
 
 // Position 仓位信息
 type Position struct {
-	Symbol     string  `json:"symbol"`
-	PosSide    string  `json:"pos_side"`
-	MarginType string  `json:"margin_type"` // 保证金模式：isolated(逐仓) / cross(全仓)
-	Size       float64 `json:"size"`
-	AvgPrice   float64 `json:"avg_price"`
-	UnrealPnl  float64 `json:"unreal_pnl"`
+	Symbol     string `json:"symbol"`
+	PosSide    string `json:"pos_side"`
+	MarginType string `json:"margin_type"` // 保证金模式：isolated(逐仓) / cross(全仓)
+	Size       string `json:"size"`
+	AvgPrice   string `json:"avg_price"`
+	UnrealPnl  string `json:"unreal_pnl"`
 }
 
 // Asset 资产信息

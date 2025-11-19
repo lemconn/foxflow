@@ -209,6 +209,85 @@ func (s *Server) GetNews(ctx context.Context, req *pb.GetNewsRequest) (*pb.GetNe
 	}, nil
 }
 
+// GetExchanges 获取交易所列表方法
+func (s *Server) GetExchanges(ctx context.Context, req *pb.GetExchangesRequest) (*pb.GetExchangesResponse, error) {
+	// 验证 access token
+	if err := s.validateToken(req.AccessToken); err != nil {
+		log.Printf("Token 验证失败: %v", err)
+		return &pb.GetExchangesResponse{
+			Success: false,
+			Message: fmt.Sprintf("认证失败: %v", err),
+		}, nil
+	}
+
+	return server.NewExchangeServer().GetExchanges(ctx, req)
+}
+
+// UseExchange 激活交易所
+func (s *Server) UseExchange(ctx context.Context, req *pb.UseExchangeRequest) (*pb.UseExchangeResponse, error) {
+	if err := s.validateToken(req.AccessToken); err != nil {
+		log.Printf("Token 验证失败: %v", err)
+		return &pb.UseExchangeResponse{
+			Success: false,
+			Message: fmt.Sprintf("认证失败: %v", err),
+		}, nil
+	}
+
+	return server.NewExchangeServer().UseExchange(ctx, req)
+}
+
+// UseAccount 激活账户
+func (s *Server) UseAccount(ctx context.Context, req *pb.UseAccountRequest) (*pb.UseAccountResponse, error) {
+	if err := s.validateToken(req.AccessToken); err != nil {
+		log.Printf("Token 验证失败: %v", err)
+		return &pb.UseAccountResponse{
+			Success: false,
+			Message: fmt.Sprintf("认证失败: %v", err),
+		}, nil
+	}
+
+	return server.NewAccountServer().UseAccount(ctx, req)
+}
+
+// GetBalance 获取资产列表方法
+func (s *Server) GetBalance(ctx context.Context, req *pb.GetBalanceRequest) (*pb.GetBalanceResponse, error) {
+	if err := s.validateToken(req.AccessToken); err != nil {
+		log.Printf("Token 验证失败: %v", err)
+		return &pb.GetBalanceResponse{
+			Success: false,
+			Message: fmt.Sprintf("认证失败: %v", err),
+		}, nil
+	}
+
+	return server.NewBalanceServer().GetBalance(ctx, req)
+}
+
+// GetPositions 获取仓位列表方法
+func (s *Server) GetPositions(ctx context.Context, req *pb.GetPositionsRequest) (*pb.GetPositionsResponse, error) {
+	if err := s.validateToken(req.AccessToken); err != nil {
+		log.Printf("Token 验证失败: %v", err)
+		return &pb.GetPositionsResponse{
+			Success: false,
+			Message: fmt.Sprintf("认证失败: %v", err),
+		}, nil
+	}
+
+	return server.NewPositionServer().GetPositions(ctx, req)
+}
+
+// GetSymbols 获取交易对列表方法
+func (s *Server) GetSymbols(ctx context.Context, req *pb.GetSymbolsRequest) (*pb.GetSymbolsResponse, error) {
+	if err := s.validateToken(req.AccessToken); err != nil {
+		log.Printf("Token 验证失败: %v", err)
+		return &pb.GetSymbolsResponse{
+			Success: false,
+			Message: fmt.Sprintf("认证失败: %v", err),
+		}, nil
+	}
+
+	return server.NewSymbolServer().GetSymbols(ctx, req)
+}
+
 // GetAccounts 获取账户列表方法
 func (s *Server) GetAccounts(ctx context.Context, req *pb.GetAccountsRequest) (*pb.GetAccountsResponse, error) {
 	// 验证 access token

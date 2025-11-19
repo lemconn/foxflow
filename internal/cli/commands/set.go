@@ -60,7 +60,7 @@ func (c *SetCommand) handleConfigCommand(ctx command.Context, args []string) err
 	}
 
 	accountMarginLeverage, err := database.Adapter().FoxTradeConfig.Where(
-		database.Adapter().FoxTradeConfig.AccountID.Eq(ctx.GetAccountInstance().ID),
+		database.Adapter().FoxTradeConfig.AccountID.Eq(ctx.GetAccountInstance().Id),
 		database.Adapter().FoxTradeConfig.Margin.Eq(margin),
 	).First()
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -69,7 +69,7 @@ func (c *SetCommand) handleConfigCommand(ctx command.Context, args []string) err
 
 	if accountMarginLeverage == nil {
 		tradeConfig := &model.FoxTradeConfig{
-			AccountID: ctx.GetAccountInstance().ID,
+			AccountID: ctx.GetAccountInstance().Id,
 			Margin:    margin,
 			Leverage:  int64(leverageNum),
 		}
@@ -92,7 +92,7 @@ func (c *SetCommand) handleConfigCommand(ctx command.Context, args []string) err
 
 func (c *SetCommand) handleProxyCommand(ctx command.Context, args []string) error {
 	accountConfigInfo, err := database.Adapter().FoxConfig.Where(
-		database.Adapter().FoxConfig.AccountID.Eq(ctx.GetAccountInstance().ID),
+		database.Adapter().FoxConfig.AccountID.Eq(ctx.GetAccountInstance().Id),
 	).First()
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
@@ -111,7 +111,7 @@ func (c *SetCommand) handleProxyCommand(ctx command.Context, args []string) erro
 		}
 
 		configInfo := &model.FoxConfig{
-			AccountID: ctx.GetAccountInstance().ID,
+			AccountID: ctx.GetAccountInstance().Id,
 			ProxyURL:  proxyUrl,
 		}
 		err = database.Adapter().FoxConfig.Create(configInfo)

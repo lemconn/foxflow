@@ -40,19 +40,19 @@ func (c *ShowCommand) Execute(ctx command.Context, args []string) error {
 
 	switch args[0] {
 	case "exchange":
-		return c.handleExchangeCommand() // @TODO 切换为grpc模式
+		return c.handleExchangeCommand(ctx)
 	case "account":
 		return c.handleAccountCommand(ctx)
 	case "balance":
-		return c.handleBalanceCommand(ctx) // @TODO 切换为grpc模式
+		return c.handleBalanceCommand(ctx)
 	case "order":
 		return c.handleOrderCommand(ctx)
 	case "position":
-		return c.handlePositionCommand(ctx) // @TODO 切换为grpc模式
+		return c.handlePositionCommand(ctx)
 	case "strategy":
-		fmt.Println(cliRender.RenderStrategies()) // @TODO 切换为grpc模式
+		fmt.Println(cliRender.RenderStrategies())
 	case "symbol":
-		return c.handleSymbolCommand(ctx, args[1:]) // @TODO 切换为grpc模式
+		return c.handleSymbolCommand(ctx, args[1:])
 	case "news":
 		return c.handleNewsCommand(ctx, args[1:])
 	default:
@@ -72,6 +72,50 @@ func (c *ShowCommand) handleSymbolCommand(ctx command.Context, args []string) er
 		return errors.New("交易所实例未正确初始化，请重新选择交易所")
 	}
 
+	keyword := ""
+	if len(args) > 0 && args[0] != "" {
+		keyword = strings.ToUpper(args[0])
+	}
+
+	if grpcClient := ctx.GetGRPCClient(); grpcClient != nil {
+		fmt.Println(utils.RenderInfo("正在通过 gRPC 获取交易对列表..."))
+		symbols, err := grpcClient.GetSymbols(exchangeInstance.Name, keyword)
+		if err != nil {
+			fmt.Println(utils.RenderWarning(fmt.Sprintf("gRPC 获取交易对失败，回退到本地模式: %v", err)))
+		} else {
+			if len(symbols) == 0 {
+				fmt.Println(utils.RenderWarning("暂无交易对数据"))
+				return nil
+			}
+
+			renderSymbols := make([]cliRender.RenderSymbolsInfo, 0, len(symbols))
+			for _, symbol := range symbols {
+				renderSymbols = append(renderSymbols, cliRender.RenderSymbolsInfo{
+					Exchange:    symbol.Exchange,
+					Type:        symbol.Type,
+					Name:        symbol.Name,
+					Price:       symbol.Price,
+					Volume:      symbol.Volume,
+					High:        symbol.High,
+					Low:         symbol.Low,
+					Base:        symbol.Base,
+					Quote:       symbol.Quote,
+					MaxLeverage: symbol.MaxLeverage,
+					MinSize:     symbol.MinSize,
+					Contract:    symbol.Contract,
+				})
+			}
+
+			fmt.Println(cliRender.RenderSymbols(renderSymbols))
+			return nil
+		}
+	}
+
+	return c.handleSymbolCommandLocal(ctx, args)
+}
+
+func (c *ShowCommand) handleSymbolCommandLocal(ctx command.Context, args []string) error {
+	exchangeInstance := ctx.GetExchangeInstance()
 	exchangeName := exchangeInstance.Name
 	symbolList, exists := config.ExchangeSymbolList[exchangeName]
 	if !exists {
@@ -130,6 +174,28 @@ func (c *ShowCommand) handlePositionCommand(ctx command.Context) error {
 		return errors.New("请先选择交易所和用户")
 	}
 
+	grpcClient := ctx.GetGRPCClient()
+	if grpcClient == nil {
+		return c.handlePositionCommandLocal(ctx)
+	}
+
+	fmt.Println(utils.RenderInfo("正在通过 gRPC 获取仓位列表..."))
+	positions, err := grpcClient.GetPositions(ctx.GetAccountInstance().Id)
+	if err != nil {
+		fmt.Println(utils.RenderWarning(fmt.Sprintf("gRPC 获取仓位失败，回退到本地模式: %v", err)))
+		return c.handlePositionCommandLocal(ctx)
+	}
+
+	if len(positions) == 0 {
+		fmt.Println(utils.RenderWarning("暂无仓位数据"))
+		return nil
+	}
+
+	fmt.Println(cliRender.RenderPositions(positions))
+	return nil
+}
+
+func (c *ShowCommand) handlePositionCommandLocal(ctx command.Context) error {
 	exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeInstance().Name)
 	if err != nil {
 		return fmt.Errorf("failed to get exchange client: %w", err)
@@ -140,7 +206,24 @@ func (c *ShowCommand) handlePositionCommand(ctx command.Context) error {
 		return fmt.Errorf("failed to get positions: %w", err)
 	}
 
-	fmt.Println(cliRender.RenderPositions(positions))
+	if len(positions) == 0 {
+		fmt.Println(utils.RenderWarning("暂无仓位数据"))
+		return nil
+	}
+
+	renderPositions := make([]*grpc.ShowPositionItem, 0, len(positions))
+	for _, pos := range positions {
+		renderPositions = append(renderPositions, &grpc.ShowPositionItem{
+			Symbol:     pos.Symbol,
+			PosSide:    pos.PosSide,
+			MarginType: pos.MarginType,
+			Size:       pos.Size,
+			AvgPrice:   pos.AvgPrice,
+			UnrealPnl:  pos.UnrealPnl,
+		})
+	}
+
+	fmt.Println(cliRender.RenderPositions(renderPositions))
 	return nil
 }
 
@@ -158,7 +241,7 @@ func (c *ShowCommand) handleOrderCommand(ctx command.Context) error {
 
 	// 使用 gRPC 获取订单列表
 	fmt.Println(utils.RenderInfo("正在通过 gRPC 获取订单列表..."))
-	orders, err := grpcClient.GetOrders(ctx.GetAccountInstance().ID, []string{})
+	orders, err := grpcClient.GetOrders(ctx.GetAccountInstance().Id, []string{})
 	if err != nil {
 		// 如果 gRPC 失败，回退到本地模式
 		fmt.Println(utils.RenderWarning(fmt.Sprintf("gRPC 获取订单失败，回退到本地模式: %v", err)))
@@ -178,7 +261,7 @@ func (c *ShowCommand) handleOrderCommand(ctx command.Context) error {
 
 // handleOrderCommandLocal 本地模式处理订单命令
 func (c *ShowCommand) handleOrderCommandLocal(ctx command.Context) error {
-	orders, err := repository.ListSSOrders(ctx.GetAccountInstance().ID, []string{})
+	orders, err := repository.ListSSOrders(ctx.GetAccountInstance().Id, []string{})
 	if err != nil {
 		return fmt.Errorf("failed to get strategy orders: %w", err)
 	}
@@ -197,16 +280,54 @@ func (c *ShowCommand) handleBalanceCommand(ctx command.Context) error {
 		return errors.New("请先选择交易所和用户")
 	}
 
+	grpcClient := ctx.GetGRPCClient()
+	if grpcClient == nil {
+		return c.handleBalanceCommandLocal(ctx)
+	}
+
+	fmt.Println(utils.RenderInfo("正在通过 gRPC 获取资产列表..."))
+	assets, err := grpcClient.GetBalance(ctx.GetAccountInstance().Id)
+	if err != nil {
+		fmt.Println(utils.RenderWarning(fmt.Sprintf("gRPC 获取资产失败，回退到本地模式: %v", err)))
+		return c.handleBalanceCommandLocal(ctx)
+	}
+
+	if len(assets) == 0 {
+		fmt.Println(utils.RenderWarning("暂无资产数据"))
+		return nil
+	}
+
+	fmt.Println(cliRender.RenderAssets(assets))
+	return nil
+}
+
+func (c *ShowCommand) handleBalanceCommandLocal(ctx command.Context) error {
 	exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeInstance().Name)
 	if err != nil {
 		return fmt.Errorf("failed to get exchange client: %w", err)
 	}
+
 	assets, err := exchangeClient.GetBalance(ctx.GetContext())
 	if err != nil {
 		return fmt.Errorf("failed to get assets: %w", err)
 	}
 
-	fmt.Println(cliRender.RenderAssets(assets))
+	if len(assets) == 0 {
+		fmt.Println(utils.RenderWarning("暂无资产数据"))
+		return nil
+	}
+
+	renderAssets := make([]*grpc.ShowAssetItem, 0, len(assets))
+	for _, asset := range assets {
+		renderAssets = append(renderAssets, &grpc.ShowAssetItem{
+			Currency:  asset.Currency,
+			Balance:   asset.Balance,
+			Available: asset.Available,
+			Frozen:    asset.Frozen,
+		})
+	}
+
+	fmt.Println(cliRender.RenderAssets(renderAssets))
 	return nil
 }
 
@@ -284,18 +405,50 @@ func (c *ShowCommand) handleAccountCommandLocal(ctx command.Context) error {
 	return nil
 }
 
-func (c *ShowCommand) handleExchangeCommand() error {
+func (c *ShowCommand) handleExchangeCommand(ctx command.Context) error {
+	grpcClient := ctx.GetGRPCClient()
+	if grpcClient == nil {
+		return c.handleExchangeCommandLocal()
+	}
+
+	fmt.Println(utils.RenderInfo("正在通过 gRPC 获取交易所列表..."))
+	exchanges, err := grpcClient.GetExchanges()
+	if err != nil {
+		fmt.Println(utils.RenderWarning(fmt.Sprintf("gRPC 获取交易所失败，回退到本地模式: %v", err)))
+		return c.handleExchangeCommandLocal()
+	}
+
+	if len(exchanges) == 0 {
+		fmt.Println(utils.RenderWarning("暂无交易所数据"))
+		return nil
+	}
+
+	fmt.Println(cliRender.RenderExchangesWithStatus(exchanges))
+	return nil
+}
+
+func (c *ShowCommand) handleExchangeCommandLocal() error {
 	exchanges, err := repository.ListExchanges()
 	if err != nil {
 		return fmt.Errorf("failed to get exchanges: %w", err)
 	}
 
-	if exchanges == nil || len(exchanges) == 0 {
-		fmt.Println(utils.RenderWarning("No exchanges found"))
+	if len(exchanges) == 0 {
+		fmt.Println(utils.RenderWarning("暂无交易所数据"))
 		return nil
 	}
 
-	fmt.Println(cliRender.RenderExchangesWithStatus(exchanges))
+	renderItems := make([]*grpc.ShowExchangeItem, 0, len(exchanges))
+	for _, exchange := range exchanges {
+		renderItems = append(renderItems, &grpc.ShowExchangeItem{
+			Name:        exchange.Name,
+			APIUrl:      exchange.APIURL,
+			ProxyUrl:    exchange.ProxyURL,
+			StatusValue: exchange.IsActive,
+		})
+	}
+
+	fmt.Println(cliRender.RenderExchangesWithStatus(renderItems))
 	return nil
 }
 

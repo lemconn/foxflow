@@ -6,7 +6,6 @@ import (
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/grpc"
 	"github.com/lemconn/foxflow/internal/news"
 	"github.com/lemconn/foxflow/internal/pkg/dao/model"
@@ -15,14 +14,14 @@ import (
 )
 
 // RenderExchangesWithStatus 渲染带状态的交易所列表
-func RenderExchangesWithStatus(exchanges []*model.FoxExchange) string {
+func RenderExchangesWithStatus(exchanges []*grpc.ShowExchangeItem) string {
 	pt := utils.NewPrettyTable()
 	pt.SetTitle("可用交易所")
 	pt.SetHeaders([]interface{}{"交易所名称", "状态"})
 
 	for _, exchange := range exchanges {
 		status := "非活跃"
-		if exchange.IsActive == 1 {
+		if exchange.StatusValue == 1 {
 			status = "激活"
 		}
 
@@ -69,7 +68,7 @@ func RenderAccounts(accounts []*grpc.ShowAccountItem) string {
 }
 
 // RenderAssets 渲染资产列表
-func RenderAssets(assets []exchange.Asset) string {
+func RenderAssets(assets []*grpc.ShowAssetItem) string {
 	pt := utils.NewPrettyTable()
 	pt.SetTitle("资产列表")
 	pt.SetHeaders([]interface{}{"币种", "总余额", "可用余额", "冻结余额"})
@@ -77,9 +76,9 @@ func RenderAssets(assets []exchange.Asset) string {
 	for _, asset := range assets {
 		pt.AddRow([]interface{}{
 			asset.Currency,
-			fmt.Sprintf("%.4f", asset.Balance),
-			fmt.Sprintf("%.4f", asset.Available),
-			fmt.Sprintf("%.4f", asset.Frozen),
+			asset.Balance,
+			asset.Available,
+			asset.Frozen,
 		})
 	}
 
@@ -87,7 +86,7 @@ func RenderAssets(assets []exchange.Asset) string {
 }
 
 // RenderPositions 渲染仓位列表
-func RenderPositions(positions []exchange.Position) string {
+func RenderPositions(positions []*grpc.ShowPositionItem) string {
 	pt := utils.NewPrettyTable()
 	pt.SetTitle("仓位列表")
 	pt.SetHeaders([]interface{}{"交易对", "仓位方向", "保证金模式", "数量", "均价", "未实现盈亏"})
@@ -104,9 +103,9 @@ func RenderPositions(positions []exchange.Position) string {
 			pos.Symbol,
 			pos.PosSide,
 			margin,
-			fmt.Sprintf("%.4f", pos.Size),
-			fmt.Sprintf("%.2f", pos.AvgPrice),
-			fmt.Sprintf("%.2f", pos.UnrealPnl),
+			pos.Size,
+			pos.AvgPrice,
+			pos.UnrealPnl,
 		})
 	}
 
