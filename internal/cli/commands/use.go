@@ -6,7 +6,7 @@ import (
 
 	"github.com/lemconn/foxflow/internal/cli/command"
 	"github.com/lemconn/foxflow/internal/exchange"
-	"github.com/lemconn/foxflow/internal/pkg/dao/model"
+	"github.com/lemconn/foxflow/internal/grpc"
 	"github.com/lemconn/foxflow/internal/repository"
 	"github.com/lemconn/foxflow/internal/utils"
 )
@@ -36,6 +36,30 @@ func (c *UseCommand) Execute(ctx command.Context, args []string) error {
 }
 
 func (c *UseCommand) HandleExchangeCommand(ctx command.Context, exchangeName string) error {
+	if grpcClient := ctx.GetGRPCClient(); grpcClient != nil {
+		fmt.Println(utils.RenderInfo(fmt.Sprintf("正在通过 gRPC 激活交易所 %s...", exchangeName)))
+		exchangeItem, err := grpcClient.UseExchange(exchangeName)
+		if err != nil {
+			fmt.Println(utils.RenderWarning(fmt.Sprintf("gRPC 激活交易所失败，回退到本地模式: %v", err)))
+		} else {
+			ctx.SetExchangeName(exchangeItem.Name)
+			ctx.SetExchangeInstance(&grpc.ShowExchangeItem{
+				Name:        exchangeItem.Name,
+				APIUrl:      exchangeItem.APIUrl,
+				ProxyUrl:    exchangeItem.ProxyUrl,
+				StatusValue: exchangeItem.StatusValue,
+			})
+			ctx.SetAccountName("")
+			ctx.SetAccountInstance(&grpc.ShowAccountItem{})
+			fmt.Println(utils.RenderSuccess(fmt.Sprintf("已激活交易所: %s", utils.MessageGreen(exchangeItem.Name))))
+			return nil
+		}
+	}
+
+	return c.handleExchangeCommandLocal(ctx, exchangeName)
+}
+
+func (c *UseCommand) handleExchangeCommandLocal(ctx command.Context, exchangeName string) error {
 	// 将所有交易所设置为非激活状态
 	if err := repository.SetAllExchangesInactive(); err != nil {
 		return fmt.Errorf("failed to deactivate exchanges: %w", err)
@@ -67,15 +91,39 @@ func (c *UseCommand) HandleExchangeCommand(ctx command.Context, exchangeName str
 
 	// 设置新的交易所
 	ctx.SetExchangeName(exchangeName)
-	ctx.SetExchangeInstance(exchangeInfo)
-	ctx.SetAccountName("")                      // 清除当前用户
-	ctx.SetAccountInstance(&model.FoxAccount{}) // 清楚当前用户信息
+	ctx.SetExchangeInstance(&grpc.ShowExchangeItem{
+		Name:        exchangeInfo.Name,
+		APIUrl:      exchangeInfo.APIURL,
+		ProxyUrl:    exchangeInfo.ProxyURL,
+		StatusValue: exchangeInfo.IsActive,
+	})
+	ctx.SetAccountName("")                          // 清除当前用户
+	ctx.SetAccountInstance(&grpc.ShowAccountItem{}) // 清除当前用户信息
 	fmt.Println(utils.RenderSuccess(fmt.Sprintf("已激活交易所: %s", utils.MessageGreen(exchangeName))))
 
 	return nil
 }
 
 func (c *UseCommand) HandleAccountCommand(ctx command.Context, name string) error {
+	if grpcClient := ctx.GetGRPCClient(); grpcClient != nil {
+		fmt.Println(utils.RenderInfo(fmt.Sprintf("正在通过 gRPC 激活账户 %s...", name)))
+		accountItem, exchangeItem, err := grpcClient.UseAccount(name)
+		if err != nil {
+			fmt.Println(utils.RenderWarning(fmt.Sprintf("gRPC 激活账户失败，回退到本地模式: %v", err)))
+		} else {
+			ctx.SetExchangeName(exchangeItem.Name)
+			ctx.SetExchangeInstance(exchangeItem)
+			ctx.SetAccountName(accountItem.Name)
+			ctx.SetAccountInstance(accountItem)
+			fmt.Println(utils.RenderSuccess(fmt.Sprintf("已激活用户: %s", utils.MessageGreen(accountItem.Name))))
+			return nil
+		}
+	}
+
+	return c.handleAccountCommandLocal(ctx, name)
+}
+
+func (c *UseCommand) handleAccountCommandLocal(ctx command.Context, name string) error {
 	account, err := repository.FindAccountByName(name)
 	if err != nil {
 		return fmt.Errorf("failed to get account: %w", err)
@@ -111,7 +159,12 @@ func (c *UseCommand) HandleAccountCommand(ctx command.Context, name string) erro
 	}
 
 	ctx.SetExchangeName(account.Exchange)
-	ctx.SetExchangeInstance(ex)
+	ctx.SetExchangeInstance(&grpc.ShowExchangeItem{
+		Name:        ex.Name,
+		APIUrl:      ex.APIURL,
+		ProxyUrl:    ex.ProxyURL,
+		StatusValue: ex.IsActive,
+	})
 
 	// 激活选中的用户
 	if err = repository.ActivateAccountByName(name); err != nil {
@@ -131,7 +184,12 @@ func (c *UseCommand) HandleAccountCommand(ctx command.Context, name string) erro
 	}
 
 	ctx.SetAccountName(account.Name)
-	ctx.SetAccountInstance(account)
+	ctx.SetAccountInstance(&grpc.ShowAccountItem{
+		Id:             account.ID,
+		Name:           account.Name,
+		Exchange:       account.Exchange,
+		TradeTypeValue: account.TradeType,
+	})
 	fmt.Println(utils.RenderSuccess(fmt.Sprintf("已激活用户: %s", utils.MessageGreen(name))))
 
 	return nil

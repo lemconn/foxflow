@@ -234,6 +234,40 @@ func (c *Client) GetNews(count int, source string) ([]news.NewsItem, error) {
 	return newsList, nil
 }
 
+// GetExchanges 获取交易所列表
+func (c *Client) GetExchanges() ([]*ShowExchangeItem, error) {
+	// 确保 token 有效
+	if err := c.ensureValidToken(); err != nil {
+		return nil, fmt.Errorf("token 验证失败: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	resp, err := c.client.GetExchanges(ctx, &pb.GetExchangesRequest{
+		AccessToken: c.getAccessToken(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get exchanges: %w", err)
+	}
+
+	if !resp.Success {
+		return nil, fmt.Errorf("get exchanges failed: %s", resp.Message)
+	}
+
+	var exchanges []*ShowExchangeItem
+	for _, item := range resp.Exchanges {
+		exchanges = append(exchanges, &ShowExchangeItem{
+			Name:        item.Name,
+			APIUrl:      item.ApiUrl,
+			ProxyUrl:    item.ProxyUrl,
+			StatusValue: item.StatusValue,
+		})
+	}
+
+	return exchanges, nil
+}
+
 // GetAccounts 获取账户列表
 func (c *Client) GetAccounts() ([]*ShowAccountItem, error) {
 	// 确保 token 有效
@@ -259,6 +293,7 @@ func (c *Client) GetAccounts() ([]*ShowAccountItem, error) {
 	var accounts []*ShowAccountItem
 	for _, item := range resp.Accounts {
 		accounts = append(accounts, &ShowAccountItem{
+			Id:               item.Id,
 			Name:             item.Name,
 			Exchange:         item.Exchange,
 			TradeTypeValue:   item.TradeTypeValue,
@@ -270,6 +305,218 @@ func (c *Client) GetAccounts() ([]*ShowAccountItem, error) {
 	}
 
 	return accounts, nil
+}
+
+// GetBalance 获取资产列表
+func (c *Client) GetBalance(accountID int64) ([]*ShowAssetItem, error) {
+	if err := c.ensureValidToken(); err != nil {
+		return nil, fmt.Errorf("token 验证失败: %w", err)
+	}
+
+	if accountID <= 0 {
+		return nil, fmt.Errorf("account_id 是必填参数，且必须大于 0")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := c.client.GetBalance(ctx, &pb.GetBalanceRequest{
+		AccessToken: c.getAccessToken(),
+		AccountId:   accountID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get balance: %w", err)
+	}
+
+	if !resp.Success {
+		return nil, fmt.Errorf("get balance failed: %s", resp.Message)
+	}
+
+	var assets []*ShowAssetItem
+	for _, item := range resp.Assets {
+		assets = append(assets, &ShowAssetItem{
+			Currency:  item.Currency,
+			Balance:   item.Balance,
+			Available: item.Available,
+			Frozen:    item.Frozen,
+		})
+	}
+
+	return assets, nil
+}
+
+// GetPositions 获取仓位列表
+func (c *Client) GetPositions(accountID int64) ([]*ShowPositionItem, error) {
+	if err := c.ensureValidToken(); err != nil {
+		return nil, fmt.Errorf("token 验证失败: %w", err)
+	}
+
+	if accountID <= 0 {
+		return nil, fmt.Errorf("account_id 是必填参数，且必须大于 0")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := c.client.GetPositions(ctx, &pb.GetPositionsRequest{
+		AccessToken: c.getAccessToken(),
+		AccountId:   accountID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get positions: %w", err)
+	}
+
+	if !resp.Success {
+		return nil, fmt.Errorf("get positions failed: %s", resp.Message)
+	}
+
+	var positions []*ShowPositionItem
+	for _, item := range resp.Positions {
+		positions = append(positions, &ShowPositionItem{
+			Symbol:     item.Symbol,
+			PosSide:    item.PosSide,
+			MarginType: item.MarginType,
+			Size:       item.Size,
+			AvgPrice:   item.AvgPrice,
+			UnrealPnl:  item.UnrealPnl,
+		})
+	}
+
+	return positions, nil
+}
+
+// GetSymbols 获取交易对列表
+func (c *Client) GetSymbols(exchangeName, keyword string) ([]*ShowSymbolItem, error) {
+	if err := c.ensureValidToken(); err != nil {
+		return nil, fmt.Errorf("token 验证失败: %w", err)
+	}
+
+	if exchangeName == "" {
+		return nil, fmt.Errorf("exchange 是必填参数")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := c.client.GetSymbols(ctx, &pb.GetSymbolsRequest{
+		AccessToken: c.getAccessToken(),
+		Exchange:    exchangeName,
+		Keyword:     keyword,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get symbols: %w", err)
+	}
+
+	if !resp.Success {
+		return nil, fmt.Errorf("get symbols failed: %s", resp.Message)
+	}
+
+	var symbols []*ShowSymbolItem
+	for _, item := range resp.Symbols {
+		symbols = append(symbols, &ShowSymbolItem{
+			Exchange:    item.Exchange,
+			Type:        item.Type,
+			Name:        item.Name,
+			Price:       item.Price,
+			Volume:      item.Volume,
+			High:        item.High,
+			Low:         item.Low,
+			Base:        item.Base,
+			Quote:       item.Quote,
+			MaxLeverage: item.MaxLeverage,
+			MinSize:     item.MinSize,
+			Contract:    item.Contract,
+		})
+	}
+
+	return symbols, nil
+}
+
+// UseExchange 激活交易所
+func (c *Client) UseExchange(exchangeName string) (*ShowExchangeItem, error) {
+	if err := c.ensureValidToken(); err != nil {
+		return nil, fmt.Errorf("token 验证失败: %w", err)
+	}
+
+	if exchangeName == "" {
+		return nil, fmt.Errorf("exchange 是必填参数")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	resp, err := c.client.UseExchange(ctx, &pb.UseExchangeRequest{
+		AccessToken: c.getAccessToken(),
+		Exchange:    exchangeName,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to use exchange: %w", err)
+	}
+
+	if !resp.Success {
+		return nil, fmt.Errorf("use exchange failed: %s", resp.Message)
+	}
+
+	if resp.Exchange == nil {
+		return nil, fmt.Errorf("use exchange response 缺少 exchange 信息")
+	}
+
+	return &ShowExchangeItem{
+		Name:        resp.Exchange.Name,
+		APIUrl:      resp.Exchange.ApiUrl,
+		ProxyUrl:    resp.Exchange.ProxyUrl,
+		StatusValue: resp.Exchange.StatusValue,
+	}, nil
+}
+
+// UseAccount 激活账户
+func (c *Client) UseAccount(accountName string) (*ShowAccountItem, *ShowExchangeItem, error) {
+	if err := c.ensureValidToken(); err != nil {
+		return nil, nil, fmt.Errorf("token 验证失败: %w", err)
+	}
+
+	if accountName == "" {
+		return nil, nil, fmt.Errorf("account 是必填参数")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := c.client.UseAccount(ctx, &pb.UseAccountRequest{
+		AccessToken: c.getAccessToken(),
+		Account:     accountName,
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to use account: %w", err)
+	}
+
+	if !resp.Success {
+		return nil, nil, fmt.Errorf("use account failed: %s", resp.Message)
+	}
+
+	if resp.Account == nil || resp.Exchange == nil {
+		return nil, nil, fmt.Errorf("use account response 缺少账户或交易所信息")
+	}
+
+	accountItem := &ShowAccountItem{
+		Id:               resp.Account.Id,
+		Name:             resp.Account.Name,
+		Exchange:         resp.Account.Exchange,
+		TradeTypeValue:   resp.Account.TradeTypeValue,
+		StatusValue:      resp.Account.StatusValue,
+		IsolatedLeverage: resp.Account.IsolatedLeverage,
+		CrossLeverage:    resp.Account.CrossLeverage,
+		ProxyUrl:         resp.Account.ProxyUrl,
+	}
+
+	exchangeItem := &ShowExchangeItem{
+		Name:        resp.Exchange.Name,
+		APIUrl:      resp.Exchange.ApiUrl,
+		ProxyUrl:    resp.Exchange.ProxyUrl,
+		StatusValue: resp.Exchange.StatusValue,
+	}
+
+	return accountItem, exchangeItem, nil
 }
 
 // GetOrders 获取订单列表

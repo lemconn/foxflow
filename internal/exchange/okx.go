@@ -435,25 +435,11 @@ func (e *OKXExchange) GetPositions(ctx context.Context) ([]Position, error) {
 			Symbol:     positionInfo.InstId,
 			PosSide:    positionInfo.PosSide,
 			MarginType: positionInfo.MgnMode,
+			Size:       positionInfo.Pos,
+			AvgPrice:   positionInfo.AvgPx,
+			UnrealPnl:  positionInfo.Upl,
 		}
-		floatSize, err := strconv.ParseFloat(positionInfo.Pos, 64)
-		if err != nil {
-			continue
-		}
-		position.Size = floatSize
-
-		floatAvgPri, err := strconv.ParseFloat(positionInfo.AvgPx, 64)
-		if err != nil {
-			continue
-		}
-		position.AvgPrice = floatAvgPri
-
-		floatUpl, err := strconv.ParseFloat(positionInfo.Upl, 64)
-		if err != nil {
-			continue
-		}
-		position.UnrealPnl = floatUpl
-
+	
 		res = append(res, position)
 	}
 
@@ -1156,7 +1142,7 @@ type okxAccountConfigResp struct {
 	} `json:"traderInsts"` // 领航员交易产品列表，适用于领航员
 	SpotTraderInsts []struct {
 		InstId string `json:"instId"` // 产品ID
-	} `json:"spotTraderInsts"` // 领航员现货交易产品列表，适用于领航员
+	} `json:"spotTraderInsts"`                  // 领航员现货交易产品列表，适用于领航员
 	OpAuth        string `json:"opAuth"`        // 操作权限 0：禁止交易，1：只能平仓，2：可以交易
 	KycLv         string `json:"kycLv"`         // 用户KYC等级 0：未认证 1：L1 2：L2 3：L3
 	Label         string `json:"label"`         // API key的备注名称

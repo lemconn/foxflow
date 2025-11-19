@@ -325,7 +325,12 @@ func (c *CLI) setDefaultExchange() {
 		c.ctx.SetExchangeName(exchangeName)
 		// 尝试从数据库获取交易所信息作为备用
 		if exchangeInfo, dbErr := repository.GetExchange(exchangeName); dbErr == nil && exchangeInfo != nil {
-			c.ctx.SetExchangeInstance(exchangeInfo)
+			c.ctx.SetExchangeInstance(&grpc.ShowExchangeItem{
+				Name:        exchangeInfo.Name,
+				APIUrl:      exchangeInfo.APIURL,
+				ProxyUrl:    exchangeInfo.ProxyURL,
+				StatusValue: exchangeInfo.IsActive,
+			})
 		}
 	}
 }
@@ -349,10 +354,20 @@ func (c *CLI) useActiveAccount() error {
 		// 如果设置账户失败，至少设置交易所名称和账户信息，避免完全无法使用
 		c.ctx.SetExchangeName(activeAccount.Exchange)
 		c.ctx.SetAccountName(activeAccount.Name)
-		c.ctx.SetAccountInstance(activeAccount)
+		c.ctx.SetAccountInstance(&grpc.ShowAccountItem{
+			Id:             activeAccount.ID,
+			Name:           activeAccount.Name,
+			Exchange:       activeAccount.Exchange,
+			TradeTypeValue: activeAccount.TradeType,
+		})
 		// 尝试从数据库获取交易所信息作为备用
 		if exchangeInfo, dbErr := repository.GetExchange(activeAccount.Exchange); dbErr == nil && exchangeInfo != nil {
-			c.ctx.SetExchangeInstance(exchangeInfo)
+			c.ctx.SetExchangeInstance(&grpc.ShowExchangeItem{
+				Name:        exchangeInfo.Name,
+				APIUrl:      exchangeInfo.APIURL,
+				ProxyUrl:    exchangeInfo.ProxyURL,
+				StatusValue: exchangeInfo.IsActive,
+			})
 		}
 		return err
 	}
@@ -382,7 +397,7 @@ func (c *CLI) printStatus() {
 	}
 
 	fmt.Println(utils.MessageGreen("foxflow ") +
-		utils.MessageYellow("["+exchangeName+":"+account.TradeType+"@"+account.Name+"] ") +
+		utils.MessageYellow("["+exchangeName+":"+account.TradeTypeValue+"@"+account.Name+"] ") +
 		utils.MessagePurple("["+time.Now().Format(config.DateFormat)+"] ") +
 		utils.MessageCyan("["+tokenStatus+"]"))
 }
