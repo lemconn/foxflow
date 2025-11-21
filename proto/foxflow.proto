@@ -53,6 +53,9 @@ service FoxFlowService {
 
   // 更新账户信息
   rpc UpdateAccount(UpdateAccountRequest) returns (UpdateAccountResponse);
+
+  // 创建开仓订单
+  rpc OpenOrder(OpenOrderRequest) returns (OpenOrderResponse);
 }
 
 // 认证请求
@@ -293,6 +296,28 @@ message UpdateAccountResponse {
   bool success = 1;
   string message = 2;
   AccountsItem account = 3;
+}
+
+// 创建开仓订单请求
+message OpenOrderRequest {
+  string access_token = 1;
+  int64 account_id = 2;
+  string exchange = 3;
+  string symbol = 4;
+  string pos_side = 5;
+  string margin = 6;
+  string amount = 7;
+  string amount_type = 8;
+  string side = 9;
+  string order_type = 10;
+  string strategy = 11;
+}
+
+// 创建开仓订单响应
+message OpenOrderResponse {
+  bool success = 1;
+  string message = 2;
+  OrderItem order = 3;
 }
 
 // Token 刷新请求

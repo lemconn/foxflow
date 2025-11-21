@@ -697,6 +697,64 @@ func (c *Client) UpdateAccount(exchangeName, targetAccount, tradeType, name, api
 	}, nil
 }
 
+// OpenOrder 提交开仓订单
+func (c *Client) OpenOrder(accountID int64, exchangeName, symbol, posSide, margin, amount, amountType, strategy string) (string, string, error) {
+	if err := c.ensureValidToken(); err != nil {
+		return "", "", fmt.Errorf("token 验证失败: %w", err)
+	}
+
+	if accountID <= 0 {
+		return "", "", fmt.Errorf("account_id 是必填参数")
+	}
+	if exchangeName == "" || symbol == "" {
+		return "", "", fmt.Errorf("exchange 和 symbol 均为必填参数")
+	}
+	if posSide != "long" && posSide != "short" {
+		return "", "", fmt.Errorf("pos_side 只能为 long 或 short")
+	}
+	if margin != "isolated" && margin != "cross" {
+		return "", "", fmt.Errorf("margin 只能为 isolated 或 cross")
+	}
+	if amount == "" {
+		return "", "", fmt.Errorf("amount 是必填参数")
+	}
+
+	side := "buy"
+	if posSide == "short" {
+		side = "sell"
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := c.client.OpenOrder(ctx, &pb.OpenOrderRequest{
+		AccessToken: c.getAccessToken(),
+		AccountId:   accountID,
+		Exchange:    exchangeName,
+		Symbol:      symbol,
+		PosSide:     posSide,
+		Margin:      margin,
+		Amount:      amount,
+		AmountType:  amountType,
+		Side:        side,
+		OrderType:   "market",
+		Strategy:    strategy,
+	})
+	if err != nil {
+		return "", "", fmt.Errorf("failed to open order: %w", err)
+	}
+	if !resp.Success {
+		return "", "", fmt.Errorf("open order failed: %s", resp.Message)
+	}
+
+	orderID := ""
+	if resp.Order != nil {
+		orderID = resp.Order.OrderId
+	}
+
+	return resp.Message, orderID, nil
+}
+
 // GetOrders 获取订单列表
 func (c *Client) GetOrders(accountID int64, status []string) ([]*ShowOrderItem, error) {
 	// 确保 token 有效

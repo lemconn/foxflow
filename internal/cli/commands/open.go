@@ -37,12 +37,77 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 	margin := strings.ToLower(args[2])
 	amount := strings.ToUpper(args[3])
 
+	if posSide != "long" && posSide != "short" {
+		return fmt.Errorf("direction 参数错误，只能为 long 或 short")
+	}
+	if margin != "isolated" && margin != "cross" {
+		return fmt.Errorf("margin 参数错误，只能为 isolated 或 cross")
+	}
+	if amount == "" {
+		return fmt.Errorf("amount 参数不能为空，例：100/100U")
+	}
+
+	amountType := ""
+	if strings.HasSuffix(amount, "U") {
+		amount = strings.TrimSuffix(amount, "U")
+		amountType = "USDT"
+	}
+
+	amountDecimal, err := decimal.NewFromString(amount)
+	if err != nil {
+		return fmt.Errorf("amount decimal error: %w", err)
+	}
+
+	side := "buy"
+	if posSide == "short" {
+		side = "sell"
+	}
+
+	strategy := ""
+	if len(args) >= 6 {
+		strategy = args[5]
+		engineClient := syntax.NewEngine()
+		node, err := engineClient.Parse(strategy)
+		if err != nil {
+			return fmt.Errorf("failed to parse strategy syntax: %w", err)
+		}
+		if err := engineClient.GetEvaluator().Validate(node); err != nil {
+			return fmt.Errorf("failed to validate AST: %w", err)
+		}
+	}
+
+	if grpcClient := ctx.GetGRPCClient(); grpcClient != nil {
+		fmt.Println(utils.RenderInfo("正在通过 gRPC 提交开仓订单..."))
+		message, orderID, err := grpcClient.OpenOrder(
+			ctx.GetAccountInstance().Id,
+			ctx.GetExchangeName(),
+			symbolName,
+			posSide,
+			margin,
+			amountDecimal.String(),
+			amountType,
+			strategy,
+		)
+		if err == nil {
+			if orderID != "" {
+				fmt.Println(utils.RenderSuccess(fmt.Sprintf("%s (订单号: %s)", message, orderID)))
+			} else {
+				fmt.Println(utils.RenderSuccess(message))
+			}
+			return nil
+		}
+		fmt.Println(utils.RenderWarning(fmt.Sprintf("gRPC 提交订单失败，回退到本地模式: %v", err)))
+	}
+
+	return c.executeLocal(ctx, symbolName, posSide, margin, amountDecimal, amountType, side, strategy)
+}
+
+func (c *OpenCommand) executeLocal(ctx command.Context, symbolName, posSide, margin string, amountDecimal decimal.Decimal, amountType, side, strategy string) error {
 	exchangeSymbolList, exist := config.ExchangeSymbolList[ctx.GetExchangeName()]
 	if !exist {
 		return fmt.Errorf("交易所 %s 交易对信息不存在", ctx.GetExchangeName())
 	}
 
-	// 校验交易对数据
 	symbolInfo := config.SymbolInfo{}
 	for _, symbol := range exchangeSymbolList {
 		if symbol.Name == symbolName {
@@ -54,76 +119,29 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 		return fmt.Errorf("交易所 %s 交易对 %s 信息不存在", ctx.GetExchangeName(), symbolName)
 	}
 
-	if posSide != "long" && posSide != "short" {
-		return fmt.Errorf("direction 参数错误，只能为 long 或 short")
-	}
-	if margin != "isolated" && margin != "cross" {
-		return fmt.Errorf("margin 参数错误，只能为 isolated 或 cross")
-	}
-
-	if amount == "" {
-		return fmt.Errorf("amount 参数不能为空，例：100/100U")
-	}
-
-	// 判断amount参数是否存在U的后缀（目前仅支持U）
-	amountType := ""
-	if strings.HasSuffix(amount, "U") {
-		amount = strings.TrimSuffix(amount, "U")
-		amountType = "USDT"
-	}
-
-	var side string
-	if posSide == "long" {
-		side = "buy"
-	} else {
-		side = "sell"
-	}
-
-	// 激活交易所
 	exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeName())
 	if err != nil {
 		return fmt.Errorf("get exchange client error: %w", err)
 	}
 
-	// 校验当前用户提交的数据（按照当前标的价格计算校验）
 	orderCostReq := &exchange.OrderCostReq{
 		Side:       side,
 		Symbol:     symbolName,
 		AmountType: amountType,
 		MarginType: margin,
+		Amount:     amountDecimal.String(),
 	}
-	amountDecimal, err := decimal.NewFromString(amount)
-	if err != nil {
-		return fmt.Errorf("amount decimal error: %w", err)
-	}
-	orderCostReq.Amount = amountDecimal.String()
 
 	costRes, costErr := exchangeClient.CalcOrderCost(ctx.GetContext(), orderCostReq)
 	if costErr != nil {
 		return costErr
 	}
 
-	if costRes.CanBuyWithTaker == false {
-		return fmt.Errorf("当前暂时暂时不可提交订单，标的价格：%s，期望购买数（张）：%s，可用资金：%s，手续费（%s交易所收取）:%s，需要总资金：%s", costRes.MarkPrice, costRes.Contracts, costRes.AvailableFunds, ctx.GetExchangeName(), costRes.Fee, costRes.TotalRequired)
+	if !costRes.CanBuyWithTaker {
+		return fmt.Errorf("当前暂时不可提交订单，标的价格：%s，可用资金：%s，手续费（%s 交易所收取）:%s，需要总资金：%s",
+			costRes.MarkPrice, costRes.AvailableFunds, ctx.GetExchangeName(), costRes.Fee, costRes.TotalRequired)
 	}
 
-	// 校验策略
-	var stategry string
-	if len(args) >= 6 {
-		engineClient := syntax.NewEngine()
-		// 解析语法表达式
-		node, err := engineClient.Parse(args[5])
-		if err != nil {
-			return fmt.Errorf("failed to parse strategy syntax: %w", err)
-		}
-
-		// 验证AST
-		if err := engineClient.GetEvaluator().Validate(node); err != nil {
-			return fmt.Errorf("failed to validate AST: %w", err)
-		}
-	}
-
-	// 解析参数
 	order := &model.FoxOrder{
 		OrderID:    exchangeClient.GetClientOrderId(ctx.GetContext()),
 		Exchange:   ctx.GetExchangeName(),
@@ -135,7 +153,7 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 		SizeType:   amountType,
 		Side:       side,
 		OrderType:  "market",
-		Strategy:   stategry,
+		Strategy:   strategy,
 		Type:       "open",
 		Status:     "waiting",
 	}
@@ -145,6 +163,5 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 	}
 
 	fmt.Println(utils.RenderInfo("策略订单已创建，等待策略条件满足"))
-
 	return nil
 }
