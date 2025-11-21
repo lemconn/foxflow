@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/lemconn/foxflow/internal/pkg/dao/model"
 	"github.com/lemconn/foxflow/internal/repository"
 	pb "github.com/lemconn/foxflow/proto/generated"
+	"gorm.io/gorm"
 )
 
 type AccountServer struct{}
@@ -20,8 +22,11 @@ func NewAccountServer() *AccountServer {
 
 func (s *AccountServer) GetAccounts(ctx context.Context, req *pb.GetAccountsRequest) (*pb.GetAccountsResponse, error) {
 	// 从数据库获取账户列表
-	accounts, err := database.Adapter().FoxAccount.Find()
-	if err != nil {
+	accounts, err := database.Adapter().FoxAccount.
+		Preload(database.Adapter().FoxAccount.Config).
+		Preload(database.Adapter().FoxAccount.TradeConfigs).
+		Find()
+	if err != nil && !errors.Is(gorm.ErrRecordNotFound, err) {
 		log.Printf("获取账户列表失败: %v", err)
 		return &pb.GetAccountsResponse{
 			Success: false,
@@ -51,7 +56,9 @@ func (s *AccountServer) UseAccount(ctx context.Context, req *pb.UseAccountReques
 		}, nil
 	}
 
-	account, err := repository.FindAccountByName(req.Account)
+	account, err := database.Adapter().FoxAccount.Where(
+		database.Adapter().FoxAccount.Name.Eq(req.Account),
+	).Preload(database.Adapter().FoxAccount.TradeConfigs).First()
 	if err != nil {
 		return &pb.UseAccountResponse{
 			Success: false,
@@ -128,10 +135,165 @@ func (s *AccountServer) UseAccount(ctx context.Context, req *pb.UseAccountReques
 	}, nil
 }
 
+// UpdateTradeConfig 更新账户杠杆配置
+func (s *AccountServer) UpdateTradeConfig(ctx context.Context, req *pb.UpdateTradeConfigRequest) (*pb.UpdateTradeConfigResponse, error) {
+	if req.AccountId <= 0 {
+		return &pb.UpdateTradeConfigResponse{Success: false, Message: "account_id 是必填参数"}, nil
+	}
+	if req.Margin != "isolated" && req.Margin != "cross" {
+		return &pb.UpdateTradeConfigResponse{Success: false, Message: "margin 只能为 isolated 或 cross"}, nil
+	}
+	if req.Leverage <= 0 {
+		return &pb.UpdateTradeConfigResponse{Success: false, Message: "leverage 必须大于 0"}, nil
+	}
+
+	account, err := database.Adapter().FoxAccount.Where(
+		database.Adapter().FoxAccount.ID.Eq(req.AccountId),
+	).First()
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return &pb.UpdateTradeConfigResponse{
+			Success: false,
+			Message: fmt.Sprintf("获取账户失败: %v", err),
+		}, nil
+	}
+
+	tradeConfigDAO := database.Adapter().FoxTradeConfig
+	tradeConfig, err := tradeConfigDAO.Where(
+		tradeConfigDAO.AccountID.Eq(req.AccountId),
+		tradeConfigDAO.Margin.Eq(req.Margin),
+	).First()
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return &pb.UpdateTradeConfigResponse{
+			Success: false,
+			Message: fmt.Sprintf("查询杠杆配置失败: %v", err),
+		}, nil
+	}
+
+	if tradeConfig == nil {
+		if err := tradeConfigDAO.Create(&model.FoxTradeConfig{
+			AccountID: req.AccountId,
+			Margin:    req.Margin,
+			Leverage:  req.Leverage,
+		}); err != nil {
+			return &pb.UpdateTradeConfigResponse{
+				Success: false,
+				Message: fmt.Sprintf("创建杠杆配置失败: %v", err),
+			}, nil
+		}
+	} else {
+		tradeConfig.Leverage = req.Leverage
+		if err := tradeConfigDAO.Save(tradeConfig); err != nil {
+			return &pb.UpdateTradeConfigResponse{
+				Success: false,
+				Message: fmt.Sprintf("更新杠杆配置失败: %v", err),
+			}, nil
+		}
+	}
+
+	tradeConfigs, err := tradeConfigDAO.Where(
+		tradeConfigDAO.AccountID.Eq(req.AccountId),
+	).Find()
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return &pb.UpdateTradeConfigResponse{
+			Success: false,
+			Message: fmt.Sprintf("获取用户杠杆配置失败: %v", err),
+		}, nil
+	}
+
+	for _, newTradeConfig := range tradeConfigs {
+		account.TradeConfigs = append(account.TradeConfigs, *newTradeConfig)
+	}
+
+	return &pb.UpdateTradeConfigResponse{
+		Success: true,
+		Message: fmt.Sprintf("已将 %s 杠杆设置为 %d", req.Margin, req.Leverage),
+		Account: buildPBAccountItem(account),
+	}, nil
+}
+
+// UpdateProxyConfig 更新账户代理设置
+func (s *AccountServer) UpdateProxyConfig(ctx context.Context, req *pb.UpdateProxyConfigRequest) (*pb.UpdateProxyConfigResponse, error) {
+	if req.AccountId <= 0 {
+		return &pb.UpdateProxyConfigResponse{Success: false, Message: "account_id 是必填参数"}, nil
+	}
+
+	account, err := database.Adapter().FoxAccount.Where(
+		database.Adapter().FoxAccount.ID.Eq(req.AccountId),
+	).Preload(database.Adapter().FoxAccount.TradeConfigs).First()
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return &pb.UpdateProxyConfigResponse{
+			Success: false,
+			Message: fmt.Sprintf("获取账户失败: %v", err),
+		}, nil
+	}
+
+	configDAO := database.Adapter().FoxConfig
+	config, err := configDAO.Where(
+		configDAO.AccountID.Eq(req.AccountId),
+	).First()
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return &pb.UpdateProxyConfigResponse{
+			Success: false,
+			Message: fmt.Sprintf("查询代理配置失败: %v", err),
+		}, nil
+	}
+
+	if config == nil {
+		if req.ProxyUrl != "" {
+			if err := configDAO.Create(&model.FoxConfig{
+				AccountID: req.AccountId,
+				ProxyURL:  req.ProxyUrl,
+			}); err != nil {
+				return &pb.UpdateProxyConfigResponse{
+					Success: false,
+					Message: fmt.Sprintf("创建代理配置失败: %v", err),
+				}, nil
+			}
+			account.Config.ProxyURL = req.ProxyUrl
+		}
+	} else {
+		config.ProxyURL = req.ProxyUrl
+		if err := configDAO.Save(config); err != nil {
+			return &pb.UpdateProxyConfigResponse{
+				Success: false,
+				Message: fmt.Sprintf("更新代理配置失败: %v", err),
+			}, nil
+		}
+		account.Config.ProxyURL = req.ProxyUrl
+	}
+
+	message := "网络代理设置已更新"
+	if req.ProxyUrl == "" {
+		message = "已清空网络代理设置"
+	}
+
+	return &pb.UpdateProxyConfigResponse{
+		Success: true,
+		Message: message,
+		Account: buildPBAccountItem(account),
+	}, nil
+}
+
 func buildPBAccountItem(account *model.FoxAccount) *pb.AccountsItem {
 	// 处理杠杆倍数
+	tradeConfigs := make([]model.FoxTradeConfig, 0)
+	if len(account.TradeConfigs) == 0 {
+		newTradeConfigs, _ := database.Adapter().FoxTradeConfig.Where(
+			database.Adapter().FoxTradeConfig.AccountID.Eq(account.ID),
+		).Find()
+		if newTradeConfigs != nil {
+			for _, newTradeConfig := range newTradeConfigs {
+				tradeConfigs = append(tradeConfigs, *newTradeConfig)
+			}
+		}
+	} else {
+		for _, accountTradeConfig := range account.TradeConfigs {
+			tradeConfigs = append(tradeConfigs, accountTradeConfig)
+		}
+	}
+
 	var crossLeverage, isolatedLeverage int64
-	for _, tradeConfig := range account.TradeConfigs {
+	for _, tradeConfig := range tradeConfigs {
 		if tradeConfig.Margin == "cross" {
 			crossLeverage = tradeConfig.Leverage
 		} else if tradeConfig.Margin == "isolated" {
@@ -140,9 +302,13 @@ func buildPBAccountItem(account *model.FoxAccount) *pb.AccountsItem {
 	}
 
 	// 处理代理地址
-	proxyURL := ""
-	if account.Config.ProxyURL != "" {
-		proxyURL = account.Config.ProxyURL
+	proxyURL := account.Config.ProxyURL
+	if proxyURL == "" {
+		if cfg, err := database.Adapter().FoxConfig.Where(
+			database.Adapter().FoxConfig.AccountID.Eq(account.ID),
+		).First(); err == nil && cfg != nil {
+			proxyURL = cfg.ProxyURL
+		}
 	}
 
 	return &pb.AccountsItem{
