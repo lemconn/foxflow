@@ -301,6 +301,19 @@ func (s *Server) UpdateAccount(ctx context.Context, req *pb.UpdateAccountRequest
 	return server.NewAccountServer().UpdateAccount(ctx, req)
 }
 
+// OpenOrder 创建开仓订单
+func (s *Server) OpenOrder(ctx context.Context, req *pb.OpenOrderRequest) (*pb.OpenOrderResponse, error) {
+	if err := s.validateToken(req.AccessToken); err != nil {
+		log.Printf("Token 验证失败: %v", err)
+		return &pb.OpenOrderResponse{
+			Success: false,
+			Message: fmt.Sprintf("认证失败: %v", err),
+		}, nil
+	}
+
+	return server.NewOrderServer().OpenOrder(ctx, req)
+}
+
 // GetBalance 获取资产列表方法
 func (s *Server) GetBalance(ctx context.Context, req *pb.GetBalanceRequest) (*pb.GetBalanceResponse, error) {
 	if err := s.validateToken(req.AccessToken); err != nil {
