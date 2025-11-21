@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/lemconn/foxflow/internal/config"
 	"github.com/lemconn/foxflow/internal/database"
 	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/pkg/dao/model"
@@ -271,6 +272,109 @@ func (s *AccountServer) UpdateProxyConfig(ctx context.Context, req *pb.UpdatePro
 		Success: true,
 		Message: message,
 		Account: buildPBAccountItem(account),
+	}, nil
+}
+
+// UpdateAccount 更新账户信息
+func (s *AccountServer) UpdateAccount(ctx context.Context, req *pb.UpdateAccountRequest) (*pb.UpdateAccountResponse, error) {
+	if req.Exchange == "" {
+		return &pb.UpdateAccountResponse{Success: false, Message: "exchange 是必填参数"}, nil
+	}
+	if req.TargetAccount == "" {
+		return &pb.UpdateAccountResponse{Success: false, Message: "target_account 是必填参数"}, nil
+	}
+	if req.TradeType == "" || req.Name == "" || req.ApiKey == "" || req.SecretKey == "" {
+		return &pb.UpdateAccountResponse{Success: false, Message: "缺少必要的账户参数"}, nil
+	}
+	if req.Exchange == config.DefaultExchange && req.Passphrase == "" {
+		return &pb.UpdateAccountResponse{Success: false, Message: "okx 账户必须提供 passphrase"}, nil
+	}
+
+	accountInfo, err := database.Adapter().FoxAccount.Where(
+		database.Adapter().FoxAccount.Exchange.Eq(req.Exchange),
+		database.Adapter().FoxAccount.Name.Eq(req.TargetAccount),
+	).First()
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	if err != nil {
+		return &pb.UpdateAccountResponse{
+			Success: false,
+			Message: fmt.Sprintf("查询账户失败: %v", err),
+		}, nil
+	}
+	if accountInfo == nil || accountInfo.ID == 0 {
+		return &pb.UpdateAccountResponse{
+			Success: false,
+			Message: "账户不存在",
+		}, nil
+	}
+
+	account := &model.FoxAccount{
+		ID:         accountInfo.ID,
+		Exchange:   accountInfo.Exchange,
+		TradeType:  req.TradeType,
+		Name:       req.Name,
+		AccessKey:  req.ApiKey,
+		SecretKey:  req.SecretKey,
+		Passphrase: req.Passphrase,
+		IsActive:   accountInfo.IsActive,
+	}
+
+	exchangeClient, err := exchange.GetManager().GetExchange(account.Exchange)
+	if err != nil {
+		return &pb.UpdateAccountResponse{
+			Success: false,
+			Message: fmt.Sprintf("获取交易所客户端失败: %v", err),
+		}, nil
+	}
+
+	exchangeAccount, err := exchangeClient.GetAccount(ctx)
+	if err != nil {
+		return &pb.UpdateAccountResponse{
+			Success: false,
+			Message: fmt.Sprintf("获取交易所账户失败: %v", err),
+		}, nil
+	}
+
+	if err := exchangeClient.Connect(ctx, account); err != nil {
+		return &pb.UpdateAccountResponse{
+			Success: false,
+			Message: fmt.Sprintf("连接交易所失败: %v", err),
+		}, nil
+	}
+
+	if err := exchangeClient.SetAccount(ctx, exchangeAccount); err != nil {
+		return &pb.UpdateAccountResponse{
+			Success: false,
+			Message: fmt.Sprintf("恢复交易所账户失败: %v", err),
+		}, nil
+	}
+
+	if err := repository.UpdateAccount(account); err != nil {
+		return &pb.UpdateAccountResponse{
+			Success: false,
+			Message: fmt.Sprintf("更新账户失败: %v", err),
+		}, nil
+	}
+
+	updatedAccount, err := database.Adapter().FoxAccount.Where(
+		database.Adapter().FoxAccount.ID.Eq(account.ID),
+	).Preload(database.Adapter().FoxAccount.Config).
+		Preload(database.Adapter().FoxAccount.TradeConfigs).
+		First()
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return &pb.UpdateAccountResponse{
+			Success: false,
+			Message: fmt.Sprintf("获取最新账户信息失败: %v", err),
+		}, nil
+	}
+
+	return &pb.UpdateAccountResponse{
+		Success: true,
+		Message: "更新账户成功",
+		Account: buildPBAccountItem(updatedAccount),
 	}, nil
 }
 

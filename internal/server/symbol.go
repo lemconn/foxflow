@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/lemconn/foxflow/internal/config"
+	"github.com/lemconn/foxflow/internal/database"
 	"github.com/lemconn/foxflow/internal/exchange"
 	pb "github.com/lemconn/foxflow/proto/generated"
 )
@@ -90,6 +91,91 @@ func (s *SymbolServer) GetSymbols(ctx context.Context, req *pb.GetSymbolsRequest
 		Success: true,
 		Message: fmt.Sprintf("成功获取 %d 个交易对", len(pbSymbols)),
 		Symbols: pbSymbols,
+	}, nil
+}
+
+// UpdateSymbol 更新标的杠杆/保证金配置
+func (s *SymbolServer) UpdateSymbol(ctx context.Context, req *pb.UpdateSymbolRequest) (*pb.UpdateSymbolResponse, error) {
+	if req.AccountId <= 0 {
+		return &pb.UpdateSymbolResponse{Success: false, Message: "account_id 是必填参数"}, nil
+	}
+	if req.Symbol == "" {
+		return &pb.UpdateSymbolResponse{Success: false, Message: "symbol 是必填参数"}, nil
+	}
+	if req.Margin != "isolated" && req.Margin != "cross" {
+		return &pb.UpdateSymbolResponse{Success: false, Message: "margin 只能为 isolated 或 cross"}, nil
+	}
+	if req.Leverage <= 0 {
+		return &pb.UpdateSymbolResponse{Success: false, Message: "leverage 必须大于 0"}, nil
+	}
+
+	account, err := database.Adapter().FoxAccount.Where(
+		database.Adapter().FoxAccount.ID.Eq(req.AccountId),
+	).Preload(database.Adapter().FoxAccount.Config).First()
+	if err != nil {
+		return &pb.UpdateSymbolResponse{
+			Success: false,
+			Message: fmt.Sprintf("获取账户失败: %v", err),
+		}, nil
+	}
+
+	exchangeName := req.Exchange
+	if exchangeName == "" {
+		exchangeName = account.Exchange
+	}
+	if exchangeName != account.Exchange {
+		return &pb.UpdateSymbolResponse{
+			Success: false,
+			Message: "请求的交易所与账户所属交易所不匹配",
+		}, nil
+	}
+
+	exchangeClient, err := exchange.GetManager().GetExchange(exchangeName)
+	if err != nil {
+		return &pb.UpdateSymbolResponse{
+			Success: false,
+			Message: fmt.Sprintf("获取交易所客户端失败: %v", err),
+		}, nil
+	}
+
+	if err := exchangeClient.SetAccount(ctx, account); err != nil {
+		return &pb.UpdateSymbolResponse{
+			Success: false,
+			Message: fmt.Sprintf("设置账户失败: %v", err),
+		}, nil
+	}
+
+	symbolList := s.getSymbolList(ctx, exchangeName, exchangeClient)
+	var symbolInfo config.SymbolInfo
+	for _, symbol := range symbolList {
+		if symbol.Name == req.Symbol {
+			symbolInfo = symbol
+			break
+		}
+	}
+	if symbolInfo.Name == "" {
+		return &pb.UpdateSymbolResponse{
+			Success: false,
+			Message: fmt.Sprintf("symbol %s 不存在", req.Symbol),
+		}, nil
+	}
+	if req.Leverage > symbolInfo.MaxLever {
+		return &pb.UpdateSymbolResponse{
+			Success: false,
+			Message: fmt.Sprintf("杠杆倍数过大，最大可用杠杆为 %d", symbolInfo.MaxLever),
+		}, nil
+	}
+
+	if err := exchangeClient.SetLeverage(ctx, req.Symbol, req.Leverage, req.Margin); err != nil {
+		return &pb.UpdateSymbolResponse{
+			Success: false,
+			Message: fmt.Sprintf("设置杠杆失败: %v", err),
+		}, nil
+	}
+
+	return &pb.UpdateSymbolResponse{
+		Success: true,
+		Message: fmt.Sprintf("更新标的杠杆成功: %s %s %d", req.Symbol, req.Margin, req.Leverage),
 	}, nil
 }
 

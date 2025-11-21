@@ -610,6 +610,93 @@ func (c *Client) UpdateProxyConfig(accountID int64, proxyURL string) (*ShowAccou
 	}, nil
 }
 
+// UpdateSymbol 更新标的杠杆配置
+func (c *Client) UpdateSymbol(accountID int64, exchangeName, symbol, margin string, leverage int64) error {
+	if err := c.ensureValidToken(); err != nil {
+		return fmt.Errorf("token 验证失败: %w", err)
+	}
+
+	if accountID <= 0 {
+		return fmt.Errorf("account_id 是必填参数")
+	}
+	if exchangeName == "" || symbol == "" {
+		return fmt.Errorf("exchange 与 symbol 均为必填参数")
+	}
+	if margin != "isolated" && margin != "cross" {
+		return fmt.Errorf("margin 只能为 isolated 或 cross")
+	}
+	if leverage <= 0 {
+		return fmt.Errorf("leverage 必须大于 0")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := c.client.UpdateSymbol(ctx, &pb.UpdateSymbolRequest{
+		AccessToken: c.getAccessToken(),
+		AccountId:   accountID,
+		Exchange:    exchangeName,
+		Symbol:      symbol,
+		Margin:      margin,
+		Leverage:    leverage,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update symbol: %w", err)
+	}
+	if !resp.Success {
+		return fmt.Errorf("update symbol failed: %s", resp.Message)
+	}
+	return nil
+}
+
+// UpdateAccount 更新账户信息
+func (c *Client) UpdateAccount(exchangeName, targetAccount, tradeType, name, apiKey, secretKey, passphrase string) (*ShowAccountItem, error) {
+	if err := c.ensureValidToken(); err != nil {
+		return nil, fmt.Errorf("token 验证失败: %w", err)
+	}
+
+	if exchangeName == "" || targetAccount == "" {
+		return nil, fmt.Errorf("exchange 与 target_account 均为必填参数")
+	}
+	if tradeType == "" || name == "" || apiKey == "" || secretKey == "" {
+		return nil, fmt.Errorf("缺少必要的账户参数")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := c.client.UpdateAccount(ctx, &pb.UpdateAccountRequest{
+		AccessToken:   c.getAccessToken(),
+		Exchange:      exchangeName,
+		TargetAccount: targetAccount,
+		TradeType:     tradeType,
+		Name:          name,
+		ApiKey:        apiKey,
+		SecretKey:     secretKey,
+		Passphrase:    passphrase,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to update account: %w", err)
+	}
+	if !resp.Success {
+		return nil, fmt.Errorf("update account failed: %s", resp.Message)
+	}
+	if resp.Account == nil {
+		return nil, fmt.Errorf("update account response 缺少账户信息")
+	}
+
+	return &ShowAccountItem{
+		Id:               resp.Account.Id,
+		Name:             resp.Account.Name,
+		Exchange:         resp.Account.Exchange,
+		TradeTypeValue:   resp.Account.TradeTypeValue,
+		StatusValue:      resp.Account.StatusValue,
+		IsolatedLeverage: resp.Account.IsolatedLeverage,
+		CrossLeverage:    resp.Account.CrossLeverage,
+		ProxyUrl:         resp.Account.ProxyUrl,
+	}, nil
+}
+
 // GetOrders 获取订单列表
 func (c *Client) GetOrders(accountID int64, status []string) ([]*ShowOrderItem, error) {
 	// 确保 token 有效

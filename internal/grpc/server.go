@@ -275,6 +275,32 @@ func (s *Server) UpdateProxyConfig(ctx context.Context, req *pb.UpdateProxyConfi
 	return server.NewAccountServer().UpdateProxyConfig(ctx, req)
 }
 
+// UpdateSymbol 更新标的配置
+func (s *Server) UpdateSymbol(ctx context.Context, req *pb.UpdateSymbolRequest) (*pb.UpdateSymbolResponse, error) {
+	if err := s.validateToken(req.AccessToken); err != nil {
+		log.Printf("Token 验证失败: %v", err)
+		return &pb.UpdateSymbolResponse{
+			Success: false,
+			Message: fmt.Sprintf("认证失败: %v", err),
+		}, nil
+	}
+
+	return server.NewSymbolServer().UpdateSymbol(ctx, req)
+}
+
+// UpdateAccount 更新账户信息
+func (s *Server) UpdateAccount(ctx context.Context, req *pb.UpdateAccountRequest) (*pb.UpdateAccountResponse, error) {
+	if err := s.validateToken(req.AccessToken); err != nil {
+		log.Printf("Token 验证失败: %v", err)
+		return &pb.UpdateAccountResponse{
+			Success: false,
+			Message: fmt.Sprintf("认证失败: %v", err),
+		}, nil
+	}
+
+	return server.NewAccountServer().UpdateAccount(ctx, req)
+}
+
 // GetBalance 获取资产列表方法
 func (s *Server) GetBalance(ctx context.Context, req *pb.GetBalanceRequest) (*pb.GetBalanceResponse, error) {
 	if err := s.validateToken(req.AccessToken); err != nil {
