@@ -41,6 +41,12 @@ service FoxFlowService {
   
   // 订单查询
   rpc GetOrders(GetOrdersRequest) returns (GetOrdersResponse);
+
+  // 更新账户杠杆配置
+  rpc UpdateTradeConfig(UpdateTradeConfigRequest) returns (UpdateTradeConfigResponse);
+
+  // 更新账户代理设置
+  rpc UpdateProxyConfig(UpdateProxyConfigRequest) returns (UpdateProxyConfigResponse);
 }
 
 // 认证请求
@@ -219,6 +225,35 @@ message GetSymbolsResponse {
   repeated SymbolItem symbols = 3; // 交易对列表
 }
 
+// 更新账户杠杆配置请求
+message UpdateTradeConfigRequest {
+  string access_token = 1;
+  int64 account_id = 2;
+  string margin = 3;
+  int64 leverage = 4;
+}
+
+// 更新账户杠杆配置响应
+message UpdateTradeConfigResponse {
+  bool success = 1;
+  string message = 2;
+  AccountsItem account = 3;
+}
+
+// 更新账户代理设置请求
+message UpdateProxyConfigRequest {
+  string access_token = 1;
+  int64 account_id = 2;
+  string proxy_url = 3;
+}
+
+// 更新账户代理设置响应
+message UpdateProxyConfigResponse {
+  bool success = 1;
+  string message = 2;
+  AccountsItem account = 3;
+}
+
 // Token 刷新请求
 message RefreshTokenRequest {
   string access_token = 1;          // 当前的 access token
@@ -239,14 +274,14 @@ message GetAccountsRequest {
 
 // 账户信息
 message AccountsItem {
-  string name = 1;
-  string exchange = 2;
-  string trade_type_value = 3;
-  int64 status_value = 4;
-  int64 isolated_leverage = 5;
-  int64 cross_leverage = 6;
-  string proxy_url = 7;
-  int64 id = 8;
+  int64 id = 1;
+  string name = 2;
+  string exchange = 3;
+  string trade_type_value = 4;
+  int64 status_value = 5;
+  int64 isolated_leverage = 6;
+  int64 cross_leverage = 7;
+  string proxy_url = 8;
 }
 
 // 账户信息查询响应

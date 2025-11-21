@@ -36,7 +36,7 @@ func ExchangeAccountList(exchangeName string) ([]*model.FoxAccount, error) {
 func FindAccountByName(name string) (*model.FoxAccount, error) {
 	account, err := database.Adapter().FoxAccount.Where(
 		database.Adapter().FoxAccount.Name.Eq(name),
-	).First()
+	).Preload(database.Adapter().FoxAccount.TradeConfigs).First()
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}

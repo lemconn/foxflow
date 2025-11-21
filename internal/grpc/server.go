@@ -249,6 +249,32 @@ func (s *Server) UseAccount(ctx context.Context, req *pb.UseAccountRequest) (*pb
 	return server.NewAccountServer().UseAccount(ctx, req)
 }
 
+// UpdateTradeConfig 更新账户杠杆配置方法
+func (s *Server) UpdateTradeConfig(ctx context.Context, req *pb.UpdateTradeConfigRequest) (*pb.UpdateTradeConfigResponse, error) {
+	if err := s.validateToken(req.AccessToken); err != nil {
+		log.Printf("Token 验证失败: %v", err)
+		return &pb.UpdateTradeConfigResponse{
+			Success: false,
+			Message: fmt.Sprintf("认证失败: %v", err),
+		}, nil
+	}
+
+	return server.NewAccountServer().UpdateTradeConfig(ctx, req)
+}
+
+// UpdateProxyConfig 更新账户代理配置方法
+func (s *Server) UpdateProxyConfig(ctx context.Context, req *pb.UpdateProxyConfigRequest) (*pb.UpdateProxyConfigResponse, error) {
+	if err := s.validateToken(req.AccessToken); err != nil {
+		log.Printf("Token 验证失败: %v", err)
+		return &pb.UpdateProxyConfigResponse{
+			Success: false,
+			Message: fmt.Sprintf("认证失败: %v", err),
+		}, nil
+	}
+
+	return server.NewAccountServer().UpdateProxyConfig(ctx, req)
+}
+
 // GetBalance 获取资产列表方法
 func (s *Server) GetBalance(ctx context.Context, req *pb.GetBalanceRequest) (*pb.GetBalanceResponse, error) {
 	if err := s.validateToken(req.AccessToken); err != nil {

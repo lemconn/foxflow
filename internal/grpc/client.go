@@ -519,6 +519,97 @@ func (c *Client) UseAccount(accountName string) (*ShowAccountItem, *ShowExchange
 	return accountItem, exchangeItem, nil
 }
 
+// UpdateTradeConfig 更新账户杠杆配置
+func (c *Client) UpdateTradeConfig(accountID int64, margin string, leverage int64) (*ShowAccountItem, error) {
+	if err := c.ensureValidToken(); err != nil {
+		return nil, fmt.Errorf("token 验证失败: %w", err)
+	}
+
+	if accountID <= 0 {
+		return nil, fmt.Errorf("account_id 是必填参数")
+	}
+	if margin != "isolated" && margin != "cross" {
+		return nil, fmt.Errorf("margin 只能为 isolated 或 cross")
+	}
+	if leverage <= 0 {
+		return nil, fmt.Errorf("leverage 必须大于 0")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := c.client.UpdateTradeConfig(ctx, &pb.UpdateTradeConfigRequest{
+		AccessToken: c.getAccessToken(),
+		AccountId:   accountID,
+		Margin:      margin,
+		Leverage:    leverage,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to update trade config: %w", err)
+	}
+
+	if !resp.Success {
+		return nil, fmt.Errorf("update trade config failed: %s", resp.Message)
+	}
+
+	if resp.Account == nil {
+		return nil, fmt.Errorf("update trade config response 缺少账户信息")
+	}
+
+	return &ShowAccountItem{
+		Id:               resp.Account.Id,
+		Name:             resp.Account.Name,
+		Exchange:         resp.Account.Exchange,
+		TradeTypeValue:   resp.Account.TradeTypeValue,
+		StatusValue:      resp.Account.StatusValue,
+		IsolatedLeverage: resp.Account.IsolatedLeverage,
+		CrossLeverage:    resp.Account.CrossLeverage,
+		ProxyUrl:         resp.Account.ProxyUrl,
+	}, nil
+}
+
+// UpdateProxyConfig 更新账户代理配置
+func (c *Client) UpdateProxyConfig(accountID int64, proxyURL string) (*ShowAccountItem, error) {
+	if err := c.ensureValidToken(); err != nil {
+		return nil, fmt.Errorf("token 验证失败: %w", err)
+	}
+
+	if accountID <= 0 {
+		return nil, fmt.Errorf("account_id 是必填参数")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := c.client.UpdateProxyConfig(ctx, &pb.UpdateProxyConfigRequest{
+		AccessToken: c.getAccessToken(),
+		AccountId:   accountID,
+		ProxyUrl:    proxyURL,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to update proxy config: %w", err)
+	}
+
+	if !resp.Success {
+		return nil, fmt.Errorf("update proxy config failed: %s", resp.Message)
+	}
+
+	if resp.Account == nil {
+		return nil, fmt.Errorf("update proxy config response 缺少账户信息")
+	}
+
+	return &ShowAccountItem{
+		Id:               resp.Account.Id,
+		Name:             resp.Account.Name,
+		Exchange:         resp.Account.Exchange,
+		TradeTypeValue:   resp.Account.TradeTypeValue,
+		StatusValue:      resp.Account.StatusValue,
+		IsolatedLeverage: resp.Account.IsolatedLeverage,
+		CrossLeverage:    resp.Account.CrossLeverage,
+		ProxyUrl:         resp.Account.ProxyUrl,
+	}, nil
+}
+
 // GetOrders 获取订单列表
 func (c *Client) GetOrders(accountID int64, status []string) ([]*ShowOrderItem, error) {
 	// 确保 token 有效
