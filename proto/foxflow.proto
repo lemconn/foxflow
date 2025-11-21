@@ -47,6 +47,12 @@ service FoxFlowService {
 
   // 更新账户代理设置
   rpc UpdateProxyConfig(UpdateProxyConfigRequest) returns (UpdateProxyConfigResponse);
+
+  // 更新标的杠杆配置
+  rpc UpdateSymbol(UpdateSymbolRequest) returns (UpdateSymbolResponse);
+
+  // 更新账户信息
+  rpc UpdateAccount(UpdateAccountRequest) returns (UpdateAccountResponse);
 }
 
 // 认证请求
@@ -225,6 +231,22 @@ message GetSymbolsResponse {
   repeated SymbolItem symbols = 3; // 交易对列表
 }
 
+// 更新标的配置请求
+message UpdateSymbolRequest {
+  string access_token = 1;
+  int64 account_id = 2;
+  string exchange = 3;
+  string symbol = 4;
+  string margin = 5;
+  int64 leverage = 6;
+}
+
+// 更新标的配置响应
+message UpdateSymbolResponse {
+  bool success = 1;
+  string message = 2;
+}
+
 // 更新账户杠杆配置请求
 message UpdateTradeConfigRequest {
   string access_token = 1;
@@ -249,6 +271,25 @@ message UpdateProxyConfigRequest {
 
 // 更新账户代理设置响应
 message UpdateProxyConfigResponse {
+  bool success = 1;
+  string message = 2;
+  AccountsItem account = 3;
+}
+
+// 更新账户信息请求
+message UpdateAccountRequest {
+  string access_token = 1;
+  string exchange = 2;
+  string target_account = 3;
+  string trade_type = 4;
+  string name = 5;
+  string api_key = 6;
+  string secret_key = 7;
+  string passphrase = 8;
+}
+
+// 更新账户信息响应
+message UpdateAccountResponse {
   bool success = 1;
   string message = 2;
   AccountsItem account = 3;
