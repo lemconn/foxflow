@@ -314,6 +314,58 @@ func (s *Server) OpenOrder(ctx context.Context, req *pb.OpenOrderRequest) (*pb.O
 	return server.NewOrderServer().OpenOrder(ctx, req)
 }
 
+// CloseOrder 创建平仓订单
+func (s *Server) CloseOrder(ctx context.Context, req *pb.CloseOrderRequest) (*pb.CloseOrderResponse, error) {
+	if err := s.validateToken(req.AccessToken); err != nil {
+		log.Printf("Token 验证失败: %v", err)
+		return &pb.CloseOrderResponse{
+			Success: false,
+			Message: fmt.Sprintf("认证失败: %v", err),
+		}, nil
+	}
+
+	return server.NewOrderServer().CloseOrder(ctx, req)
+}
+
+// CreateAccount 创建账户
+func (s *Server) CreateAccount(ctx context.Context, req *pb.CreateAccountRequest) (*pb.CreateAccountResponse, error) {
+	if err := s.validateToken(req.AccessToken); err != nil {
+		log.Printf("Token 验证失败: %v", err)
+		return &pb.CreateAccountResponse{
+			Success: false,
+			Message: fmt.Sprintf("认证失败: %v", err),
+		}, nil
+	}
+
+	return server.NewAccountServer().CreateAccount(ctx, req)
+}
+
+// CancelOrder 取消策略订单
+func (s *Server) CancelOrder(ctx context.Context, req *pb.CancelOrderRequest) (*pb.CancelOrderResponse, error) {
+	if err := s.validateToken(req.AccessToken); err != nil {
+		log.Printf("Token 验证失败: %v", err)
+		return &pb.CancelOrderResponse{
+			Success: false,
+			Message: fmt.Sprintf("认证失败: %v", err),
+		}, nil
+	}
+
+	return server.NewOrderServer().CancelOrder(ctx, req)
+}
+
+// DeleteAccount 删除账户
+func (s *Server) DeleteAccount(ctx context.Context, req *pb.DeleteAccountRequest) (*pb.DeleteAccountResponse, error) {
+	if err := s.validateToken(req.AccessToken); err != nil {
+		log.Printf("Token 验证失败: %v", err)
+		return &pb.DeleteAccountResponse{
+			Success: false,
+			Message: fmt.Sprintf("认证失败: %v", err),
+		}, nil
+	}
+
+	return server.NewAccountServer().DeleteAccount(ctx, req)
+}
+
 // GetBalance 获取资产列表方法
 func (s *Server) GetBalance(ctx context.Context, req *pb.GetBalanceRequest) (*pb.GetBalanceResponse, error) {
 	if err := s.validateToken(req.AccessToken); err != nil {

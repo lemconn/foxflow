@@ -261,3 +261,206 @@ func (s *OrderServer) OpenOrder(ctx context.Context, req *pb.OpenOrderRequest) (
 		Order:   pbOrder,
 	}, nil
 }
+
+// CloseOrder 创建平仓订单
+func (s *OrderServer) CloseOrder(ctx context.Context, req *pb.CloseOrderRequest) (*pb.CloseOrderResponse, error) {
+	if req.AccountId <= 0 {
+		return &pb.CloseOrderResponse{Success: false, Message: "account_id 是必填参数"}, nil
+	}
+	if req.Exchange == "" {
+		return &pb.CloseOrderResponse{Success: false, Message: "exchange 是必填参数"}, nil
+	}
+	if req.Symbol == "" {
+		return &pb.CloseOrderResponse{Success: false, Message: "symbol 是必填参数"}, nil
+	}
+	if req.PosSide != "long" && req.PosSide != "short" {
+		return &pb.CloseOrderResponse{Success: false, Message: "pos_side 只能为 long 或 short"}, nil
+	}
+	if req.Margin != "isolated" && req.Margin != "cross" {
+		return &pb.CloseOrderResponse{Success: false, Message: "margin 只能为 isolated 或 cross"}, nil
+	}
+
+	account, err := database.Adapter().FoxAccount.Where(
+		database.Adapter().FoxAccount.ID.Eq(req.AccountId),
+	).Preload(database.Adapter().FoxAccount.Config).First()
+	if err != nil {
+		return &pb.CloseOrderResponse{
+			Success: false,
+			Message: fmt.Sprintf("获取账户失败: %v", err),
+		}, nil
+	}
+
+	if account.Exchange != req.Exchange {
+		return &pb.CloseOrderResponse{
+			Success: false,
+			Message: "账户所属交易所与请求不一致",
+		}, nil
+	}
+
+	exchangeClient, err := exchange.GetManager().GetExchange(req.Exchange)
+	if err != nil {
+		return &pb.CloseOrderResponse{
+			Success: false,
+			Message: fmt.Sprintf("获取交易所客户端失败: %v", err),
+		}, nil
+	}
+
+	if err := exchangeClient.SetAccount(ctx, account); err != nil {
+		return &pb.CloseOrderResponse{
+			Success: false,
+			Message: fmt.Sprintf("设置账户失败: %v", err),
+		}, nil
+	}
+
+	symbolList := NewSymbolServer().getSymbolList(ctx, req.Exchange, exchangeClient)
+	var symbolExists bool
+	for _, symbol := range symbolList {
+		if symbol.Name == strings.ToUpper(req.Symbol) {
+			symbolExists = true
+			break
+		}
+	}
+	if !symbolExists {
+		return &pb.CloseOrderResponse{
+			Success: false,
+			Message: fmt.Sprintf("交易对 %s 不存在", req.Symbol),
+		}, nil
+	}
+
+	strategy := strings.TrimSpace(req.Strategy)
+	if strategy != "" {
+		engineClient := syntax.NewEngine()
+		node, err := engineClient.Parse(strategy)
+		if err != nil {
+			return &pb.CloseOrderResponse{
+				Success: false,
+				Message: fmt.Sprintf("解析策略失败: %v", err),
+			}, nil
+		}
+		if err := engineClient.GetEvaluator().Validate(node); err != nil {
+			return &pb.CloseOrderResponse{
+				Success: false,
+				Message: fmt.Sprintf("策略校验失败: %v", err),
+			}, nil
+		}
+	}
+
+	side := "sell"
+	if req.PosSide == "short" {
+		side = "buy"
+	}
+
+	order := &model.FoxOrder{
+		OrderID:    exchangeClient.GetClientOrderId(ctx),
+		Exchange:   req.Exchange,
+		AccountID:  req.AccountId,
+		Symbol:     req.Symbol,
+		PosSide:    req.PosSide,
+		MarginType: req.Margin,
+		Side:       side,
+		OrderType:  "market",
+		Strategy:   strategy,
+		Type:       "close",
+		Status:     "waiting",
+	}
+
+	if err := database.Adapter().FoxOrder.Create(order); err != nil {
+		return &pb.CloseOrderResponse{
+			Success: false,
+			Message: fmt.Sprintf("创建订单失败: %v", err),
+		}, nil
+	}
+
+	pbOrder := &pb.OrderItem{
+		Id:         order.ID,
+		Exchange:   order.Exchange,
+		AccountId:  order.AccountID,
+		Symbol:     order.Symbol,
+		Side:       order.Side,
+		PosSide:    order.PosSide,
+		MarginType: order.MarginType,
+		Price:      order.Price,
+		Size:       order.Size,
+		SizeType:   order.SizeType,
+		OrderType:  order.OrderType,
+		Strategy:   order.Strategy,
+		OrderId:    order.OrderID,
+		Type:       order.Type,
+		Status:     order.Status,
+		Msg:        order.Msg,
+		CreatedAt:  order.CreatedAt.Unix(),
+		UpdatedAt:  order.UpdatedAt.Unix(),
+	}
+
+	return &pb.CloseOrderResponse{
+		Success: true,
+		Message: "策略订单已创建，等待策略条件满足",
+		Order:   pbOrder,
+	}, nil
+}
+
+// CancelOrder 取消策略订单
+func (s *OrderServer) CancelOrder(ctx context.Context, req *pb.CancelOrderRequest) (*pb.CancelOrderResponse, error) {
+	if req.AccountId <= 0 {
+		return &pb.CancelOrderResponse{Success: false, Message: "account_id 是必填参数"}, nil
+	}
+	if req.Exchange == "" {
+		return &pb.CancelOrderResponse{Success: false, Message: "exchange 是必填参数"}, nil
+	}
+	if req.Symbol == "" {
+		return &pb.CancelOrderResponse{Success: false, Message: "symbol 是必填参数"}, nil
+	}
+	if req.Side == "" || req.PosSide == "" || req.Amount == "" {
+		return &pb.CancelOrderResponse{Success: false, Message: "side、pos_side、amount 均为必填参数"}, nil
+	}
+
+	order, err := database.Adapter().FoxOrder.Where(
+		database.Adapter().FoxOrder.AccountID.Eq(req.AccountId),
+		database.Adapter().FoxOrder.Exchange.Eq(req.Exchange),
+		database.Adapter().FoxOrder.Symbol.Eq(strings.ToUpper(req.Symbol)),
+		database.Adapter().FoxOrder.Side.Eq(req.Side),
+		database.Adapter().FoxOrder.PosSide.Eq(req.PosSide),
+		database.Adapter().FoxOrder.Size.Eq(req.Amount),
+		database.Adapter().FoxOrder.SizeType.Eq(req.AmountType),
+		database.Adapter().FoxOrder.Status.Eq("waiting"),
+	).First()
+	if err != nil {
+		return &pb.CancelOrderResponse{
+			Success: false,
+			Message: fmt.Sprintf("查询订单失败: %v", err),
+		}, nil
+	}
+
+	order.Status = "cancelled"
+	if err := database.Adapter().FoxOrder.Save(order); err != nil {
+		return &pb.CancelOrderResponse{
+			Success: false,
+			Message: fmt.Sprintf("更新订单失败: %v", err),
+		}, nil
+	}
+
+	return &pb.CancelOrderResponse{
+		Success: true,
+		Message: fmt.Sprintf("订单（%s:%s:%s:%s）取消成功", req.Symbol, req.Side, req.PosSide, req.Amount),
+		Order: &pb.OrderItem{
+			Id:         order.ID,
+			Exchange:   order.Exchange,
+			AccountId:  order.AccountID,
+			Symbol:     order.Symbol,
+			Side:       order.Side,
+			PosSide:    order.PosSide,
+			MarginType: order.MarginType,
+			Price:      order.Price,
+			Size:       order.Size,
+			SizeType:   order.SizeType,
+			OrderType:  order.OrderType,
+			Strategy:   order.Strategy,
+			OrderId:    order.OrderID,
+			Type:       order.Type,
+			Status:     order.Status,
+			Msg:        order.Msg,
+			CreatedAt:  order.CreatedAt.Unix(),
+			UpdatedAt:  order.UpdatedAt.Unix(),
+		},
+	}, nil
+}

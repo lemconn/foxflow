@@ -41,36 +41,54 @@ func (c *CloseCommand) Execute(ctx command.Context, args []string) error {
 		return fmt.Errorf("margin 参数错误，只能为 isolated 或 cross")
 	}
 
-	// 校验策略
-	var stategry string
+	strategy := ""
 	if len(args) >= 5 {
+		strategy = args[4]
 		engineClient := syntax.NewEngine()
-		// 解析语法表达式
-		node, err := engineClient.Parse(args[4])
+		node, err := engineClient.Parse(strategy)
 		if err != nil {
 			return fmt.Errorf("failed to parse strategy syntax: %w", err)
 		}
-
-		// 验证AST
 		if err := engineClient.GetEvaluator().Validate(node); err != nil {
 			return fmt.Errorf("failed to validate AST: %w", err)
 		}
 	}
 
-	var side string
-	if posSide == "long" {
-		side = "sell"
-	} else {
+	if grpcClient := ctx.GetGRPCClient(); grpcClient != nil {
+		fmt.Println(utils.RenderInfo("正在通过 gRPC 提交平仓订单..."))
+		message, orderID, err := grpcClient.CloseOrder(
+			ctx.GetAccountInstance().Id,
+			ctx.GetExchangeName(),
+			symbolName,
+			posSide,
+			margin,
+			strategy,
+		)
+		if err == nil {
+			if orderID != "" {
+				fmt.Println(utils.RenderSuccess(fmt.Sprintf("%s (订单号: %s)", message, orderID)))
+			} else {
+				fmt.Println(utils.RenderSuccess(message))
+			}
+			return nil
+		}
+		fmt.Println(utils.RenderWarning(fmt.Sprintf("gRPC 提交平仓订单失败，回退到本地模式: %v", err)))
+	}
+
+	return c.executeLocal(ctx, symbolName, posSide, margin, strategy)
+}
+
+func (c *CloseCommand) executeLocal(ctx command.Context, symbolName, posSide, margin, strategy string) error {
+	side := "sell"
+	if posSide == "short" {
 		side = "buy"
 	}
 
-	// 激活交易所
 	exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeName())
 	if err != nil {
 		return fmt.Errorf("get exchange client error: %w", err)
 	}
 
-	// 解析参数
 	order := &model.FoxOrder{
 		OrderID:    exchangeClient.GetClientOrderId(ctx.GetContext()),
 		Exchange:   ctx.GetExchangeName(),
@@ -80,15 +98,15 @@ func (c *CloseCommand) Execute(ctx command.Context, args []string) error {
 		MarginType: margin,
 		Side:       side,
 		OrderType:  "market",
-		Strategy:   stategry,
+		Strategy:   strategy,
 		Type:       "close",
 		Status:     "waiting",
 	}
+
 	if err := database.Adapter().FoxOrder.Create(order); err != nil {
 		return fmt.Errorf("create order error: %w", err)
 	}
 
 	fmt.Println(utils.RenderInfo("策略订单已创建，等待策略条件满足"))
-
 	return nil
 }

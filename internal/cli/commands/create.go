@@ -56,28 +56,55 @@ func (c *CreateCommand) createAccount(ctx command.Context, args []string) error 
 		return fmt.Errorf("missing required parameters")
 	}
 
-	// 根据用户名获取用户信息
+	exchangeName := ctx.GetExchangeName()
+	if exchangeName == "" {
+		exchangeName = config.DefaultExchange
+	}
+
+	if grpcClient := ctx.GetGRPCClient(); grpcClient != nil {
+		fmt.Println("正在通过 gRPC 创建账户...")
+		accountItem, err := grpcClient.CreateAccount(
+			exchangeName,
+			account.TradeType,
+			account.Name,
+			account.AccessKey,
+			account.SecretKey,
+			account.Passphrase,
+		)
+		if err == nil {
+			useCommand := UseCommand{}
+			if err := useCommand.HandleAccountCommand(ctx, accountItem.Name); err != nil {
+				return fmt.Errorf("create account & use error: %w", err)
+			}
+			fmt.Println("账户创建成功并已激活")
+			return nil
+		}
+		fmt.Println("gRPC 创建账户失败，回退到本地模式:", err)
+	}
+
+	return c.createAccountLocal(ctx, account)
+}
+
+func (c *CreateCommand) createAccountLocal(ctx command.Context, account *model.FoxAccount) error {
 	accountInfo, err := repository.FindAccountByName(account.Name)
 	if err != nil {
 		return fmt.Errorf("find username err: %w", err)
 	}
 
-	// 用户存在则不允许创建
 	if accountInfo != nil && accountInfo.ID > 0 {
 		return fmt.Errorf("account already exists, name: %s", accountInfo.Name)
 	}
 
 	account.Exchange = ctx.GetExchangeName()
 	if account.Exchange == "" {
-		account.Exchange = config.DefaultExchange // 默认交易所
+		account.Exchange = config.DefaultExchange
 	}
 
 	exchangeInfo, err := repository.GetExchange(account.Exchange)
 	if err != nil {
 		return fmt.Errorf("get exchange error: %w", err)
 	}
-
-	if exchangeInfo.Name == "" {
+	if exchangeInfo == nil || exchangeInfo.Name == "" {
 		return fmt.Errorf("exchange is not found")
 	}
 
@@ -85,17 +112,14 @@ func (c *CreateCommand) createAccount(ctx command.Context, args []string) error 
 		return fmt.Errorf("okx exchange passphrase is required")
 	}
 
-	// 到指定交易交易所验证当前用户
 	exchangeClient, err := exchange.GetManager().GetExchange(exchangeInfo.Name)
 	if err != nil {
 		return fmt.Errorf("get exchange client error: %w", err)
 	}
-	err = exchangeClient.Connect(ctx.GetContext(), account)
-	if err != nil {
+	if err := exchangeClient.Connect(ctx.GetContext(), account); err != nil {
 		return fmt.Errorf("connect exchange error: %w", err)
 	}
 
-	// 获取账户配置信息
 	accountConfig, err := exchangeClient.GetAccountConfig(ctx.GetContext())
 	if err != nil {
 		return fmt.Errorf("get account config err: %w", err)
@@ -104,31 +128,26 @@ func (c *CreateCommand) createAccount(ctx command.Context, args []string) error 
 		return fmt.Errorf("account config is nil")
 	}
 
-	// 校验账户模式
 	if accountConfig.AccountMode <= 1 {
 		return fmt.Errorf("当前账户不支持合约交易，请前往“交易设置 > 账户模式”进行切换")
 	}
 
-	// 校验账户权限
 	if !strings.Contains(strings.ToLower(accountConfig.Permission), "trade") {
 		return fmt.Errorf("当前账户不支持交易，请重新生成API key，生成时请注意权限选择“交易”")
 	}
 
-	// 如果仓位模式非双向仓位，则需要更新仓位模式为双向模式
 	if accountConfig.PositionMode != "long_short_mode" {
-		err = exchangeClient.SetPositionMode(ctx.GetContext(), "long_short_mode")
-		if err != nil {
+		if err := exchangeClient.SetPositionMode(ctx.GetContext(), "long_short_mode"); err != nil {
 			return fmt.Errorf("账户双向仓位切换失败，请前往“交易设置 > 仓位模式”进行手动切换，异常信息: %w", err)
 		}
 	}
 
-	if err = repository.CreateAccount(account); err != nil {
+	if err := repository.CreateAccount(account); err != nil {
 		return fmt.Errorf("failed to create account: %w", err)
 	}
 
 	useCommand := UseCommand{}
-	err = useCommand.HandleAccountCommand(ctx, account.Name)
-	if err != nil {
+	if err := useCommand.HandleAccountCommand(ctx, account.Name); err != nil {
 		return fmt.Errorf("create account & use error: %w", err)
 	}
 

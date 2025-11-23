@@ -56,6 +56,18 @@ service FoxFlowService {
 
   // 创建开仓订单
   rpc OpenOrder(OpenOrderRequest) returns (OpenOrderResponse);
+
+  // 创建平仓订单
+  rpc CloseOrder(CloseOrderRequest) returns (CloseOrderResponse);
+
+  // 创建账户
+  rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse);
+
+  // 取消策略订单
+  rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
+
+  // 删除账户
+  rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
 }
 
 // 认证请求
@@ -318,6 +330,73 @@ message OpenOrderResponse {
   bool success = 1;
   string message = 2;
   OrderItem order = 3;
+}
+
+// 创建平仓订单请求
+message CloseOrderRequest {
+  string access_token = 1;
+  int64 account_id = 2;
+  string exchange = 3;
+  string symbol = 4;
+  string pos_side = 5;
+  string margin = 6;
+  string strategy = 7;
+}
+
+// 创建平仓订单响应
+message CloseOrderResponse {
+  bool success = 1;
+  string message = 2;
+  OrderItem order = 3;
+}
+
+// 创建账户请求
+message CreateAccountRequest {
+  string access_token = 1;
+  string exchange = 2;
+  string trade_type = 3;
+  string name = 4;
+  string api_key = 5;
+  string secret_key = 6;
+  string passphrase = 7;
+}
+
+// 创建账户响应
+message CreateAccountResponse {
+  bool success = 1;
+  string message = 2;
+  AccountsItem account = 3;
+}
+
+// 取消订单请求
+message CancelOrderRequest {
+  string access_token = 1;
+  int64 account_id = 2;
+  string exchange = 3;
+  string symbol = 4;
+  string side = 5;
+  string pos_side = 6;
+  string amount = 7;
+  string amount_type = 8;
+}
+
+// 取消订单响应
+message CancelOrderResponse {
+  bool success = 1;
+  string message = 2;
+  OrderItem order = 3;
+}
+
+// 删除账户请求
+message DeleteAccountRequest {
+  string access_token = 1;
+  string name = 2;
+}
+
+// 删除账户响应
+message DeleteAccountResponse {
+  bool success = 1;
+  string message = 2;
 }
 
 // Token 刷新请求

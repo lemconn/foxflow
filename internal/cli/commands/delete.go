@@ -29,6 +29,16 @@ func (c *DeleteCommand) Execute(ctx command.Context, args []string) error {
 }
 
 func (c *DeleteCommand) handleAccountCommand(ctx command.Context, name string) error {
+	if grpcClient := ctx.GetGRPCClient(); grpcClient != nil {
+		fmt.Println(utils.RenderInfo(fmt.Sprintf("正在通过 gRPC 删除账户 %s...", name)))
+		if err := grpcClient.DeleteAccount(name); err == nil {
+			fmt.Println(utils.RenderSuccess(fmt.Sprintf("用户已删除: %s", name)))
+			return nil
+		} else {
+			fmt.Println(utils.RenderWarning(fmt.Sprintf("gRPC 删除账户失败，回退到本地模式: %v", err)))
+		}
+	}
+
 	userInfo, err := repository.FindAccountByName(name)
 	if err != nil {
 		return fmt.Errorf("failed to find account: %w", err)
