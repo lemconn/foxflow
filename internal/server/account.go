@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/lemconn/foxflow/internal/config"
 	"github.com/lemconn/foxflow/internal/database"
@@ -375,6 +376,150 @@ func (s *AccountServer) UpdateAccount(ctx context.Context, req *pb.UpdateAccount
 		Success: true,
 		Message: "更新账户成功",
 		Account: buildPBAccountItem(updatedAccount),
+	}, nil
+}
+
+// CreateAccount 创建账户
+func (s *AccountServer) CreateAccount(ctx context.Context, req *pb.CreateAccountRequest) (*pb.CreateAccountResponse, error) {
+	if req.TradeType == "" || req.Name == "" || req.ApiKey == "" || req.SecretKey == "" {
+		return &pb.CreateAccountResponse{Success: false, Message: "缺少必要的账户参数"}, nil
+	}
+
+	exchangeName := req.Exchange
+	if exchangeName == "" {
+		exchangeName = config.DefaultExchange
+	}
+
+	if exchangeName == config.DefaultExchange && req.Passphrase == "" {
+		return &pb.CreateAccountResponse{
+			Success: false,
+			Message: "okx exchange passphrase is required",
+		}, nil
+	}
+
+	accountInfo, err := database.Adapter().FoxAccount.Where(
+		database.Adapter().FoxAccount.Name.Eq(req.Name),
+	).First()
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return &pb.CreateAccountResponse{
+			Success: false,
+			Message: fmt.Sprintf("查询账户失败: %v", err),
+		}, nil
+	}
+	if accountInfo != nil && accountInfo.ID > 0 {
+		return &pb.CreateAccountResponse{
+			Success: false,
+			Message: fmt.Sprintf("账户 %s 已存在", accountInfo.Name),
+		}, nil
+	}
+
+	account := &model.FoxAccount{
+		Exchange:   exchangeName,
+		TradeType:  req.TradeType,
+		Name:       req.Name,
+		AccessKey:  req.ApiKey,
+		SecretKey:  req.SecretKey,
+		Passphrase: req.Passphrase,
+		IsActive:   0,
+	}
+
+	exchangeClient, err := exchange.GetManager().GetExchange(exchangeName)
+	if err != nil {
+		return &pb.CreateAccountResponse{
+			Success: false,
+			Message: fmt.Sprintf("获取交易所客户端失败: %v", err),
+		}, nil
+	}
+
+	if err := exchangeClient.Connect(ctx, account); err != nil {
+		return &pb.CreateAccountResponse{
+			Success: false,
+			Message: fmt.Sprintf("连接交易所失败: %v", err),
+		}, nil
+	}
+
+	accountConfig, err := exchangeClient.GetAccountConfig(ctx)
+	if err != nil {
+		return &pb.CreateAccountResponse{
+			Success: false,
+			Message: fmt.Sprintf("获取账户配置失败: %v", err),
+		}, nil
+	}
+	if accountConfig == nil {
+		return &pb.CreateAccountResponse{
+			Success: false,
+			Message: "账户配置为空",
+		}, nil
+	}
+
+	if accountConfig.AccountMode <= 1 {
+		return &pb.CreateAccountResponse{
+			Success: false,
+			Message: "当前账户不支持合约交易，请前往“交易设置 > 账户模式”进行切换",
+		}, nil
+	}
+
+	if !strings.Contains(strings.ToLower(accountConfig.Permission), "trade") {
+		return &pb.CreateAccountResponse{
+			Success: false,
+			Message: "当前账户不支持交易，请重新生成 API key 并勾选“交易”权限",
+		}, nil
+	}
+
+	if accountConfig.PositionMode != "long_short_mode" {
+		if err := exchangeClient.SetPositionMode(ctx, "long_short_mode"); err != nil {
+			return &pb.CreateAccountResponse{
+				Success: false,
+				Message: fmt.Sprintf("账户双向仓位切换失败: %v", err),
+			}, nil
+		}
+	}
+
+	if err := repository.CreateAccount(account); err != nil {
+		return &pb.CreateAccountResponse{
+			Success: false,
+			Message: fmt.Sprintf("创建账户失败: %v", err),
+		}, nil
+	}
+
+	return &pb.CreateAccountResponse{
+		Success: true,
+		Message: "账户创建成功",
+		Account: buildPBAccountItem(account),
+	}, nil
+}
+
+// DeleteAccount 删除账户
+func (s *AccountServer) DeleteAccount(ctx context.Context, req *pb.DeleteAccountRequest) (*pb.DeleteAccountResponse, error) {
+	if req.Name == "" {
+		return &pb.DeleteAccountResponse{Success: false, Message: "name 是必填参数"}, nil
+	}
+
+	userInfo, err := repository.FindAccountByName(req.Name)
+	if err != nil {
+		return &pb.DeleteAccountResponse{
+			Success: false,
+			Message: fmt.Sprintf("查询账户失败: %v", err),
+		}, nil
+	}
+
+	if userInfo == nil || userInfo.ID == 0 {
+		return &pb.DeleteAccountResponse{
+			Success: false,
+			Message: fmt.Sprintf("account %s not found", req.Name),
+		}, nil
+	}
+
+	if err := repository.DeleteAccountByName(req.Name); err != nil {
+		return &pb.DeleteAccountResponse{
+			Success: false,
+			Message: fmt.Sprintf("删除账户失败: %v", err),
+		}, nil
+	}
+
+	return &pb.DeleteAccountResponse{
+		Success: true,
+		Message: fmt.Sprintf("用户已删除: %s", req.Name),
 	}, nil
 }
 

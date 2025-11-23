@@ -755,6 +755,161 @@ func (c *Client) OpenOrder(accountID int64, exchangeName, symbol, posSide, margi
 	return resp.Message, orderID, nil
 }
 
+// CloseOrder 提交平仓订单
+func (c *Client) CloseOrder(accountID int64, exchangeName, symbol, posSide, margin, strategy string) (string, string, error) {
+	if err := c.ensureValidToken(); err != nil {
+		return "", "", fmt.Errorf("token 验证失败: %w", err)
+	}
+
+	if accountID <= 0 {
+		return "", "", fmt.Errorf("account_id 是必填参数")
+	}
+	if exchangeName == "" || symbol == "" {
+		return "", "", fmt.Errorf("exchange 和 symbol 均为必填参数")
+	}
+	if posSide != "long" && posSide != "short" {
+		return "", "", fmt.Errorf("pos_side 只能为 long 或 short")
+	}
+	if margin != "isolated" && margin != "cross" {
+		return "", "", fmt.Errorf("margin 只能为 isolated 或 cross")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := c.client.CloseOrder(ctx, &pb.CloseOrderRequest{
+		AccessToken: c.getAccessToken(),
+		AccountId:   accountID,
+		Exchange:    exchangeName,
+		Symbol:      symbol,
+		PosSide:     posSide,
+		Margin:      margin,
+		Strategy:    strategy,
+	})
+	if err != nil {
+		return "", "", fmt.Errorf("failed to close order: %w", err)
+	}
+	if !resp.Success {
+		return "", "", fmt.Errorf("close order failed: %s", resp.Message)
+	}
+
+	orderID := ""
+	if resp.Order != nil {
+		orderID = resp.Order.OrderId
+	}
+
+	return resp.Message, orderID, nil
+}
+
+// CreateAccount 创建账户
+func (c *Client) CreateAccount(exchangeName, tradeType, name, apiKey, secretKey, passphrase string) (*ShowAccountItem, error) {
+	if err := c.ensureValidToken(); err != nil {
+		return nil, fmt.Errorf("token 验证失败: %w", err)
+	}
+
+	if tradeType == "" || name == "" || apiKey == "" || secretKey == "" {
+		return nil, fmt.Errorf("缺少必要的账户参数")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := c.client.CreateAccount(ctx, &pb.CreateAccountRequest{
+		AccessToken: c.getAccessToken(),
+		Exchange:    exchangeName,
+		TradeType:   tradeType,
+		Name:        name,
+		ApiKey:      apiKey,
+		SecretKey:   secretKey,
+		Passphrase:  passphrase,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create account: %w", err)
+	}
+	if !resp.Success {
+		return nil, fmt.Errorf("create account failed: %s", resp.Message)
+	}
+	if resp.Account == nil {
+		return nil, fmt.Errorf("create account response 缺少账户信息")
+	}
+
+	return &ShowAccountItem{
+		Id:               resp.Account.Id,
+		Name:             resp.Account.Name,
+		Exchange:         resp.Account.Exchange,
+		TradeTypeValue:   resp.Account.TradeTypeValue,
+		StatusValue:      resp.Account.StatusValue,
+		IsolatedLeverage: resp.Account.IsolatedLeverage,
+		CrossLeverage:    resp.Account.CrossLeverage,
+		ProxyUrl:         resp.Account.ProxyUrl,
+	}, nil
+}
+
+// DeleteAccount 删除账户
+func (c *Client) DeleteAccount(name string) error {
+	if err := c.ensureValidToken(); err != nil {
+		return fmt.Errorf("token 验证失败: %w", err)
+	}
+
+	if name == "" {
+		return fmt.Errorf("name 是必填参数")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := c.client.DeleteAccount(ctx, &pb.DeleteAccountRequest{
+		AccessToken: c.getAccessToken(),
+		Name:        name,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete account: %w", err)
+	}
+	if !resp.Success {
+		return fmt.Errorf("delete account failed: %s", resp.Message)
+	}
+
+	return nil
+}
+
+// CancelOrder 取消策略订单
+func (c *Client) CancelOrder(accountID int64, exchangeName, symbol, side, posSide, amount, amountType string) (string, string, error) {
+	if err := c.ensureValidToken(); err != nil {
+		return "", "", fmt.Errorf("token 验证失败: %w", err)
+	}
+
+	if accountID <= 0 {
+		return "", "", fmt.Errorf("account_id 是必填参数")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := c.client.CancelOrder(ctx, &pb.CancelOrderRequest{
+		AccessToken: c.getAccessToken(),
+		AccountId:   accountID,
+		Exchange:    exchangeName,
+		Symbol:      symbol,
+		Side:        side,
+		PosSide:     posSide,
+		Amount:      amount,
+		AmountType:  amountType,
+	})
+	if err != nil {
+		return "", "", fmt.Errorf("failed to cancel order: %w", err)
+	}
+	if !resp.Success {
+		return "", "", fmt.Errorf("cancel order failed: %s", resp.Message)
+	}
+
+	orderID := ""
+	if resp.Order != nil {
+		orderID = resp.Order.OrderId
+	}
+
+	return resp.Message, orderID, nil
+}
+
 // GetOrders 获取订单列表
 func (c *Client) GetOrders(accountID int64, status []string) ([]*ShowOrderItem, error) {
 	// 确保 token 有效

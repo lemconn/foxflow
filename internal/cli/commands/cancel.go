@@ -56,32 +56,56 @@ func (c *CancelCommand) Execute(ctx command.Context, args []string) error {
 		return fmt.Errorf("invalid amount decimal: %w", err)
 	}
 
-	// 根据 symbol、side、posSide、amount 查找订单
+	if grpcClient := ctx.GetGRPCClient(); grpcClient != nil {
+		fmt.Println(utils.RenderInfo("正在通过 gRPC 取消订单..."))
+		message, orderID, err := grpcClient.CancelOrder(
+			ctx.GetAccountInstance().Id,
+			ctx.GetExchangeName(),
+			symbol,
+			side,
+			posSide,
+			amountDecimal.String(),
+			amountType,
+		)
+		if err == nil {
+			if orderID != "" {
+				fmt.Println(utils.RenderSuccess(fmt.Sprintf("%s (订单号: %s)", message, orderID)))
+			} else {
+				fmt.Println(utils.RenderSuccess(message))
+			}
+			return nil
+		}
+		fmt.Println(utils.RenderWarning(fmt.Sprintf("gRPC 取消订单失败，回退到本地模式: %v", err)))
+	}
+
+	return c.cancelOrderLocal(symbol, side, posSide, amountDecimal.String(), amountType, args[1])
+}
+
+func (c *CancelCommand) cancelOrderLocal(symbol, side, posSide, amount, amountType, raw string) error {
 	targetOrder, err := database.Adapter().FoxOrder.Where(
 		database.Adapter().FoxOrder.Status.Eq("waiting"),
 		database.Adapter().FoxOrder.Symbol.Eq(symbol),
 		database.Adapter().FoxOrder.Side.Eq(side),
 		database.Adapter().FoxOrder.PosSide.Eq(posSide),
-		database.Adapter().FoxOrder.Size.Eq(amountDecimal.String()),
+		database.Adapter().FoxOrder.Size.Eq(amount),
 		database.Adapter().FoxOrder.SizeType.Eq(amountType),
 	).First()
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return fmt.Errorf("find order error: %w", err)
 	}
 	if targetOrder == nil {
-		return fmt.Errorf("order not found: %s:%s:%s:%s", symbol, side, posSide, orderParts[2])
+		return fmt.Errorf("order not found: %s", raw)
 	}
 
 	if targetOrder.Status != "waiting" {
 		return fmt.Errorf("order %s status is not waiting", symbol)
 	}
 
-	// 更新订单状态
 	targetOrder.Status = "cancelled"
 	if err := database.Adapter().FoxOrder.Save(targetOrder); err != nil {
 		return fmt.Errorf("failed to update order: %w", err)
 	}
 
-	fmt.Println(utils.RenderSuccess(fmt.Sprintf("订单（%s）取消成功", args[1])))
+	fmt.Println(utils.RenderSuccess(fmt.Sprintf("订单（%s）取消成功", raw)))
 	return nil
 }
