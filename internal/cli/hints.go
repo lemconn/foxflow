@@ -1098,7 +1098,7 @@ func getCancelOrderList(ctx *Context) []prompt.Suggest {
 		return []prompt.Suggest{}
 	}
 
-	accountOrderList, err := grpcClient.GetOrders(ctx.GetAccountInstance().Id, []string{"waiting", "opened", "closed"})
+	accountOrderList, err := grpcClient.GetOrders(ctx.GetAccountInstance().Id, []string{"waiting"})
 	if err != nil {
 		return []prompt.Suggest{}
 	}
