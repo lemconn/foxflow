@@ -962,7 +962,6 @@ func (c *Client) GetOrders(accountID int64, status []string) ([]*ShowOrderItem, 
 			UpdatedAt:  item.UpdatedAt,
 		})
 	}
-
-	log.Printf("成功获取 %d 个订单", len(orders))
+	
 	return orders, nil
 }

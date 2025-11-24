@@ -12,7 +12,6 @@ import (
 
 	"github.com/lemconn/foxflow/internal/cli"
 	"github.com/lemconn/foxflow/internal/config"
-	"github.com/lemconn/foxflow/internal/database"
 	"github.com/lemconn/foxflow/internal/grpc"
 )
 
@@ -39,11 +38,11 @@ func main() {
 		config.GlobalConfig.DBFile = *dbFile
 	}
 
-	// 初始化数据库
-	if err := database.InitDB(); err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
-	}
-	fmt.Println(utils.RenderSuccess("数据库初始化完成"))
+	//// 初始化数据库
+	//if err := database.InitDB(); err != nil {
+	//	log.Fatalf("Failed to initialize database: %v", err)
+	//}
+	//fmt.Println(utils.RenderSuccess("数据库初始化完成"))
 
 	// 尝试连接gRPC服务端
 	var grpcClient *grpc.Client

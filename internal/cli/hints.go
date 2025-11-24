@@ -6,7 +6,7 @@ import (
 
 	"github.com/c-bata/go-prompt"
 	"github.com/lemconn/foxflow/internal/config"
-	"github.com/lemconn/foxflow/internal/repository"
+	"github.com/lemconn/foxflow/internal/grpc"
 )
 
 // parseCommandInput 解析命令输入，返回字段列表
@@ -91,7 +91,7 @@ func handleUseCommandCompletion(ctx *Context, d prompt.Document, w string, field
 		prefix := d.GetWordBeforeCursor()
 		switch second {
 		case "exchange":
-			return prompt.FilterHasPrefix(useExchangesList(), prefix, true)
+			return prompt.FilterHasPrefix(useExchangesList(ctx), prefix, true)
 		case "account":
 			return prompt.FilterHasPrefix(useAccountsList(ctx), prefix, true)
 		}
@@ -100,7 +100,7 @@ func handleUseCommandCompletion(ctx *Context, d prompt.Document, w string, field
 		prefix := d.GetWordBeforeCursor()
 		switch second {
 		case "exchange":
-			return prompt.FilterHasPrefix(useExchangesList(), prefix, true)
+			return prompt.FilterHasPrefix(useExchangesList(ctx), prefix, true)
 		case "account":
 			return prompt.FilterHasPrefix(useAccountsList(ctx), prefix, true)
 		}
@@ -820,13 +820,19 @@ func getDynamicSymbolList(ctx *Context) []prompt.Suggest {
 		return []prompt.Suggest{}
 	}
 
-	symbols, exist := config.ExchangeSymbolList[ctx.GetExchangeName()]
-	if !exist {
+	grpcClient := ctx.GetGRPCClient()
+	if grpcClient == nil {
+		return []prompt.Suggest{}
+	}
+
+	exchangeName := ctx.GetExchangeName()
+	symbolList, err := grpcClient.GetSymbols(exchangeName, "")
+	if err != nil {
 		return []prompt.Suggest{}
 	}
 
 	var suggestions []prompt.Suggest
-	for _, symbol := range symbols {
+	for _, symbol := range symbolList {
 		suggestions = append(suggestions, prompt.Suggest{
 			Text: symbol.Name,
 		})
@@ -837,16 +843,34 @@ func getDynamicSymbolList(ctx *Context) []prompt.Suggest {
 
 // getDynamicAccountList 获取动态账户列表
 func getDynamicAccountList(ctx *Context) []prompt.Suggest {
-	accountList, err := repository.ExchangeAccountList(ctx.GetExchangeName())
+	grpcClient := ctx.GetGRPCClient()
+	if grpcClient == nil {
+		return []prompt.Suggest{}
+	}
+
+	accountList, err := grpcClient.GetAccounts()
 	if err != nil {
+		return []prompt.Suggest{}
+	}
+	if len(accountList) == 0 {
+		return []prompt.Suggest{}
+	}
+
+	exchangeAccountList := make([]*grpc.ShowAccountItem, 0)
+	for _, account := range accountList {
+		if account.Exchange == ctx.GetExchangeName() {
+			exchangeAccountList = append(exchangeAccountList, account)
+		}
+	}
+	if len(exchangeAccountList) == 0 {
 		return []prompt.Suggest{}
 	}
 
 	var suggestions []prompt.Suggest
-	for _, account := range accountList {
+	for _, account := range exchangeAccountList {
 		suggestions = append(suggestions, prompt.Suggest{
 			Text:        account.Name,
-			Description: fmt.Sprintf("%s：%s", account.TradeType, account.Exchange),
+			Description: fmt.Sprintf("%s：%s", account.TradeTypeValue, account.Exchange),
 		})
 	}
 
@@ -1069,10 +1093,17 @@ func handleCancelCommandCompletion(ctx *Context, d prompt.Document, w string, fi
 
 // getCancelOrderList 获取可取消的订单列表（暂时使用mock数据）
 func getCancelOrderList(ctx *Context) []prompt.Suggest {
+	grpcClient := ctx.GetGRPCClient()
+	if grpcClient == nil {
+		return []prompt.Suggest{}
+	}
 
-	// 只获取未完成的订单
-	accountOrderList, err := repository.ListSSOrders(ctx.GetAccountInstance().Id, []string{"waiting"})
+	accountOrderList, err := grpcClient.GetOrders(ctx.GetAccountInstance().Id, []string{"waiting", "opened", "closed"})
 	if err != nil {
+		return []prompt.Suggest{}
+	}
+
+	if len(accountOrderList) == 0 {
 		return []prompt.Suggest{}
 	}
 
@@ -1108,9 +1139,19 @@ func getCancelOrderList(ctx *Context) []prompt.Suggest {
 
 // getOpenSymbolList 获取open命令的symbol列表（暂时使用mock数据）
 func getOpenSymbolList(ctx *Context) []prompt.Suggest {
+	// 检查是否有 gRPC 客户端
+	grpcClient := ctx.GetGRPCClient()
+	if grpcClient == nil {
+		return []prompt.Suggest{}
+	}
+
 	exchangeName := ctx.GetExchangeName()
-	symbolList, exist := config.ExchangeSymbolList[exchangeName]
-	if !exist {
+	symbolList, err := grpcClient.GetSymbols(exchangeName, "")
+	if err != nil {
+		return []prompt.Suggest{}
+	}
+
+	if len(symbolList) == 0 {
 		return []prompt.Suggest{}
 	}
 
@@ -1118,8 +1159,8 @@ func getOpenSymbolList(ctx *Context) []prompt.Suggest {
 	for _, symbol := range symbolList {
 		suggestions = append(suggestions, prompt.Suggest{
 			Text: symbol.Name,
-			Description: fmt.Sprintf("最大杠杆:%.0fx 最小购买量:%.4f",
-				symbol.MaxLever,
+			Description: fmt.Sprintf("最大杠杆:%dx 最小购买量:%s",
+				symbol.MaxLeverage,
 				symbol.MinSize),
 		})
 	}
@@ -1154,10 +1195,19 @@ func getStrategyList() []prompt.Suggest {
 }
 
 // useExchangesList 获取交易所列表（用于use exchange命令）
-func useExchangesList() []prompt.Suggest {
-	// 获取所有交易所列表
-	exchangeList, err := repository.ListExchanges()
+func useExchangesList(ctx *Context) []prompt.Suggest {
+
+	grpcClient := ctx.GetGRPCClient()
+	if grpcClient == nil {
+		return []prompt.Suggest{}
+	}
+
+	exchangeList, err := grpcClient.GetExchanges()
 	if err != nil {
+		return []prompt.Suggest{}
+	}
+
+	if len(exchangeList) == 0 {
 		return []prompt.Suggest{}
 	}
 
@@ -1171,16 +1221,34 @@ func useExchangesList() []prompt.Suggest {
 
 // useAccountsList 获取账户列表（用于use account命令）
 func useAccountsList(ctx *Context) []prompt.Suggest {
-	// 获取所有用户列表
-	accountList, err := repository.ExchangeAccountList(ctx.GetExchangeName())
+	grpcClient := ctx.GetGRPCClient()
+	if grpcClient == nil {
+		return []prompt.Suggest{}
+	}
+
+	accountList, err := grpcClient.GetAccounts()
 	if err != nil {
 		return []prompt.Suggest{}
 	}
-	accounts := make([]prompt.Suggest, 0)
+	if len(accountList) == 0 {
+		return []prompt.Suggest{}
+	}
+
+	exchangeAccountList := make([]*grpc.ShowAccountItem, 0)
 	for _, account := range accountList {
+		if account.Exchange == ctx.GetExchangeName() {
+			exchangeAccountList = append(exchangeAccountList, account)
+		}
+	}
+	if len(exchangeAccountList) == 0 {
+		return []prompt.Suggest{}
+	}
+
+	accounts := make([]prompt.Suggest, 0)
+	for _, account := range exchangeAccountList {
 		accounts = append(accounts, prompt.Suggest{
 			Text:        account.Name,
-			Description: fmt.Sprintf("%s：%s", account.TradeType, account.Exchange),
+			Description: fmt.Sprintf("%s：%s", account.TradeTypeValue, account.Exchange),
 		})
 	}
 
@@ -1190,17 +1258,34 @@ func useAccountsList(ctx *Context) []prompt.Suggest {
 // deleteAccountsList 获取账户列表（用于delete account命令）
 func deleteAccountsList(ctx *Context) []prompt.Suggest {
 
-	// 获取指定交易所的所有用户列表
-	accountList, err := repository.ExchangeAccountList(ctx.GetExchangeName())
+	grpcClient := ctx.GetGRPCClient()
+	if grpcClient == nil {
+		return []prompt.Suggest{}
+	}
+
+	accountList, err := grpcClient.GetAccounts()
 	if err != nil {
+		return []prompt.Suggest{}
+	}
+	if len(accountList) == 0 {
+		return []prompt.Suggest{}
+	}
+
+	exchangeAccountList := make([]*grpc.ShowAccountItem, 0)
+	for _, account := range accountList {
+		if account.Exchange == ctx.GetExchangeName() {
+			exchangeAccountList = append(exchangeAccountList, account)
+		}
+	}
+	if len(exchangeAccountList) == 0 {
 		return []prompt.Suggest{}
 	}
 
 	accounts := make([]prompt.Suggest, 0)
-	for _, account := range accountList {
+	for _, account := range exchangeAccountList {
 		accounts = append(accounts, prompt.Suggest{
 			Text:        account.Name,
-			Description: fmt.Sprintf("%s：%s", account.TradeType, account.Exchange),
+			Description: fmt.Sprintf("%s：%s", account.TradeTypeValue, account.Exchange),
 		})
 	}
 
