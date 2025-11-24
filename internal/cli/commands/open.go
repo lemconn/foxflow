@@ -5,11 +5,7 @@ import (
 	"strings"
 
 	"github.com/lemconn/foxflow/internal/cli/command"
-	"github.com/lemconn/foxflow/internal/config"
-	"github.com/lemconn/foxflow/internal/database"
 	"github.com/lemconn/foxflow/internal/engine/syntax"
-	"github.com/lemconn/foxflow/internal/exchange"
-	"github.com/lemconn/foxflow/internal/pkg/dao/model"
 	"github.com/lemconn/foxflow/internal/utils"
 	"github.com/shopspring/decimal"
 )
@@ -58,11 +54,6 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 		return fmt.Errorf("amount decimal error: %w", err)
 	}
 
-	side := "buy"
-	if posSide == "short" {
-		side = "sell"
-	}
-
 	strategy := ""
 	if len(args) >= 6 {
 		strategy = args[5]
@@ -76,92 +67,25 @@ func (c *OpenCommand) Execute(ctx command.Context, args []string) error {
 		}
 	}
 
-	if grpcClient := ctx.GetGRPCClient(); grpcClient != nil {
-		fmt.Println(utils.RenderInfo("正在通过 gRPC 提交开仓订单..."))
-		message, orderID, err := grpcClient.OpenOrder(
-			ctx.GetAccountInstance().Id,
-			ctx.GetExchangeName(),
-			symbolName,
-			posSide,
-			margin,
-			amountDecimal.String(),
-			amountType,
-			strategy,
-		)
-		if err == nil {
-			if orderID != "" {
-				fmt.Println(utils.RenderSuccess(fmt.Sprintf("%s (订单号: %s)", message, orderID)))
-			} else {
-				fmt.Println(utils.RenderSuccess(message))
-			}
-			return nil
-		}
-		fmt.Println(utils.RenderWarning(fmt.Sprintf("gRPC 提交订单失败，回退到本地模式: %v", err)))
+	grpcClient := ctx.GetGRPCClient()
+	if grpcClient == nil {
+		return fmt.Errorf("gRPC 客户端初始化异常")
 	}
 
-	return c.executeLocal(ctx, symbolName, posSide, margin, amountDecimal, amountType, side, strategy)
-}
-
-func (c *OpenCommand) executeLocal(ctx command.Context, symbolName, posSide, margin string, amountDecimal decimal.Decimal, amountType, side, strategy string) error {
-	exchangeSymbolList, exist := config.ExchangeSymbolList[ctx.GetExchangeName()]
-	if !exist {
-		return fmt.Errorf("交易所 %s 交易对信息不存在", ctx.GetExchangeName())
-	}
-
-	symbolInfo := config.SymbolInfo{}
-	for _, symbol := range exchangeSymbolList {
-		if symbol.Name == symbolName {
-			symbolInfo = symbol
-			break
-		}
-	}
-	if symbolInfo.Name == "" {
-		return fmt.Errorf("交易所 %s 交易对 %s 信息不存在", ctx.GetExchangeName(), symbolName)
-	}
-
-	exchangeClient, err := exchange.GetManager().GetExchange(ctx.GetExchangeName())
+	message, err := grpcClient.OpenOrder(
+		ctx.GetAccountInstance().Id,
+		ctx.GetExchangeName(),
+		symbolName,
+		posSide,
+		margin,
+		amountDecimal.String(),
+		amountType,
+		strategy,
+	)
 	if err != nil {
-		return fmt.Errorf("get exchange client error: %w", err)
+		return fmt.Errorf("提交订单失败: %v", err)
 	}
 
-	orderCostReq := &exchange.OrderCostReq{
-		Side:       side,
-		Symbol:     symbolName,
-		AmountType: amountType,
-		MarginType: margin,
-		Amount:     amountDecimal.String(),
-	}
-
-	costRes, costErr := exchangeClient.CalcOrderCost(ctx.GetContext(), orderCostReq)
-	if costErr != nil {
-		return costErr
-	}
-
-	if !costRes.CanBuyWithTaker {
-		return fmt.Errorf("当前暂时不可提交订单，标的价格：%s，可用资金：%s，手续费（%s 交易所收取）:%s，需要总资金：%s",
-			costRes.MarkPrice, costRes.AvailableFunds, ctx.GetExchangeName(), costRes.Fee, costRes.TotalRequired)
-	}
-
-	order := &model.FoxOrder{
-		OrderID:    exchangeClient.GetClientOrderId(ctx.GetContext()),
-		Exchange:   ctx.GetExchangeName(),
-		AccountID:  ctx.GetAccountInstance().Id,
-		Symbol:     symbolName,
-		PosSide:    posSide,
-		MarginType: margin,
-		Size:       amountDecimal.String(),
-		SizeType:   amountType,
-		Side:       side,
-		OrderType:  "market",
-		Strategy:   strategy,
-		Type:       "open",
-		Status:     "waiting",
-	}
-
-	if err := database.Adapter().FoxOrder.Create(order); err != nil {
-		return fmt.Errorf("create order error: %w", err)
-	}
-
-	fmt.Println(utils.RenderInfo("策略订单已创建，等待策略条件满足"))
+	fmt.Println(utils.RenderSuccess(message))
 	return nil
 }

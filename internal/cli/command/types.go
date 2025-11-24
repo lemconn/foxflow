@@ -6,20 +6,6 @@ import (
 	"github.com/lemconn/foxflow/internal/grpc"
 )
 
-const (
-	TopCommandHelp   = "help"
-	TopCommandShow   = "show"
-	TopCommandUse    = "use"
-	TopCommandCreate = "create"
-	TopCommandUpdate = "update"
-	TopCommandOpen   = "open"
-	TopCommandClose  = "close"
-	TopCommandCancel = "cancel"
-	TopCommandDelete = "delete"
-	TopCommandExit   = "exit"
-	TopCommandQuit   = "quit"
-)
-
 // Context 定义命令执行所需的最小上下文接口
 type Context interface {
 	// 基础

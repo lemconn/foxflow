@@ -698,25 +698,25 @@ func (c *Client) UpdateAccount(exchangeName, targetAccount, tradeType, name, api
 }
 
 // OpenOrder 提交开仓订单
-func (c *Client) OpenOrder(accountID int64, exchangeName, symbol, posSide, margin, amount, amountType, strategy string) (string, string, error) {
+func (c *Client) OpenOrder(accountID int64, exchangeName, symbol, posSide, margin, amount, amountType, strategy string) (string, error) {
 	if err := c.ensureValidToken(); err != nil {
-		return "", "", fmt.Errorf("token 验证失败: %w", err)
+		return "", fmt.Errorf("token 验证失败: %w", err)
 	}
 
 	if accountID <= 0 {
-		return "", "", fmt.Errorf("account_id 是必填参数")
+		return "", fmt.Errorf("account_id 是必填参数")
 	}
 	if exchangeName == "" || symbol == "" {
-		return "", "", fmt.Errorf("exchange 和 symbol 均为必填参数")
+		return "", fmt.Errorf("exchange 和 symbol 均为必填参数")
 	}
 	if posSide != "long" && posSide != "short" {
-		return "", "", fmt.Errorf("pos_side 只能为 long 或 short")
+		return "", fmt.Errorf("pos_side 只能为 long 或 short")
 	}
 	if margin != "isolated" && margin != "cross" {
-		return "", "", fmt.Errorf("margin 只能为 isolated 或 cross")
+		return "", fmt.Errorf("margin 只能为 isolated 或 cross")
 	}
 	if amount == "" {
-		return "", "", fmt.Errorf("amount 是必填参数")
+		return "", fmt.Errorf("amount 是必填参数")
 	}
 
 	side := "buy"
@@ -741,37 +741,32 @@ func (c *Client) OpenOrder(accountID int64, exchangeName, symbol, posSide, margi
 		Strategy:    strategy,
 	})
 	if err != nil {
-		return "", "", fmt.Errorf("failed to open order: %w", err)
+		return "", fmt.Errorf("failed to open order: %w", err)
 	}
 	if !resp.Success {
-		return "", "", fmt.Errorf("open order failed: %s", resp.Message)
+		return "", fmt.Errorf("open order failed: %s", resp.Message)
 	}
 
-	orderID := ""
-	if resp.Order != nil {
-		orderID = resp.Order.OrderId
-	}
-
-	return resp.Message, orderID, nil
+	return resp.Message, nil
 }
 
 // CloseOrder 提交平仓订单
-func (c *Client) CloseOrder(accountID int64, exchangeName, symbol, posSide, margin, strategy string) (string, string, error) {
+func (c *Client) CloseOrder(accountID int64, exchangeName, symbol, posSide, margin, strategy string) (string, error) {
 	if err := c.ensureValidToken(); err != nil {
-		return "", "", fmt.Errorf("token 验证失败: %w", err)
+		return "", fmt.Errorf("token 验证失败: %w", err)
 	}
 
 	if accountID <= 0 {
-		return "", "", fmt.Errorf("account_id 是必填参数")
+		return "", fmt.Errorf("account_id 是必填参数")
 	}
 	if exchangeName == "" || symbol == "" {
-		return "", "", fmt.Errorf("exchange 和 symbol 均为必填参数")
+		return "", fmt.Errorf("exchange 和 symbol 均为必填参数")
 	}
 	if posSide != "long" && posSide != "short" {
-		return "", "", fmt.Errorf("pos_side 只能为 long 或 short")
+		return "", fmt.Errorf("pos_side 只能为 long 或 short")
 	}
 	if margin != "isolated" && margin != "cross" {
-		return "", "", fmt.Errorf("margin 只能为 isolated 或 cross")
+		return "", fmt.Errorf("margin 只能为 isolated 或 cross")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -787,18 +782,13 @@ func (c *Client) CloseOrder(accountID int64, exchangeName, symbol, posSide, marg
 		Strategy:    strategy,
 	})
 	if err != nil {
-		return "", "", fmt.Errorf("failed to close order: %w", err)
+		return "", fmt.Errorf("failed to close order: %w", err)
 	}
 	if !resp.Success {
-		return "", "", fmt.Errorf("close order failed: %s", resp.Message)
+		return "", fmt.Errorf("close order failed: %s", resp.Message)
 	}
 
-	orderID := ""
-	if resp.Order != nil {
-		orderID = resp.Order.OrderId
-	}
-
-	return resp.Message, orderID, nil
+	return resp.Message, nil
 }
 
 // CreateAccount 创建账户
@@ -873,13 +863,13 @@ func (c *Client) DeleteAccount(name string) error {
 }
 
 // CancelOrder 取消策略订单
-func (c *Client) CancelOrder(accountID int64, exchangeName, symbol, side, posSide, amount, amountType string) (string, string, error) {
+func (c *Client) CancelOrder(accountID int64, exchangeName, symbol, side, posSide, amount, amountType string) (string, error) {
 	if err := c.ensureValidToken(); err != nil {
-		return "", "", fmt.Errorf("token 验证失败: %w", err)
+		return "", fmt.Errorf("token 验证失败: %w", err)
 	}
 
 	if accountID <= 0 {
-		return "", "", fmt.Errorf("account_id 是必填参数")
+		return "", fmt.Errorf("account_id 是必填参数")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -896,18 +886,13 @@ func (c *Client) CancelOrder(accountID int64, exchangeName, symbol, side, posSid
 		AmountType:  amountType,
 	})
 	if err != nil {
-		return "", "", fmt.Errorf("failed to cancel order: %w", err)
+		return "", fmt.Errorf("failed to cancel order: %w", err)
 	}
 	if !resp.Success {
-		return "", "", fmt.Errorf("cancel order failed: %s", resp.Message)
+		return "", fmt.Errorf("cancel order failed: %s", resp.Message)
 	}
-
-	orderID := ""
-	if resp.Order != nil {
-		orderID = resp.Order.OrderId
-	}
-
-	return resp.Message, orderID, nil
+	
+	return resp.Message, nil
 }
 
 // GetOrders 获取订单列表
@@ -962,6 +947,6 @@ func (c *Client) GetOrders(accountID int64, status []string) ([]*ShowOrderItem, 
 			UpdatedAt:  item.UpdatedAt,
 		})
 	}
-	
+
 	return orders, nil
 }
