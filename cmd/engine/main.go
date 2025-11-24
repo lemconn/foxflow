@@ -9,6 +9,7 @@ import (
 	"github.com/lemconn/foxflow/internal/config"
 	"github.com/lemconn/foxflow/internal/database"
 	"github.com/lemconn/foxflow/internal/engine"
+	"github.com/lemconn/foxflow/internal/engine/routine"
 	"github.com/lemconn/foxflow/internal/grpc"
 )
 
@@ -22,6 +23,9 @@ func main() {
 	if err := database.InitDB(); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
+
+	// 初始化交易所的标的数据
+	routine.InitExchangeSymbols()
 
 	// 创建策略引擎
 	engineInstance := engine.NewEngine()

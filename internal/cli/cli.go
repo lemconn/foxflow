@@ -13,7 +13,6 @@ import (
 	"github.com/lemconn/foxflow/internal/cli/render"
 	"github.com/lemconn/foxflow/internal/config"
 	"github.com/lemconn/foxflow/internal/grpc"
-	"github.com/lemconn/foxflow/internal/repository"
 	"github.com/lemconn/foxflow/internal/utils"
 
 	"github.com/c-bata/go-prompt"
@@ -29,9 +28,6 @@ type CLI struct {
 // NewCLI 创建新的CLI实例
 func NewCLI() (*CLI, error) {
 	ctx := NewContext(context.Background())
-
-	// 初始化交易所交易对数据
-	InitExchangeSymbols()
 
 	// 注册命令
 	cmdMap := map[string]command.Command{
@@ -289,13 +285,22 @@ func (c *CLI) setDefaultExchange() {
 		return
 	}
 
-	exchangesList, err := repository.ListExchanges()
-	if err != nil {
-		log.Printf("set default exchanges list error: %v\n", err)
+	// 检查是否有 gRPC 客户端
+	grpcClient := c.ctx.GetGRPCClient()
+	if grpcClient == nil {
+		// 如果没有 gRPC 客户端，使用本地模式
+		log.Printf("gRPC 客户端异常: %v\n", err)
 		return
 	}
 
-	if exchangesList == nil || len(exchangesList) == 0 {
+	// 使用 gRPC 获取账户列表
+	exchangesList, err := grpcClient.GetExchanges()
+	if err != nil {
+		log.Printf("gRPC 获取交易所列表失败: %v\n", err)
+		return
+	}
+
+	if len(exchangesList) == 0 {
 		log.Println("No exchange found")
 		return
 	}
@@ -310,7 +315,7 @@ func (c *CLI) setDefaultExchange() {
 		}
 
 		// 已经激活的交易所优先级最高
-		if exchange.IsActive == 1 {
+		if exchange.StatusValue == 1 {
 			exchangeName = exchange.Name
 			break
 		}
@@ -321,25 +326,49 @@ func (c *CLI) setDefaultExchange() {
 	err = useCommand.Execute(c.ctx, []string{"exchange", exchangeName})
 	if err != nil {
 		log.Printf("set default exchange execute error: %v\n", err)
-		// 如果设置默认交易所失败，至少设置交易所名称，避免完全无法使用
 		c.ctx.SetExchangeName(exchangeName)
-		// 尝试从数据库获取交易所信息作为备用
-		if exchangeInfo, dbErr := repository.GetExchange(exchangeName); dbErr == nil && exchangeInfo != nil {
-			c.ctx.SetExchangeInstance(&grpc.ShowExchangeItem{
-				Name:        exchangeInfo.Name,
-				APIUrl:      exchangeInfo.APIURL,
-				ProxyUrl:    exchangeInfo.ProxyURL,
-				StatusValue: exchangeInfo.IsActive,
-			})
+
+		exchangeList, exchangeListErr := grpcClient.GetExchanges()
+		if exchangeListErr == nil && len(exchangeList) > 0 {
+			var exchangeInfo *grpc.ShowExchangeItem
+			for _, exchange := range exchangeList {
+				if exchange.Name == exchangeName {
+					exchangeInfo = exchange
+				}
+			}
+
+			if exchangeInfo != nil {
+				c.ctx.SetExchangeInstance(exchangeInfo)
+			}
 		}
 	}
 }
 
 func (c *CLI) useActiveAccount() error {
-	activeAccount, err := repository.ActiveAccount()
+
+	// 检查是否有 gRPC 客户端
+	grpcClient := c.ctx.GetGRPCClient()
+	if grpcClient == nil {
+		// 如果没有 gRPC 客户端，使用本地模式
+		return fmt.Errorf("gRPC 客户端异常")
+	}
+
+	// 使用 gRPC 获取账户列表
+	accounts, err := grpcClient.GetAccounts()
 	if err != nil {
-		log.Printf("Failed to obtain activation account: %v\n", err)
-		return err
+		return fmt.Errorf("gRPC 获取账户列表失败: %v", err)
+	}
+
+	if len(accounts) == 0 {
+		return fmt.Errorf("暂无账户数据")
+	}
+
+	var activeAccount *grpc.ShowAccountItem
+	for _, account := range accounts {
+		if account.StatusValue == 1 {
+			activeAccount = account
+			break
+		}
 	}
 
 	if activeAccount == nil || activeAccount.Name == "" {
@@ -355,20 +384,26 @@ func (c *CLI) useActiveAccount() error {
 		c.ctx.SetExchangeName(activeAccount.Exchange)
 		c.ctx.SetAccountName(activeAccount.Name)
 		c.ctx.SetAccountInstance(&grpc.ShowAccountItem{
-			Id:             activeAccount.ID,
+			Id:             activeAccount.Id,
 			Name:           activeAccount.Name,
 			Exchange:       activeAccount.Exchange,
-			TradeTypeValue: activeAccount.TradeType,
+			TradeTypeValue: activeAccount.TradeTypeValue,
 		})
-		// 尝试从数据库获取交易所信息作为备用
-		if exchangeInfo, dbErr := repository.GetExchange(activeAccount.Exchange); dbErr == nil && exchangeInfo != nil {
-			c.ctx.SetExchangeInstance(&grpc.ShowExchangeItem{
-				Name:        exchangeInfo.Name,
-				APIUrl:      exchangeInfo.APIURL,
-				ProxyUrl:    exchangeInfo.ProxyURL,
-				StatusValue: exchangeInfo.IsActive,
-			})
+
+		exchangeList, exchangeListErr := grpcClient.GetExchanges()
+		if exchangeListErr == nil && len(exchangeList) > 0 {
+			var exchangeInfo *grpc.ShowExchangeItem
+			for _, exchange := range exchangeList {
+				if exchange.Name == activeAccount.Name {
+					exchangeInfo = exchange
+				}
+			}
+
+			if exchangeInfo != nil {
+				c.ctx.SetExchangeInstance(exchangeInfo)
+			}
 		}
+
 		return err
 	}
 

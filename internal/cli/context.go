@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lemconn/foxflow/internal/database"
 	"github.com/lemconn/foxflow/internal/exchange"
 	"github.com/lemconn/foxflow/internal/grpc"
 )
@@ -15,10 +14,10 @@ import (
 type Context struct {
 	ctx              context.Context
 	currentExchange  string
+	exchangeInstance *grpc.ShowExchangeItem
 	currentAccount   string
 	accountInstance  *grpc.ShowAccountItem
 	exchange         exchange.Exchange
-	exchangeInstance *grpc.ShowExchangeItem
 	grpcClient       *grpc.Client
 	tokenExpiresAt   int64 // Token 过期时间
 }
@@ -29,43 +28,7 @@ func NewContext(ctx context.Context) *Context {
 		ctx: ctx,
 	}
 
-	// 从数据库恢复激活状态
-	cliCtx.restoreActiveState()
-
 	return cliCtx
-}
-
-// restoreActiveState 从数据库恢复激活状态
-func (c *Context) restoreActiveState() {
-	exchangeManager := exchange.GetManager()
-
-	// 查找激活的交易所
-	activeExchange, err := database.Adapter().FoxExchange.Where(database.Adapter().FoxExchange.IsActive.Eq(1)).First()
-	if err == nil && activeExchange != nil {
-		c.currentExchange = activeExchange.Name
-
-		// 获取交易所实例
-		if ex, err := exchangeManager.GetExchange(activeExchange.Name); err == nil {
-			c.exchange = ex
-		}
-
-		// 查找激活的用户
-		activeAccount, err := database.Adapter().FoxAccount.Where(
-			database.Adapter().FoxAccount.IsActive.Eq(1),
-			database.Adapter().FoxAccount.Exchange.Eq(activeExchange.Name),
-		).First()
-		if err == nil {
-			c.currentAccount = activeAccount.Name
-
-			// 连接用户到交易所
-			if err := exchangeManager.ConnectAccount(c.ctx, activeExchange.Name, activeAccount); err == nil {
-				// 连接成功，更新交易所实例
-				if ex, err := exchangeManager.GetExchange(activeExchange.Name); err == nil {
-					c.exchange = ex
-				}
-			}
-		}
-	}
 }
 
 // SetExchangeName 设置当前交易所
