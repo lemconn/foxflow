@@ -7,9 +7,7 @@ import (
 
 	"github.com/lemconn/foxflow/internal/cli/command"
 	"github.com/lemconn/foxflow/internal/config"
-	"github.com/lemconn/foxflow/internal/exchange"
-	"github.com/lemconn/foxflow/internal/pkg/dao/model"
-	"github.com/lemconn/foxflow/internal/repository"
+	"github.com/lemconn/foxflow/internal/grpc"
 	"github.com/lemconn/foxflow/internal/utils"
 )
 
@@ -51,12 +49,17 @@ func (c *UpdateCommand) handleSymbolCommand(ctx command.Context, args []string) 
 	symbolName := strings.ToUpper(args[0])
 	exchangeName := ctx.GetExchangeName()
 
-	exchangeSymbol, exist := config.ExchangeSymbolList[exchangeName]
-	if !exist {
-		return fmt.Errorf("exchange symbol list not found")
+	grpcClient := ctx.GetGRPCClient()
+	if grpcClient == nil {
+		return fmt.Errorf("gRPC 客户端初始化异常")
 	}
 
-	var symbolInfo config.SymbolInfo
+	exchangeSymbol, err := grpcClient.GetSymbols(exchangeName, "")
+	if err != nil {
+		return err
+	}
+
+	var symbolInfo *grpc.ShowSymbolItem
 	for _, symbol := range exchangeSymbol {
 		if symbol.Name == symbolName {
 			symbolInfo = symbol
@@ -64,7 +67,7 @@ func (c *UpdateCommand) handleSymbolCommand(ctx command.Context, args []string) 
 		}
 	}
 
-	if symbolInfo.Name == "" {
+	if symbolInfo == nil || symbolInfo.Name == "" {
 		return fmt.Errorf("symbol does not exist")
 	}
 
@@ -86,21 +89,21 @@ func (c *UpdateCommand) handleSymbolCommand(ctx command.Context, args []string) 
 		return fmt.Errorf("invalid leverage/margin value")
 	}
 
-	if leverageValue > symbolInfo.MaxLever {
-		return fmt.Errorf("leverage value is too large, max leverage is %f", symbolInfo.MaxLever)
+	if leverageValue > symbolInfo.MaxLeverage {
+		return fmt.Errorf("leverage value is too large, max leverage is %d", symbolInfo.MaxLeverage)
 	}
 
-	if grpcClient := ctx.GetGRPCClient(); grpcClient != nil && ctx.GetAccountInstance() != nil {
-		fmt.Println(utils.RenderInfo("正在通过 gRPC 更新标的杠杆配置..."))
-		if err := grpcClient.UpdateSymbol(ctx.GetAccountInstance().Id, exchangeName, symbolName, marginType, leverageValue); err == nil {
-			fmt.Println(utils.RenderSuccess(fmt.Sprintf("更新标的杠杆成功: %s:%s:%s", symbolName, marginType, leverage)))
-			return nil
-		} else {
-			fmt.Println(utils.RenderWarning(fmt.Sprintf("gRPC 更新标的失败，回退到本地模式: %v", err)))
-		}
+	if ctx.GetAccountInstance() == nil {
+		return fmt.Errorf("account instance is nil")
 	}
 
-	return c.handleSymbolCommandLocal(ctx, exchangeName, symbolName, marginType, leverageValue, leverage)
+	err = grpcClient.UpdateSymbol(ctx.GetAccountInstance().Id, exchangeName, symbolName, marginType, leverageValue)
+	if err != nil {
+		return fmt.Errorf("gRPC 更新标的失败: %v", err)
+	}
+
+	fmt.Println(utils.RenderSuccess(fmt.Sprintf("更新标的杠杆成功: %s:%s:%s", symbolName, marginType, leverage)))
+	return nil
 }
 
 // handleAccountCommand 更新账户信息
@@ -137,98 +140,18 @@ func (c *UpdateCommand) handleAccountCommand(ctx command.Context, args []string)
 		return fmt.Errorf("okx exchange passphrase is required")
 	}
 
-	if grpcClient := ctx.GetGRPCClient(); grpcClient != nil {
-		fmt.Println(utils.RenderInfo("正在通过 gRPC 更新账户信息..."))
-		accountItem, err := grpcClient.UpdateAccount(ctx.GetExchangeName(), targetAccount, tradeType, name, apiKey, secretKey, passphrase)
-		if err == nil {
-			ctx.SetAccountName(accountItem.Name)
-			ctx.SetAccountInstance(accountItem)
-			fmt.Println(utils.RenderSuccess(fmt.Sprintf("更新账户成功: %s", targetAccount)))
-			return nil
-		}
-		fmt.Println(utils.RenderWarning(fmt.Sprintf("gRPC 更新账户失败，回退到本地模式: %v", err)))
+	grpcClient := ctx.GetGRPCClient()
+	if grpcClient == nil {
+		return fmt.Errorf("gRPC 客户端初始化异常")
 	}
 
-	return c.handleAccountCommandLocal(ctx, targetAccount, tradeType, name, apiKey, secretKey, passphrase)
-}
-
-func (c *UpdateCommand) handleSymbolCommandLocal(ctx command.Context, exchangeName, symbolName, marginType string, leverageValue int64, leverage string) error {
-	exchangeSymbol, exist := config.ExchangeSymbolList[exchangeName]
-	if !exist {
-		return fmt.Errorf("exchange symbol list not found")
-	}
-
-	var symbolInfo config.SymbolInfo
-	for _, symbol := range exchangeSymbol {
-		if symbol.Name == symbolName {
-			symbolInfo = symbol
-			break
-		}
-	}
-
-	if symbolInfo.Name == "" {
-		return fmt.Errorf("symbol does not exist")
-	}
-
-	if leverageValue > symbolInfo.MaxLever {
-		return fmt.Errorf("leverage value is too large, max leverage is %f", symbolInfo.MaxLever)
-	}
-
-	exchangeClient, err := exchange.GetManager().GetExchange(exchangeName)
+	accountItem, err := grpcClient.UpdateAccount(ctx.GetExchangeName(), targetAccount, tradeType, name, apiKey, secretKey, passphrase)
 	if err != nil {
-		return fmt.Errorf("get exchange client error: %w", err)
+		return fmt.Errorf("更新账户失败: %v", err)
 	}
 
-	if err := exchangeClient.SetLeverage(ctx.GetContext(), symbolName, leverageValue, marginType); err != nil {
-		return fmt.Errorf("set leverage error: %w", err)
-	}
-
-	fmt.Println(utils.RenderSuccess(fmt.Sprintf("更新标的杠杆成功: %s:%s:%s", symbolName, marginType, leverage)))
-	return nil
-}
-
-func (c *UpdateCommand) handleAccountCommandLocal(ctx command.Context, targetAccount, tradeType, name, apiKey, secretKey, passphrase string) error {
-	accountInfo, err := repository.FindAccountByExchangeName(ctx.GetExchangeName(), targetAccount)
-	if err != nil {
-		return fmt.Errorf("find account by name error: %w", err)
-	}
-
-	if accountInfo == nil || accountInfo.ID == 0 {
-		return fmt.Errorf("account not found")
-	}
-
-	account := &model.FoxAccount{
-		ID:         accountInfo.ID,
-		Exchange:   accountInfo.Exchange,
-		TradeType:  tradeType,
-		Name:       name,
-		AccessKey:  apiKey,
-		SecretKey:  secretKey,
-		Passphrase: passphrase,
-		IsActive:   accountInfo.IsActive,
-	}
-
-	exchangeClient, err := exchange.GetManager().GetExchange(account.Exchange)
-	if err != nil {
-		return fmt.Errorf("get exchange client error: %w", err)
-	}
-
-	exchangeAccount, err := exchangeClient.GetAccount(ctx.GetContext())
-	if err != nil {
-		return fmt.Errorf("get exchange account error: %w", err)
-	}
-
-	if err := exchangeClient.Connect(ctx.GetContext(), account); err != nil {
-		return fmt.Errorf("connect exchange error: %w", err)
-	}
-
-	if err := exchangeClient.SetAccount(ctx.GetContext(), exchangeAccount); err != nil {
-		return fmt.Errorf("set exchange account error: %w", err)
-	}
-
-	if err := repository.UpdateAccount(account); err != nil {
-		return fmt.Errorf("update account error: %w", err)
-	}
+	ctx.SetAccountName(accountItem.Name)
+	ctx.SetAccountInstance(accountItem)
 
 	fmt.Println(utils.RenderSuccess(fmt.Sprintf("更新账户成功: %s", targetAccount)))
 	return nil
