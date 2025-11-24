@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/lemconn/foxflow/internal/cli/command"
-	"github.com/lemconn/foxflow/internal/repository"
 	"github.com/lemconn/foxflow/internal/utils"
 )
 
@@ -29,30 +28,16 @@ func (c *DeleteCommand) Execute(ctx command.Context, args []string) error {
 }
 
 func (c *DeleteCommand) handleAccountCommand(ctx command.Context, name string) error {
-	if grpcClient := ctx.GetGRPCClient(); grpcClient != nil {
-		fmt.Println(utils.RenderInfo(fmt.Sprintf("正在通过 gRPC 删除账户 %s...", name)))
-		if err := grpcClient.DeleteAccount(name); err == nil {
-			fmt.Println(utils.RenderSuccess(fmt.Sprintf("用户已删除: %s", name)))
-			return nil
-		} else {
-			fmt.Println(utils.RenderWarning(fmt.Sprintf("gRPC 删除账户失败，回退到本地模式: %v", err)))
-		}
+	grpcClient := ctx.GetGRPCClient()
+	if grpcClient == nil {
+		return fmt.Errorf("gRPC 客户端初始化异常")
 	}
 
-	userInfo, err := repository.FindAccountByName(name)
+	err := grpcClient.DeleteAccount(name)
 	if err != nil {
-		return fmt.Errorf("failed to find account: %w", err)
-	}
-
-	if userInfo == nil || userInfo.ID == 0 {
-		return fmt.Errorf("account %s not found", name)
-	}
-
-	if err := repository.DeleteAccountByName(name); err != nil {
-		return fmt.Errorf("failed to delete account: %w", err)
+		return fmt.Errorf("删除账户失败: %v", err)
 	}
 
 	fmt.Println(utils.RenderSuccess(fmt.Sprintf("用户已删除: %s", name)))
-
 	return nil
 }
